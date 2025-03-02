@@ -1,11 +1,13 @@
-import { Button } from "@/components/ui/button";
+import { HomePage } from "@/pages/HomePage";
+import { useEffect } from "react";
+// import { setupRemoteControl } from "@/lib/remote-control";
 
 function App() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-svh">
-      <Button>Click me</Button>
-    </div>
-  );
+  useEffect(() => {
+    // setupRemoteControl();
+  }, []);
+
+  return <HomePage />;
 }
 
 export default App;
