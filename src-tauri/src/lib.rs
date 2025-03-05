@@ -10,11 +10,7 @@ struct AppConfig {
 }
 
 #[tauri::command]
-async fn get_apps() -> Result<Vec<AppConfig>, String> {
-    let config_path = dirs::home_dir()
-        .ok_or("Home directory not found!")?
-        .join("tv-ui.json");
-
+async fn get_apps(config_path: String) -> Result<Vec<AppConfig>, String> {
     let content = match std::fs::read_to_string(&config_path) {
         Ok(c) => c,
         Err(_) => return Ok(vec![]),
@@ -27,18 +23,17 @@ async fn get_apps() -> Result<Vec<AppConfig>, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                ])
+                .level(log::LevelFilter::Debug)
+                .build()
+        )
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![get_apps])
-        .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-            Ok(())
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

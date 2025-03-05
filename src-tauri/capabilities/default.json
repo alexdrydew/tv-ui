@@ -4,6 +4,7 @@
   "description": "Default capability for main window",
   "windows": ["main"],
   "permissions": [
+    "log:default",
     "core:path:default",
     "core:event:default",
     "core:window:default",
@@ -13,15 +14,23 @@
       "identifier": "fs:scope",
       "allow": [
         {
-          "path": "$HOME/tv-ui.json",
+          "path": "$APPCONFIG",
           "scope": {
-            "allow": ["read"],
-            "description": "Read TV UI config"
+            "allow": ["read", "watch", "create"],
+            "description": "Read and watch app config directory"
+          }
+        },
+        {
+          "path": "$APPCONFIG/tv-ui.json",
+          "scope": {
+            "allow": ["read", "watch"],
+            "description": "Read and watch TV UI config file"
           }
         }
       ]
     },
-    "fs:read-files",
-    "fs:allow-exists"
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:allow-watch"
   ]
 }
