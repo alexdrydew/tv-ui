@@ -13,3 +13,5 @@ neutralino.js
 *.log
 .aider.*
 .tmp*
+
+**/node_modules/*

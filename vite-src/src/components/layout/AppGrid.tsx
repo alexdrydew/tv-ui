@@ -14,18 +14,14 @@ interface AppGridProps {
 }
 
 export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
-  const ITEMS_PER_ROW = 4;
-  const { focusedIndex, setFocusedIndex } = useFocusNavigation(
-    apps.length,
-    ITEMS_PER_ROW,
-  );
+  const { focusedIndex, setFocusedIndex } = useFocusNavigation(apps.length);
 
   const handleSelect = (command: string) => {
     onLaunchApp(command);
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 p-4">
+    <div className="flex gap-8 p-4">
       {apps.map((app, index) => (
         <AppTile
           key={app.id}

@@ -17,6 +17,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.9
         version: 4.0.9(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(lightningcss@1.29.1))
+      '@tauri-apps/api':
+        specifier: ^2.3.0
+        version: 2.3.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -568,6 +571,9 @@ packages:
     resolution: {integrity: sha512-BIKJO+hwdIsN7V6I7SziMZIVHWWMsV/uCQKYEbeiGRDRld+TkqyRRl9+dQ0MCXbhcVr+D9T/qX2E84kT7V281g==}
     peerDependencies:
       vite: ^5.2.0 || ^6
+
+  '@tauri-apps/api@2.3.0':
+    resolution: {integrity: sha512-33Z+0lX2wgZbx1SPFfqvzI6su63hCBkbzv+5NexeYjIx7WA9htdOKoRR7Dh3dJyltqS5/J8vQFyybiRoaL0hlA==}
 
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
@@ -1537,6 +1543,8 @@ snapshots:
       lightningcss: 1.29.1
       tailwindcss: 4.0.9
       vite: 6.2.0(@types/node@22.13.8)(jiti@2.4.2)(lightningcss@1.29.1)
+
+  '@tauri-apps/api@2.3.0': {}
 
   '@types/estree@1.0.6': {}
 

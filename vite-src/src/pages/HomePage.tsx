@@ -1,30 +1,13 @@
 import { TvAppLayout } from "@/components/layout/TvAppLayout";
 import { Header } from "@/components/layout/Header";
 import { AppGrid } from "@/components/layout/AppGrid";
-// import { api } from "@/lib/api";
-
-const SAMPLE_APPS = [
-  {
-    id: "1",
-    name: "Netflix",
-    icon: "/icons/netflix.png",
-    launchCommand: "netflix://app",
-  },
-  {
-    id: "2",
-    name: "YouTube",
-    icon: "/icons/youtube.png",
-    launchCommand: "youtube://app",
-  },
-  {
-    id: "3",
-    name: "Spotify",
-    icon: "/icons/spotify.png",
-    launchCommand: "spotify://app",
-  },
-];
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 export function HomePage() {
+  const [apps, setApps] = useState<App[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const handleLaunchApp = (command: string) => {
     console.log(command);
     // api.os.execCommand(command).catch((error) => {
@@ -32,13 +15,44 @@ export function HomePage() {
     // });
   };
 
+  useEffect(() => {
+    invoke<App[]>("get_apps")
+      .then((configApps) => {
+        setApps(
+          configApps.length > 0
+            ? configApps
+            : [
+                {
+                  id: "default-1",
+                  name: "Sample App",
+                  icon: "/icons/default.png",
+                  launchCommand: "sample://app",
+                },
+              ],
+        );
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div>Loading apps...</div>;
+  }
+
   return (
     <TvAppLayout>
       <Header />
       <main className="py-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-6 px-8">Apps</h2>
-        <AppGrid apps={SAMPLE_APPS} onLaunchApp={handleLaunchApp} />
+        <AppGrid apps={apps} onLaunchApp={handleLaunchApp} />
       </main>
     </TvAppLayout>
   );
+}
+
+interface App {
+  id: string;
+  name: string;
+  icon: string;
+  launchCommand: string;
 }

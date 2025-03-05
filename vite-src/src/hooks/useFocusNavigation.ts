@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export function useFocusNavigation(itemCount: number, rowSize: number) {
+export function useFocusNavigation(itemCount: number) {
   const [focusedIndex, setFocusedIndex] = useState(0);
 
   useEffect(() => {
@@ -12,18 +12,19 @@ export function useFocusNavigation(itemCount: number, rowSize: number) {
         case "ArrowLeft":
           setFocusedIndex((prev) => Math.max(prev - 1, 0));
           break;
-        case "ArrowDown":
-          setFocusedIndex((prev) => Math.min(prev + rowSize, itemCount - 1));
-          break;
-        case "ArrowUp":
-          setFocusedIndex((prev) => Math.max(prev - rowSize, 0));
-          break;
+        // TODO:
+        // case "ArrowDown":
+        //   setFocusedIndex((prev) => Math.min(prev + rowSize, itemCount - 1));
+        //   break;
+        // case "ArrowUp":
+        //   setFocusedIndex((prev) => Math.max(prev - rowSize, 0));
+        //   break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [itemCount, rowSize]);
+  }, [itemCount]);
 
   return { focusedIndex, setFocusedIndex };
 }
