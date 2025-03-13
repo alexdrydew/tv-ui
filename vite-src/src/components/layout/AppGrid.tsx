@@ -6,6 +6,7 @@ interface App {
   name: string;
   icon: string;
   launchCommand: string;
+  pid?: number;
 }
 
 interface AppGridProps {
@@ -28,6 +29,7 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
           name={app.name}
           icon={app.icon}
           isFocused={focusedIndex === index}
+          isRunning={app.pid !== undefined}
           onFocus={() => setFocusedIndex(index)}
           onSelect={() => handleSelect(app.launchCommand)}
         />

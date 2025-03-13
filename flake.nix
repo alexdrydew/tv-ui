@@ -13,7 +13,7 @@
       system: let
         pkgs = import inputs.nixpkgs {
           inherit system;
-          overlays = [inputs.rust-overlay.overlays.default];
+          # overlays = [inputs.rust-overlay.overlays.default];
         };
         inherit (pkgs) lib;
       in {
@@ -21,6 +21,11 @@
           $SHELL
         '';
         devShell = pkgs.mkShell {
+          env = {
+            # this somehow fixes https://github.com/rust-lang/rust-analyzer/issues/19135
+            RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
+          };
+
           nativeBuildInputs = with pkgs; [
             pkg-config
             gobject-introspection
@@ -42,7 +47,10 @@
               libsoup_3
               pango
               openssl
-              (pkgs.rust-bin.stable.latest.default.override {extensions = ["rust-src"];})
+
+              rustup
+              lld
+              # (pkgs.rust-bin.stable.latest.default.override {extensions = ["rust-src" "rust-analyzer"];})
 
               nodePackages.pnpm
               nodePackages.typescript

@@ -56,7 +56,6 @@ async function setupFileWatcher(onConfigChange: () => void) {
   return stop;
 }
 
-// The actual hook
 export function useAppConfiguration() {
   const [apps, setApps] = useState<App[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,13 +64,10 @@ export function useAppConfiguration() {
     let unwatch: () => void = () => {};
     let detachConsole: () => void = () => {};
 
-    // Main setup function
     async function initialize() {
       try {
-        // Setup logging
         detachConsole = await setupConsoleLogging();
 
-        // Load apps initially
         const fetchApps = async () => {
           try {
             const configApps = await loadAppsFromConfig();
@@ -84,14 +80,12 @@ export function useAppConfiguration() {
           }
         };
 
-        // Setup file watcher
         try {
           unwatch = await setupFileWatcher(fetchApps);
         } catch (e) {
           error(`Error setting up watcher: ${e}`);
         }
 
-        // Initial load
         await fetchApps();
       } catch (e) {
         error(`Initialization error: ${e}`);
@@ -101,7 +95,6 @@ export function useAppConfiguration() {
 
     initialize();
 
-    // Cleanup function
     return () => {
       unwatch();
       detachConsole();
