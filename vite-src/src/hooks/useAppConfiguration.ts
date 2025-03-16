@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { getApps } from "@/api/application";
 import { watchImmediate, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { debug, info, error, attachConsole } from "@tauri-apps/plugin-log";
@@ -24,7 +24,7 @@ async function setupConsoleLogging() {
 async function loadAppsFromConfig() {
   const appConfigPath = await appConfigDir();
   const configPath = await join(appConfigPath, "tv-ui.json");
-  return await invoke<App[]>("get_apps", { configPath });
+  return await getApps(configPath);
 }
 
 async function setupFileWatcher(onConfigChange: () => void) {
