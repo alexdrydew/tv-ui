@@ -1,23 +1,16 @@
 import { AppTile } from "@/components/cards/AppTile";
+import { App } from "@/hooks/useAppConfiguration";
 import { useFocusNavigation } from "@/hooks/useFocusNavigation";
-
-interface App {
-  id: string;
-  name: string;
-  icon: string;
-  launchCommand: string;
-  pid?: number;
-}
 
 interface AppGridProps {
   apps: App[];
-  onLaunchApp: (command: string) => void;
+  onLaunchApp: (command: App) => void;
 }
 
 export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
   const { focusedIndex, setFocusedIndex } = useFocusNavigation(apps.length);
 
-  const handleSelect = (command: string) => {
+  const handleSelect = (command: App) => {
     onLaunchApp(command);
   };
 
@@ -31,7 +24,7 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
           isFocused={focusedIndex === index}
           isRunning={app.pid !== undefined}
           onFocus={() => setFocusedIndex(index)}
-          onSelect={() => handleSelect(app.launchCommand)}
+          onSelect={() => handleSelect(app)}
         />
       ))}
     </div>

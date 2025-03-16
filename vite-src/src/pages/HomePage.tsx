@@ -3,12 +3,12 @@ import { Header } from "@/components/layout/Header";
 import { AppGrid } from "@/components/layout/AppGrid";
 import { invoke } from "@tauri-apps/api/core";
 import { info, error } from "@tauri-apps/plugin-log";
-import { useAppConfiguration } from "@/hooks/useAppConfiguration";
+import { useAppConfiguration, App } from "@/hooks/useAppConfiguration";
 
 export function HomePage() {
-  const handleLaunchApp = (command: string) => {
-    info(`Launching app: ${command}`);
-    invoke("launch_app", { executablePath: command })
+  const handleLaunchApp = (app: App) => {
+    info(`Launching app: ${app.name}`);
+    invoke("launch_app", { executablePath: app.launchCommand, appId: app.id })
       .then((pid) => {
         info(`App launched with PID: ${pid}`);
       })

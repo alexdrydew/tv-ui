@@ -4,11 +4,12 @@ import { watchImmediate, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { debug, info, error, attachConsole } from "@tauri-apps/plugin-log";
 
-interface App {
+export interface App {
   id: string;
   name: string;
   icon: string;
   launchCommand: string;
+  pid?: number;
 }
 
 async function setupConsoleLogging() {
