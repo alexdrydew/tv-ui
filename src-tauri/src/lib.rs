@@ -61,32 +61,42 @@ fn emit_or_log(app: &AppHandle, event: &str, payload: impl Serialize + Clone) {
     }
 }
 
-// ai! add debug logging to this function, use log::debug!
 async fn run_process_watcher(
     app: AppHandle,
     mut child: Child,
     apps_state: LaunchedApps,
     app_id: String,
 ) {
+    log::debug!("Starting process watcher for app_id: {}", app_id);
     let result = match child.wait().await {
         Ok(status) => {
+            log::debug!("Process exited with status: {:?}", status);
             if status.success() {
                 AppExitResult::Success
             } else if let Some(code) = status.code() {
+                log::debug!("Process exited with code: {}", code);
                 AppExitResult::ExitCode(code)
             } else if let Some(signal) = status.stopped_signal() {
+                log::debug!("Process stopped by signal: {}", signal);
                 AppExitResult::Signal(signal)
             } else {
+                log::debug!("Process exited with unknown status");
                 AppExitResult::Unknown
             }
         }
-        Err(_) => AppExitResult::Unknown,
+        Err(e) => {
+            log::debug!("Process wait error: {}", e);
+            AppExitResult::Unknown
+        }
     };
 
     let mut map_guard = apps_state.0.lock().await;
     if let Some(app_state) = map_guard.get_mut(&app_id) {
+        log::debug!("Updating app state for {} with result: {:?}", app_id, result);
         app_state.exit_result = Some(result);
         emit_or_log(&app, APP_UPDATE_EVENT, *app_state);
+    } else {
+        log::debug!("App {} not found in state map", app_id);
     }
 }
 
