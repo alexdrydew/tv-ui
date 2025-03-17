@@ -92,7 +92,11 @@ async fn run_process_watcher(
 
     let mut map_guard = apps_state.0.lock().await;
     if let Some(app_state) = map_guard.get_mut(&app_id) {
-        log::debug!("Updating app state for {} with result: {:?}", app_id, result);
+        log::debug!(
+            "Updating app state for {} with result: {:?}",
+            app_id,
+            result
+        );
         app_state.exit_result = Some(result);
         emit_or_log(&app, APP_UPDATE_EVENT, *app_state);
     } else {
@@ -102,7 +106,7 @@ async fn run_process_watcher(
 
 #[tauri::command]
 async fn launch_app(
-    executable_path: String,
+    command: String,
     app_id: String,
     apps_state: State<'_, LaunchedApps>,
     app: AppHandle,
@@ -114,7 +118,17 @@ async fn launch_app(
         }
     }
 
-    let child = Command::new(executable_path)
+    let cmd_parts: Vec<&str> = command.split_whitespace().collect();
+    if cmd_parts.is_empty() {
+        return Err("Empty command".to_owned());
+    }
+    let mut initial_builder = Command::new(cmd_parts[0]);
+    let mut child_builder = &mut initial_builder;
+    for part in cmd_parts[1..].iter() {
+        child_builder = child_builder.arg(part);
+    }
+
+    let child = child_builder
         .spawn()
         .map_err(|e| format!("Launch error: {}", e))?;
     let pid = child.id().ok_or("Application immediately closed")?;

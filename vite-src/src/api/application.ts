@@ -1,19 +1,32 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { App } from "@/hooks/useAppConfiguration";
 
-export function launchApp(executablePath: string, appId: string): Promise<number> {
-  return invoke("launch_app", { executablePath, appId });
+export interface AppConfig {
+  id: string;
+  name: string;
+  icon: string;
+  launchCommand: string;
 }
 
-export function getApps(configPath: string): Promise<App[]> {
-  return invoke("get_apps", { configPath });
+export function launchApp(command: string, appId: string): Promise<AppState> {
+  return invoke("launch_app", { command, appId });
+}
+
+export function getAppConfigs(configPath: string): Promise<AppConfig[]> {
+  return invoke("get_app_configs", { configPath });
 }
 
 export interface AppState {
   pid: number;
-  exit_result: "Success" | { ExitCode: number } | { Signal: number } | "Unknown" | null;
+  exit_result:
+    | "Success"
+    | { ExitCode: number }
+    | { Signal: number }
+    | "Unknown"
+    | null;
 }
 
 export function getAppState(appId: string): Promise<AppState | null> {
   return invoke("get_command", { appId });
 }
+
+export const APP_UPDATE_EVENT = "app-updated";

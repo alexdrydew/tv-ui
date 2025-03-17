@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react";
-import { getApps } from "@/api/application";
+import { getAppConfigs } from "@/api/application";
 import { watchImmediate, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { debug, info, error, attachConsole } from "@tauri-apps/plugin-log";
+import { App, initAppsFromConfigs } from "@/entities/app";
+import { useAppsState } from "./useAppsState";
 
-export interface App {
-  id: string;
-  name: string;
-  icon: string;
-  launchCommand: string;
-  pid?: number;
-}
-
-async function setupConsoleLogging() {
+async function setupConsoleLogging(): Promise<() => void> {
   try {
     return await attachConsole();
   } catch (e) {
@@ -21,13 +15,16 @@ async function setupConsoleLogging() {
   }
 }
 
-async function loadAppsFromConfig() {
+async function loadApps(): Promise<App[]> {
   const appConfigPath = await appConfigDir();
   const configPath = await join(appConfigPath, "tv-ui.json");
-  return await getApps(configPath);
+  const configs = await getAppConfigs(configPath);
+  return initAppsFromConfigs(configs);
 }
 
-async function setupFileWatcher(onConfigChange: () => void) {
+async function setupFileWatcher(
+  onConfigChange: () => void,
+): Promise<() => void> {
   const appConfigPath = await appConfigDir();
 
   if (!(await exists(appConfigPath))) {
@@ -58,7 +55,7 @@ async function setupFileWatcher(onConfigChange: () => void) {
 }
 
 export function useAppConfiguration() {
-  const [apps, setApps] = useState<App[]>([]);
+  const [apps, setApps] = useAppsState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,8 +68,7 @@ export function useAppConfiguration() {
 
         const fetchApps = async () => {
           try {
-            const configApps = await loadAppsFromConfig();
-            setApps(configApps.length > 0 ? configApps : []);
+            setApps(await loadApps());
           } catch (e) {
             error(`Failed to load apps: ${e}`);
           } finally {

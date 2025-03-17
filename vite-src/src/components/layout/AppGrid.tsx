@@ -1,5 +1,5 @@
 import { AppTile } from "@/components/cards/AppTile";
-import { App } from "@/hooks/useAppConfiguration";
+import { App, is_launched } from "@/entities/app";
 import { useFocusNavigation } from "@/hooks/useFocusNavigation";
 
 interface AppGridProps {
@@ -18,11 +18,11 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
     <div className="flex gap-8 p-4">
       {apps.map((app, index) => (
         <AppTile
-          key={app.id}
-          name={app.name}
-          icon={app.icon}
+          key={app.config.id}
+          name={app.config.name}
+          icon={app.config.icon}
           isFocused={focusedIndex === index}
-          isRunning={app.pid !== undefined}
+          isRunning={is_launched(app)}
           onFocus={() => setFocusedIndex(index)}
           onSelect={() => handleSelect(app)}
         />
