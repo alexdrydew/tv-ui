@@ -119,16 +119,10 @@ async fn launch_app(
     }
 
     let cmd_parts: Vec<&str> = command.split_whitespace().collect();
-    if cmd_parts.is_empty() {
-        return Err("Empty command".to_owned());
-    }
-    let mut initial_builder = Command::new(cmd_parts[0]);
-    let mut child_builder = &mut initial_builder;
-    for part in cmd_parts[1..].iter() {
-        child_builder = child_builder.arg(part);
-    }
+    let (cmd, args) = cmd_parts.split_first().ok_or("Empty command")?;
 
-    let child = child_builder
+    let child = Command::new(cmd)
+        .args(args)
         .spawn()
         .map_err(|e| format!("Launch error: {}", e))?;
     let pid = child.id().ok_or("Application immediately closed")?;
