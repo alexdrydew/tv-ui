@@ -1,36 +1,46 @@
 import { APP_UPDATE_EVENT } from "@/api/application";
 import { AppStateSchema } from "@/api/schema";
-import { App, LaunchedApp } from "@/entities/app";
+import { App, AppState } from "@/entities/app";
 import { listen } from "@tauri-apps/api/event";
-import { debug } from "@tauri-apps/plugin-log";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export function useAppsState(
-  apps: Record<string, App>,
-): [Record<string, App>, (apps: Record<string, App>) => void] {
-  const [appsState, setAppsState] = useState(apps);
+  initialApps: App[]
+): [Record<string, App>, (apps: App[]) => void] {
+  const [appsState, setAppsState] = useState<Record<string, App>>(
+    Object.fromEntries(initialApps.map(app => [app.config.id, app]))
+  );
 
   useEffect(() => {
-    let unlisten: () => void = () => {};
+    const unlistenPromise = listen<AppState>(APP_UPDATE_EVENT, (event) => {
+      const updatedState = AppStateSchema.parse(event.payload);
+      setAppsState(prev => ({
+        ...prev,
+        [updatedState.id]: {
+          ...prev[updatedState.id],
+          state: updatedState
+        }
+      }));
+    });
 
-    async function subscribeToAppEvents() {
-      unlisten = await listen(APP_UPDATE_EVENT, (event) => {
-        const updatedState = AppStateSchema.parse(event);
-        const currentApp = appsState[updatedState.id];
-        const launchedApp: LaunchedApp = {
-          ...currentApp,
-          state: updatedState,
-        };
-        appsState[updatedState.id] = launchedApp;
-        setAppsState(appsState);
-        debug(`event: ${JSON.stringify(updatedState)}`);
-      });
-    }
-
-    subscribeToAppEvents();
-
-    return () => unlisten();
+    return () => {
+      unlistenPromise.then(fn => fn()).catch(console.error);
+    };
   }, []);
 
-  return [appsState, setAppsState];
+  const updateApps = useCallback((newApps: App[]) => {
+    setAppsState(prev => {
+      const newState = { ...prev };
+      // Merge new configs with existing state
+      newApps.forEach(app => {
+        newState[app.config.id] = {
+          ...app,
+          state: prev[app.config.id]?.state
+        };
+      });
+      return newState;
+    });
+  }, []);
+
+  return [appsState, updateApps];
 }

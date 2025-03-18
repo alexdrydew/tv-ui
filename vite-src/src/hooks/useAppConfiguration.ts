@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getAppConfigs } from "@/api/application";
 import { watchImmediate, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
@@ -55,8 +55,11 @@ async function setupFileWatcher(
 }
 
 export function useAppConfiguration() {
-  const [apps, setApps] = useAppsState([]);
+  const [appsState, updateApps] = useAppsState([]);
   const [loading, setLoading] = useState(true);
+
+  // Convert Record back to array for components
+  const apps = useMemo(() => Object.values(appsState), [appsState]);
 
   useEffect(() => {
     let unwatch: () => void = () => {};
@@ -65,38 +68,21 @@ export function useAppConfiguration() {
     async function initialize() {
       try {
         detachConsole = await setupConsoleLogging();
-
-        const fetchApps = async () => {
-          try {
-            setApps(await loadApps());
-          } catch (e) {
-            error(`Failed to load apps: ${e}`);
-          } finally {
-            setLoading(false);
-            debug("Finished loading apps");
-          }
-        };
-
-        try {
-          unwatch = await setupFileWatcher(fetchApps);
-        } catch (e) {
-          error(`Error setting up watcher: ${e}`);
-        }
-
-        await fetchApps();
-      } catch (e) {
-        error(`Initialization error: ${e}`);
+        unwatch = await setupFileWatcher(() => {
+          loadApps().then(updateApps);
+        });
+        await loadApps().then(updateApps);
+      } finally {
         setLoading(false);
       }
     }
 
     initialize();
-
     return () => {
-      unwatch();
-      detachConsole();
+      unwatch?.();
+      detachConsole?.();
     };
-  }, []);
+  }, [updateApps]);
 
   return { apps, loading };
 }
