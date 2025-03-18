@@ -1,14 +1,7 @@
-// ai! convert this zod schema to simple type
-export const AppStateSchema = z.object({
-  id: z.string(),
-  pid: z.number(),
-  exit_result: z.union([
-    z.literal("Success"),
-    z.object({ ExitCode: z.number() }),
-    z.object({ Signal: z.number() }),
-    z.literal("Unknown"),
-    z.null(),
-  ]),
-});
+export type AppExitResult = "Success" | { ExitCode: number } | { Signal: number } | "Unknown" | null;
 
-export type AppState = z.infer<typeof AppStateSchema>;
+export interface AppState {
+  id: string;
+  pid: number;
+  exit_result: AppExitResult;
+}
