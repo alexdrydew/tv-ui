@@ -1,4 +1,5 @@
-import { AppConfig, AppState, launchApp } from "@/api/application";
+import { AppConfig, launchApp } from "@/api/application";
+import { AppState } from "@/api/schema";
 
 export interface App {
   config: AppConfig;
