@@ -58,7 +58,6 @@ export function useAppConfiguration() {
   const [appsState, updateApps] = useAppsState([]);
   const [loading, setLoading] = useState(true);
 
-  // Convert Record back to array for components
   const apps = useMemo(() => Object.values(appsState), [appsState]);
 
   useEffect(() => {

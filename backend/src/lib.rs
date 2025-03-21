@@ -34,9 +34,11 @@ enum AppExitResult {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct AppState {
+    id: String,
     pid: u32,
+    #[serde(rename = "exitResult")]
     exit_result: Option<AppExitResult>,
 }
 
@@ -98,7 +100,7 @@ async fn run_process_watcher(
             result
         );
         app_state.exit_result = Some(result);
-        emit_or_log(&app, APP_UPDATE_EVENT, *app_state);
+        emit_or_log(&app, APP_UPDATE_EVENT, app_state.clone());
     } else {
         log::debug!("App {} not found in state map", app_id);
     }
@@ -135,11 +137,12 @@ async fn launch_app(
     ));
 
     let app_state = map_guard.entry(app_id.to_owned()).or_insert(AppState {
+        id: app_id.to_owned(),
         pid,
         exit_result: None,
     });
-    emit_or_log(&app, APP_UPDATE_EVENT, *app_state);
-    Ok(*app_state)
+    emit_or_log(&app, APP_UPDATE_EVENT, app_state.clone());
+    Ok(app_state.clone())
 }
 
 #[tauri::command]

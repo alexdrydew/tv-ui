@@ -1,5 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export type AppExitResult =
+  | "Success"
+  | { ExitCode: number }
+  | { Signal: number }
+  | "Unknown"
+  | null;
+
+export interface AppState {
+  id: string;
+  pid: number;
+  exitResult: AppExitResult;
+}
 export interface AppConfig {
   id: string;
   name: string;
@@ -13,16 +25,6 @@ export function launchApp(command: string, appId: string): Promise<AppState> {
 
 export function getAppConfigs(configPath: string): Promise<AppConfig[]> {
   return invoke("get_app_configs", { configPath });
-}
-
-export interface AppState {
-  pid: number;
-  exit_result:
-    | "Success"
-    | { ExitCode: number }
-    | { Signal: number }
-    | "Unknown"
-    | null;
 }
 
 export function getAppState(appId: string): Promise<AppState | null> {
