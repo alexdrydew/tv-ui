@@ -36,7 +36,8 @@ enum AppExitResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct AppState {
-    id: String,
+    #[serde(rename = "configId")]
+    config_id: String,
     pid: u32,
     #[serde(rename = "exitResult")]
     exit_result: Option<AppExitResult>,
@@ -67,9 +68,9 @@ async fn run_process_watcher(
     app: AppHandle,
     mut child: Child,
     apps_state: LaunchedApps,
-    app_id: String,
+    config_id: String,
 ) {
-    log::debug!("Starting process watcher for app_id: {}", app_id);
+    log::debug!("Starting process watcher for config_id: {}", config_id);
     let result = match child.wait().await {
         Ok(status) => {
             log::debug!("Process exited with status: {:?}", status);
@@ -93,30 +94,30 @@ async fn run_process_watcher(
     };
 
     let mut map_guard = apps_state.0.lock().await;
-    if let Some(app_state) = map_guard.get_mut(&app_id) {
+    if let Some(app_state) = map_guard.get_mut(&config_id) {
         log::debug!(
             "Updating app state for {} with result: {:?}",
-            app_id,
+            config_id,
             result
         );
         app_state.exit_result = Some(result);
         emit_or_log(&app, APP_UPDATE_EVENT, app_state.clone());
     } else {
-        log::debug!("App {} not found in state map", app_id);
+        log::debug!("App {} not found in state map", config_id);
     }
 }
 
 #[tauri::command]
 async fn launch_app(
     command: String,
-    app_id: String,
+    config_id: String,
     apps_state: State<'_, LaunchedApps>,
     app: AppHandle,
 ) -> Result<AppState, String> {
     let mut map_guard = apps_state.0.lock().await;
-    if let Some(prev_app_state) = map_guard.get(&app_id) {
+    if let Some(prev_app_state) = map_guard.get(&config_id) {
         if prev_app_state.is_running() {
-            return Err(format!("Application {} is already started", app_id));
+            return Err(format!("Application {} is already started", config_id));
         }
     }
 
@@ -133,11 +134,11 @@ async fn launch_app(
         app.to_owned(),
         child,
         LaunchedApps(Arc::clone(&apps_state.0)),
-        app_id.to_owned(),
+        config_id.to_owned(),
     ));
 
-    let app_state = map_guard.entry(app_id.to_owned()).or_insert(AppState {
-        id: app_id.to_owned(),
+    let app_state = map_guard.entry(config_id.to_owned()).or_insert(AppState {
+        config_id: config_id.to_owned(),
         pid,
         exit_result: None,
     });
@@ -147,11 +148,11 @@ async fn launch_app(
 
 #[tauri::command]
 async fn get_command(
-    app_id: String,
+    config_id: String,
     apps_state: State<'_, LaunchedApps>,
 ) -> Result<Option<AppState>, ()> {
     let map_guard = apps_state.0.lock().await;
-    Ok(map_guard.get(&app_id).map(|s| s.to_owned()))
+    Ok(map_guard.get(&config_id).map(|s| s.to_owned()))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

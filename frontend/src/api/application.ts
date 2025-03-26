@@ -8,7 +8,7 @@ export type AppExitResult =
   | null;
 
 export interface AppState {
-  id: string;
+  configId: string;
   pid: number;
   exitResult: AppExitResult;
 }
@@ -19,16 +19,19 @@ export interface AppConfig {
   launchCommand: string;
 }
 
-export function launchApp(command: string, appId: string): Promise<AppState> {
-  return invoke("launch_app", { command, appId });
+export function launchApp(
+  command: string,
+  configId: string,
+): Promise<AppState> {
+  return invoke("launch_app", { command, configId });
 }
 
 export function getAppConfigs(configPath: string): Promise<AppConfig[]> {
   return invoke("get_app_configs", { configPath });
 }
 
-export function getAppState(appId: string): Promise<AppState | null> {
-  return invoke("get_command", { appId });
+export function getAppState(configId: string): Promise<AppState | null> {
+  return invoke("get_command", { configId });
 }
 
 export const APP_UPDATE_EVENT = "app-updated";

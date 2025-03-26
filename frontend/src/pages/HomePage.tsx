@@ -2,24 +2,24 @@ import { TvAppLayout } from "@/components/layout/TvAppLayout";
 import { Header } from "@/components/layout/Header";
 import { AppGrid } from "@/components/layout/AppGrid";
 import { info, error } from "@tauri-apps/plugin-log";
-import { useAppConfiguration } from "@/hooks/useAppConfiguration";
-import { App, launchAppEntity } from "@/entities/app";
+import { App, instantiateApp } from "@/entities/app";
+import { useApps } from "@/hooks/setup";
 
 export function HomePage() {
   const handleLaunchApp = (app: App) => {
     info(`Launching app: ${app.config.name}`);
-    launchAppEntity(app)
+    instantiateApp(app)
       .then((app) => {
-        info(`App launched with PID: ${app.state.pid}`);
+        info(`App launched with PID: ${app.pid}`);
       })
       .catch((e) => {
         error(`Failed to launch app: ${e}`);
       });
   };
 
-  const { apps, loading } = useAppConfiguration();
+  const apps = useApps();
 
-  if (loading) {
+  if (apps === undefined) {
     return <div>Loading apps...</div>;
   }
 

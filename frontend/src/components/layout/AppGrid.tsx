@@ -1,5 +1,5 @@
 import { AppTile } from "@/components/cards/AppTile";
-import { App, is_launched } from "@/entities/app";
+import { App, isLaunched } from "@/entities/app";
 import { useFocusNavigation } from "@/hooks/useFocusNavigation";
 
 interface AppGridProps {
@@ -22,7 +22,7 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
           name={app.config.name}
           icon={app.config.icon}
           isFocused={focusedIndex === index}
-          isRunning={is_launched(app)}
+          isRunning={isLaunched(app)}
           onFocus={() => setFocusedIndex(index)}
           onSelect={() => handleSelect(app)}
         />

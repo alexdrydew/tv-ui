@@ -5,7 +5,7 @@ export interface App {
   instances: AppState[];
 }
 
-export function is_launched(app: App): boolean {
+export function isLaunched(app: App): boolean {
   return app.instances.length > 0;
 }
 
@@ -16,10 +16,6 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
   }));
 }
 
-export async function launchAppEntity(app: App): Promise<App> {
-  const state = await launchApp(app.config.launchCommand, app.config.id);
-  return {
-    ...app,
-    instances: [...app.instances, state],
-  };
+export async function instantiateApp(app: App): Promise<AppState> {
+  return await launchApp(app.config.launchCommand, app.config.id);
 }
