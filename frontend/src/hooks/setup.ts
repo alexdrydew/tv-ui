@@ -19,10 +19,20 @@ export function useAppConfigs(configFileName: string): AppConfig[] | undefined {
   }, [configFileName]);
 
   const [config, setConfig] = useState<AppConfig[] | undefined>();
+
   useEffect(() => {
     if (!configFilePath) {
       return;
     }
+    getAppConfigs(configFilePath).then(setConfig).catch(error);
+  }, [configFilePath]);
+
+  useEffect(() => {
+    if (!configFilePath) {
+      return;
+    }
+
+    debug(`Watching config file: ${configFilePath}`);
 
     const unWatch = watchImmediate(
       configFilePath,
