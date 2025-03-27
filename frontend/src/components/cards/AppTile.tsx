@@ -18,6 +18,7 @@ export function AppTile({
   onFocus,
 }: AppTileProps) {
   return (
+    // ai! when app is not selected it is white and text is not visible, fix
     <div
       onClick={onSelect}
       onMouseEnter={onFocus}
