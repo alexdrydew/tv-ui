@@ -27,7 +27,7 @@ export function AppTile({
         "w-48 h-48 md:w-64 md:h-64",
         isFocused
           ? "bg-primary scale-110 shadow-lg ring-4 ring-primary"
-          : "bg-card hover:bg-card/80",
+          : "bg-card hover:bg-card/80 text-foreground",
       )}
     >
       <div className="flex-1 flex items-center justify-center">
