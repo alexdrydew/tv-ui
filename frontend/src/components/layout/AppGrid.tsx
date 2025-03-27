@@ -15,6 +15,7 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
   };
 
   return (
+    // ai! add red border for this div
     <div className="flex gap-8 p-4">
       {apps.map((app, index) => (
         <AppTile
