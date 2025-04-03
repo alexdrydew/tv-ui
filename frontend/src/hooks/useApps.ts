@@ -3,7 +3,6 @@ import { initAppsFromConfigs } from "@/entities/app";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { watchImmediate } from "@tauri-apps/plugin-fs";
 import { debug, error, info } from "@tauri-apps/plugin-log";
-import { useConsoleLogging } from "./useConsoleLogging";
 import { APP_UPDATE_EVENT, AppState } from "@/api/application";
 import { App } from "@/entities/app";
 import { listen } from "@tauri-apps/api/event";
@@ -73,8 +72,6 @@ export function useAppStateUpdateEventsSubscription(
 }
 
 export function useApps(): App[] | undefined {
-  useConsoleLogging();
-
   const appConfigs = useAppConfigs("tv-ui.json");
   const [apps, setApps] = useState<App[] | undefined>([]);
 

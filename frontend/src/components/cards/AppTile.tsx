@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
+import { useRef, useEffect } from "react";
 
 interface AppTileProps {
   name: string;
@@ -17,26 +19,32 @@ export function AppTile({
   onSelect,
   onFocus,
 }: AppTileProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isFocused && buttonRef.current) {
+      buttonRef.current.focus();
+    }
+  }, [isFocused]);
+
   return (
-    // ai! when app is not selected it is white and text is not visible, fix
-    <div
+    <Button
+      ref={buttonRef}
+      className={cn(
+        "flex flex-col items-center w-64 h-64 focus:bg-accent focus:text-accent-foreground",
+        isFocused && "bg-primary scale-110 shadow-lg ring-4 ring-primary",
+      )}
       onClick={onSelect}
       onMouseEnter={onFocus}
-      className={cn(
-        "flex flex-col items-center p-6 rounded-xl transition-all duration-200",
-        "w-48 h-48 md:w-64 md:h-64",
-        isFocused
-          ? "bg-primary scale-110 shadow-lg ring-4 ring-primary"
-          : "bg-card hover:bg-card/80 text-foreground",
-      )}
+      onFocus={onFocus}
     >
       <div className="flex-1 flex items-center justify-center">
-        <img src={icon} alt={name} className="w-24 h-24 md:w-32 md:h-32" />
+        <img src={icon} alt={name} className="w-32 h-32" />
         {isRunning && (
           <div className="absolute bottom-2 right-2 w-3 h-3 bg-green-500 rounded-full ring-2 ring-background" />
         )}
       </div>
       <h2 className="text-xl md:text-2xl font-bold mt-4">{name}</h2>
-    </div>
+    </Button>
   );
 }

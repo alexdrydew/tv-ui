@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { AppGrid } from "@/components/layout/AppGrid";
 import { info, error } from "@tauri-apps/plugin-log";
 import { App, instantiateApp } from "@/entities/app";
-import { useApps } from "@/hooks/setup";
+import { useApps } from "@/hooks/useApps";
 
 export function HomePage() {
   const handleLaunchApp = (app: App) => {
