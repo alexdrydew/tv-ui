@@ -6,7 +6,7 @@ export interface App {
 }
 
 export function isLaunched(app: App): boolean {
-  return app.instances.length > 0;
+  return app.instances.some((instance) => !instance.exitResult);
 }
 
 export function initAppsFromConfigs(configs: AppConfig[]): App[] {

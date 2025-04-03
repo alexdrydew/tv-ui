@@ -62,6 +62,7 @@ export function useAppStateUpdateEventsSubscription(
 ) {
   useEffect(() => {
     const unlistenPromise = listen<AppState>(APP_UPDATE_EVENT, (event) => {
+      debug(`App state update event received: ${JSON.stringify(event)}`);
       onUpdate(event.payload);
     });
 
@@ -103,13 +104,15 @@ export function useApps(): App[] | undefined {
         (instance) => instance.pid == state.pid,
       );
       if (instanceIdx === -1) {
-        return;
+        targetApp.instances.push(state);
+      } else {
+        targetApp.instances[instanceIdx] = state;
       }
 
-      targetApp.instances[instanceIdx] = state;
       newApps[targetAppIdx] = targetApp;
 
       setApps(newApps);
+      debug(JSON.stringify(newApps));
     },
     [apps],
   );

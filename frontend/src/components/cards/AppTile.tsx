@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { useRef, useEffect } from "react";
+import { info } from "@tauri-apps/plugin-log";
 
 interface AppTileProps {
   name: string;

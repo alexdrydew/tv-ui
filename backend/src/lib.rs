@@ -117,7 +117,7 @@ async fn launch_app(
     let mut map_guard = apps_state.0.lock().await;
     if let Some(prev_app_state) = map_guard.get(&config_id) {
         if prev_app_state.is_running() {
-            return Err(format!("Application {} is already started", config_id));
+            return Err("Application is already started".to_owned());
         }
     }
 
@@ -137,13 +137,14 @@ async fn launch_app(
         config_id.to_owned(),
     ));
 
-    let app_state = map_guard.entry(config_id.to_owned()).or_insert(AppState {
+    let state = AppState {
         config_id: config_id.to_owned(),
         pid,
         exit_result: None,
-    });
-    emit_or_log(&app, APP_UPDATE_EVENT, app_state.clone());
-    Ok(app_state.clone())
+    };
+    map_guard.insert(config_id.to_owned(), state.clone());
+    emit_or_log(&app, APP_UPDATE_EVENT, state.clone());
+    Ok(state)
 }
 
 #[tauri::command]
