@@ -41,11 +41,10 @@ export function AppTile({
         <Button
           ref={buttonRef}
           className={cn(
-            "flex flex-col items-center w-64 h-64 focus:bg-accent focus:text-accent-foreground",
-            isFocused && "bg-primary scale-110 shadow-lg ring-4 ring-primary",
+            "flex flex-col items-center w-64 h-64 focus:bg-primary/90 focus:scale-110 focus:shadow-lg focus:ring-4 focus:ring-primary",
           )}
           onClick={onSelect}
-          onMouseEnter={onFocus}
+          onMouseOver={onFocus}
           onFocus={onFocus}
         >
           <div className="flex-1 flex items-center justify-center">
