@@ -265,7 +265,8 @@ mod tests {
     fn create_test_app() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
         let app = mock_builder()
             .manage(LaunchedApps::default())
-            .invoke_handler(tauri::generate_handler![get_app_configs, get_app_state])
+            // can't test launch_all due to https://github.com/tauri-apps/tauri/issues/12077
+            .invoke_handler(tauri::generate_handler![get_app_configs, get_app_state,])
             .build(mock_context(noop_assets()))
             .expect("failed to build mock app");
 
