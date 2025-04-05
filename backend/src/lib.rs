@@ -265,8 +265,12 @@ mod tests {
     fn create_test_app() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
         let app = mock_builder()
             .manage(LaunchedApps::default())
-            // can't test launch_all due to https://github.com/tauri-apps/tauri/issues/12077
-            .invoke_handler(tauri::generate_handler![get_app_configs, get_app_state,])
+            // can't test launch_app due to https://github.com/tauri-apps/tauri/issues/12077
+            .invoke_handler(tauri::generate_handler![
+                get_app_configs,
+                get_app_state,
+                kill_app // Add kill_app here
+            ])
             .build(mock_context(noop_assets()))
             .expect("failed to build mock app");
 
@@ -351,5 +355,88 @@ mod tests {
         assert_eq!(returned_state.config_id, mock_state_info.config_id);
         assert_eq!(returned_state.pid, mock_state_info.pid);
         assert!(returned_state.exit_result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_kill_app_success() {
+        let (app, webview) = create_test_app();
+        let launched_apps_state = app.state::<LaunchedApps>();
+
+        let config_id = "test_kill_app".to_string();
+        let mock_state_info = AppStateInfo {
+            config_id: config_id.clone(),
+            pid: 0, // Will be updated after spawn
+            exit_result: None,
+        };
+
+        let child_arc = {
+            let mut apps_guard = launched_apps_state.0.lock().await;
+            let child = Command::new("sleep") // Removed `mut`
+                .arg("60") // Long enough to ensure it's running when killed
+                .spawn()
+                .expect("Failed to spawn dummy process");
+
+            let pid = child.id().expect("Failed to get PID");
+            let child_arc = Arc::new(Mutex::new(child));
+
+            let mock_app_state = AppState {
+                info: AppStateInfo {
+                    pid,
+                    ..mock_state_info
+                },
+                process: AppProcess {
+                    child: Arc::clone(&child_arc),
+                },
+            };
+            apps_guard.insert(config_id.clone(), mock_app_state);
+            child_arc // Return the Arc to check status later
+        };
+
+        let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "kill_app".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(serde_json::json!({ "configId": config_id })),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        )
+        .expect("Failed to get IPC response for kill_app");
+
+        let _: () = response
+            .deserialize()
+            .expect("Failed to deserialize kill_app response (expected null)");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let mut child_guard = child_arc.lock().await;
+        let status = child_guard
+            .try_wait()
+            .expect("Failed to check process status");
+        assert!(status.is_some(), "Process should have exited after kill");
+    }
+
+    #[tokio::test]
+    async fn test_kill_app_not_found() {
+        let (_app, webview) = create_test_app();
+
+        let config_id = "non_existent_app_to_kill".to_string();
+
+        let result = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "kill_app".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(serde_json::json!({ "configId": config_id })),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        );
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "App not found");
     }
 }
