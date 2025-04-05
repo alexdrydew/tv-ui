@@ -157,7 +157,6 @@ async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id
         }
         None => {
             log::warn!("Process not found for config_id: {}", config_id);
-            return;
         }
     }
 }
@@ -254,4 +253,52 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+    use tauri::WebviewWindow;
+    fn create_test_app() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
+        let app = mock_builder()
+            .manage(LaunchedApps::default())
+            .invoke_handler(tauri::generate_handler![
+                get_app_configs,
+                get_command
+            ])
+            .build(mock_context(noop_assets()))
+            .expect("failed to build mock app");
+
+
+        let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+            .build()
+            .expect("Failed to create webview window");
+        (app, webview)
+    }
+
+    #[tokio::test]
+    async fn test_get_command_not_found() {
+        let (_app, webview) = create_test_app();
+
+        let config_id = "non_existent_app".to_string();
+        let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "get_command".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(serde_json::json!({ "configId": config_id })),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        )
+        .expect("Failed to get IPC response");
+        let result_value: Option<AppStateInfo> = response
+            .deserialize()
+            .expect("Failed to deserialize response body");
+        assert!(result_value.is_none());
+    }
+
 }
