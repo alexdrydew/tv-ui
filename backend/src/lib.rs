@@ -282,6 +282,58 @@ mod tests {
         (app, webview)
     }
 
+    async fn setup_running_app_state(
+        apps_state: &LaunchedApps,
+        config_id: String,
+        sleep_duration: &str,
+    ) -> (AppStateInfo, Arc<Mutex<Child>>) {
+        let mut apps_guard = apps_state.0.lock().await;
+        let child = Command::new("sleep")
+            .arg(sleep_duration)
+            .spawn()
+            .expect("Failed to spawn dummy process");
+        let pid = child.id().expect("Failed to get PID");
+        let child_arc = Arc::new(Mutex::new(child));
+
+        let state_info = AppStateInfo {
+            config_id: config_id.clone(),
+            pid,
+            exit_result: None,
+        };
+        let app_state = AppState {
+            info: state_info.clone(),
+            process: AppProcess {
+                child: Arc::clone(&child_arc),
+            },
+        };
+        apps_guard.insert(config_id, app_state);
+        (state_info, child_arc)
+    }
+
+    #[tokio::test]
+    async fn test_wait_child_success() {
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg("exit 0")
+            .spawn()
+            .expect("Failed to spawn success process");
+        let child_arc = Arc::new(Mutex::new(child));
+        let result = wait_child_with_mutex(child_arc, WaitChildParams::default()).await;
+        assert!(matches!(result, AppExitResult::Success));
+    }
+
+    #[tokio::test]
+    async fn test_wait_child_exit_code() {
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg("exit 42")
+            .spawn()
+            .expect("Failed to spawn exit code process");
+        let child_arc = Arc::new(Mutex::new(child));
+        let result = wait_child_with_mutex(child_arc, WaitChildParams::default()).await;
+        assert!(matches!(result, AppExitResult::ExitCode(42)));
+    }
+
     #[tokio::test]
     async fn test_get_app_state_not_found() {
         let (_app, webview) = create_test_app();
@@ -310,29 +362,10 @@ mod tests {
     async fn test_get_app_state_found() {
         let (app, webview) = create_test_app();
         let launched_apps_state = app.state::<LaunchedApps>();
-
         let config_id = "test_app".to_string();
-        let mock_state_info = AppStateInfo {
-            config_id: config_id.clone(),
-            pid: 1234,
-            exit_result: None,
-        };
 
-        // spawn sleep 100 for tests
-        {
-            let mut apps_guard = launched_apps_state.0.lock().await;
-            let child = Command::new("sleep")
-                .arg("100")
-                .spawn()
-                .expect("Failed to spawn dummy process");
-            let mock_app_state = AppState {
-                info: mock_state_info.clone(),
-                process: AppProcess {
-                    child: Arc::new(Mutex::new(child)),
-                },
-            };
-            apps_guard.insert(config_id.clone(), mock_app_state);
-        }
+        let (mock_state_info, _child_arc) =
+            setup_running_app_state(&launched_apps_state, config_id.clone(), "100").await;
 
         let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
             &webview,
@@ -363,36 +396,10 @@ mod tests {
     async fn test_kill_app_success() {
         let (app, webview) = create_test_app();
         let launched_apps_state = app.state::<LaunchedApps>();
-
         let config_id = "test_kill_app".to_string();
-        let mock_state_info = AppStateInfo {
-            config_id: config_id.clone(),
-            pid: 0,
-            exit_result: None,
-        };
 
-        let child_arc = {
-            let mut apps_guard = launched_apps_state.0.lock().await;
-            let child = Command::new("sleep")
-                .arg("60")
-                .spawn()
-                .expect("Failed to spawn dummy process");
-
-            let pid = child.id().expect("Failed to get PID");
-            let child_arc = Arc::new(Mutex::new(child));
-
-            let mock_app_state = AppState {
-                info: AppStateInfo {
-                    pid,
-                    ..mock_state_info
-                },
-                process: AppProcess {
-                    child: Arc::clone(&child_arc),
-                },
-            };
-            apps_guard.insert(config_id.clone(), mock_app_state);
-            child_arc
-        };
+        let (_mock_state_info, child_arc) =
+            setup_running_app_state(&launched_apps_state, config_id.clone(), "60").await;
 
         let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
             &webview,
@@ -562,3 +569,4 @@ mod tests {
             );
         }
     }
+}
