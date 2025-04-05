@@ -258,9 +258,11 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
     use tauri::Manager;
     use tauri::WebviewWindow;
+    use tempfile::NamedTempFile;
 
     fn create_test_app() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
         let app = mock_builder()
@@ -269,7 +271,7 @@ mod tests {
             .invoke_handler(tauri::generate_handler![
                 get_app_configs,
                 get_app_state,
-                kill_app // Add kill_app here
+                kill_app
             ])
             .build(mock_context(noop_assets()))
             .expect("failed to build mock app");
@@ -365,14 +367,14 @@ mod tests {
         let config_id = "test_kill_app".to_string();
         let mock_state_info = AppStateInfo {
             config_id: config_id.clone(),
-            pid: 0, // Will be updated after spawn
+            pid: 0,
             exit_result: None,
         };
 
         let child_arc = {
             let mut apps_guard = launched_apps_state.0.lock().await;
-            let child = Command::new("sleep") // Removed `mut`
-                .arg("60") // Long enough to ensure it's running when killed
+            let child = Command::new("sleep")
+                .arg("60")
                 .spawn()
                 .expect("Failed to spawn dummy process");
 
@@ -389,7 +391,7 @@ mod tests {
                 },
             };
             apps_guard.insert(config_id.clone(), mock_app_state);
-            child_arc // Return the Arc to check status later
+            child_arc
         };
 
         let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
@@ -437,6 +439,126 @@ mod tests {
         );
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "App not found");
+        let err_val = result.unwrap_err();
+        let err_msg = err_val.as_str().expect("Error payload should be a string");
+        assert!(
+            err_msg.contains("App not found"),
+            "Unexpected error message: {}",
+            err_msg
+        );
     }
-}
+
+    #[tokio::test]
+    async fn test_get_app_configs_file_not_found() {
+        let (_app, webview) = create_test_app();
+        let non_existent_path = "this/path/surely/does/not/exist.json".to_string();
+
+        let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "get_app_configs".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(
+                    serde_json::json!({ "configPath": non_existent_path }),
+                ),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        )
+        .expect("Failed to get IPC response for get_app_configs (not found)");
+
+        let result_value: Vec<AppConfig> = response
+            .deserialize()
+            .expect("Failed to deserialize get_app_configs response");
+
+        assert!(result_value.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_app_configs_invalid_json() {
+        let (_app, webview) = create_test_app();
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        fs::write(temp_file.path(), "this is not valid json")
+            .expect("Failed to write to temp file");
+
+        let result = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "get_app_configs".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(
+                    serde_json::json!({ "configPath": temp_file.path() }),
+                ),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        );
+
+        assert!(result.is_err());
+        let err_val = result.unwrap_err();
+        let err_msg = err_val.as_str().expect("Error payload should be a string");
+        assert!(
+            err_msg.contains("Config parse error"),
+            "Unexpected error message: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_app_configs_success() {
+        let (_app, webview) = create_test_app();
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let expected_configs = vec![
+            AppConfig {
+                id: "app1".to_string(),
+                name: "App One".to_string(),
+                icon: "icon1.png".to_string(),
+                launch_command: "command1".to_string(),
+            },
+            AppConfig {
+                id: "app2".to_string(),
+                name: "App Two".to_string(),
+                icon: "icon2.png".to_string(),
+                launch_command: "command2 --arg".to_string(),
+            },
+        ];
+        let json_content =
+            serde_json::to_string(&expected_configs).expect("Failed to serialize test data");
+        fs::write(temp_file.path(), json_content).expect("Failed to write to temp file");
+
+        let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "get_app_configs".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(
+                    serde_json::json!({ "configPath": temp_file.path() }),
+                ),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        )
+        .expect("Failed to get IPC response for get_app_configs (success)");
+
+        let result_value: Vec<AppConfig> = response
+            .deserialize()
+            .expect("Failed to deserialize get_app_configs response");
+
+        assert_eq!(result_value.len(), expected_configs.len());
+        for expected in expected_configs.iter() {
+            assert!(
+                result_value.iter().any(|result| result.id == expected.id
+                    && result.name == expected.name
+                    && result.icon == expected.icon
+                    && result.launch_command == expected.launch_command),
+                "Expected config not found: {:?}",
+                expected
+            );
+        }
+    }
