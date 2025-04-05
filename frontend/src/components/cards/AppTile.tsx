@@ -1,12 +1,13 @@
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useLayoutEffect } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "../ui/context-menu";
+import { info } from "@tauri-apps/plugin-log";
 
 interface AppTileProps {
   name: string;
@@ -29,7 +30,7 @@ export function AppTile({
 }: AppTileProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isFocused && buttonRef.current) {
       buttonRef.current.focus();
     }
@@ -37,7 +38,7 @@ export function AppTile({
 
   const focusSelf = (e: { currentTarget: { focus: () => void } }) => {
     onFocus();
-    // we need to explicitly focus self here for the following case in case the component
+    // we need to explicitly focus self here for in case the component
     // lost focus but isFocused it still true
     e.currentTarget.focus();
   };
