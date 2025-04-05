@@ -223,7 +223,7 @@ async fn kill_app(config_id: String, apps_state: State<'_, LaunchedApps>) -> Res
 }
 
 #[tauri::command]
-async fn get_command(
+async fn get_app_state(
     config_id: String,
     apps_state: State<'_, LaunchedApps>,
 ) -> Result<Option<AppStateInfo>, ()> {
@@ -247,7 +247,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             get_app_configs,
-            get_command,
+            get_app_state,
             launch_app,
             kill_app
         ])
@@ -259,17 +259,15 @@ pub fn run() {
 mod tests {
     use super::*;
     use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+    use tauri::Manager;
     use tauri::WebviewWindow;
+
     fn create_test_app() -> (tauri::App<MockRuntime>, WebviewWindow<MockRuntime>) {
         let app = mock_builder()
             .manage(LaunchedApps::default())
-            .invoke_handler(tauri::generate_handler![
-                get_app_configs,
-                get_command
-            ])
+            .invoke_handler(tauri::generate_handler![get_app_configs, get_app_state])
             .build(mock_context(noop_assets()))
             .expect("failed to build mock app");
-
 
         let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
             .build()
@@ -278,14 +276,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_command_not_found() {
+    async fn test_get_app_state_not_found() {
         let (_app, webview) = create_test_app();
 
         let config_id = "non_existent_app".to_string();
         let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
             &webview,
             tauri::webview::InvokeRequest {
-                cmd: "get_command".into(),
+                cmd: "get_app_state".into(),
                 callback: tauri::ipc::CallbackFn(0),
                 error: tauri::ipc::CallbackFn(1),
                 url: "http://tauri.localhost".parse().unwrap(),
@@ -301,4 +299,56 @@ mod tests {
         assert!(result_value.is_none());
     }
 
+    #[tokio::test]
+    async fn test_get_app_state_found() {
+        let (app, webview) = create_test_app();
+        let launched_apps_state = app.state::<LaunchedApps>();
+
+        let config_id = "test_app".to_string();
+        let mock_state_info = AppStateInfo {
+            config_id: config_id.clone(),
+            pid: 1234,
+            exit_result: None,
+        };
+
+        // spawn sleep 100 for tests
+        {
+            let mut apps_guard = launched_apps_state.0.lock().await;
+            let child = Command::new("sleep")
+                .arg("100")
+                .spawn()
+                .expect("Failed to spawn dummy process");
+            let mock_app_state = AppState {
+                info: mock_state_info.clone(),
+                process: AppProcess {
+                    child: Arc::new(Mutex::new(child)),
+                },
+            };
+            apps_guard.insert(config_id.clone(), mock_app_state);
+        }
+
+        let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
+            &webview,
+            tauri::webview::InvokeRequest {
+                cmd: "get_app_state".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "http://tauri.localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(serde_json::json!({ "configId": config_id })),
+                headers: Default::default(),
+                invoke_key: tauri::test::INVOKE_KEY.to_string(),
+            },
+        )
+        .expect("Failed to get IPC response");
+
+        let result_value: Option<AppStateInfo> = response
+            .deserialize()
+            .expect("Failed to deserialize response body");
+
+        assert!(result_value.is_some());
+        let returned_state = result_value.unwrap();
+        assert_eq!(returned_state.config_id, mock_state_info.config_id);
+        assert_eq!(returned_state.pid, mock_state_info.pid);
+        assert!(returned_state.exit_result.is_none());
+    }
 }

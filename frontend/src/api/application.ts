@@ -31,7 +31,7 @@ export function getAppConfigs(configPath: string): Promise<AppConfig[]> {
 }
 
 export function getAppState(configId: string): Promise<AppState | null> {
-  return invoke("get_command", { configId });
+  return invoke("get_app_state", { configId });
 }
 
 export function killApp(configId: string): Promise<void> {
