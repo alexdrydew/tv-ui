@@ -35,17 +35,22 @@ export function AppTile({
     }
   }, [isFocused]);
 
+  const focusSelf = (e: { currentTarget: { focus: () => void } }) => {
+    onFocus();
+    // we need to explicitly focus self here for the following case in case the component
+    // lost focus but isFocused it still true
+    e.currentTarget.focus();
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger>
         <Button
           ref={buttonRef}
-          className={cn(
-            "flex flex-col items-center w-64 h-64 focus:bg-primary/90 focus:scale-110 focus:shadow-lg focus:ring-4 focus:ring-primary",
-          )}
+          className={cn("flex flex-col items-center w-64 h-64")}
           onClick={onSelect}
-          onMouseOver={onFocus}
-          onFocus={onFocus}
+          onMouseOver={focusSelf}
+          onFocus={focusSelf}
         >
           <div className="flex-1 flex items-center justify-center">
             <img src={icon} alt={name} className="w-32 h-32" />
