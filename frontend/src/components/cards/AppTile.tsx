@@ -1,13 +1,12 @@
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
-import { useRef, useEffect, useLayoutEffect } from "react";
+import { useRef, useLayoutEffect } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "../ui/context-menu";
-import { info } from "@tauri-apps/plugin-log";
 
 interface AppTileProps {
   name: string;
