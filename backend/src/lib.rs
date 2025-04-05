@@ -1,11 +1,33 @@
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::{collections::HashMap, os::unix::process::ExitStatusExt, sync::Arc};
 use tauri::Emitter;
 use tauri::{AppHandle, State};
 use tokio::process::Child;
+use tokio::time::sleep;
 use tokio::{process::Command, sync::Mutex};
 
 const APP_UPDATE_EVENT: &str = "app-updated";
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct AppStateInfo {
+    #[serde(rename = "configId")]
+    config_id: String,
+    pid: u32,
+    #[serde(rename = "exitResult")]
+    exit_result: Option<AppExitResult>,
+}
+
+#[derive(Clone)]
+struct AppProcess {
+    child: Arc<Mutex<Child>>,
+}
+
+#[derive(Clone)]
+struct AppState {
+    info: AppStateInfo,
+    process: AppProcess,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AppConfig {
@@ -34,18 +56,9 @@ enum AppExitResult {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct AppState {
-    #[serde(rename = "configId")]
-    config_id: String,
-    pid: u32,
-    #[serde(rename = "exitResult")]
-    exit_result: Option<AppExitResult>,
-}
-
 impl AppState {
     fn is_running(&self) -> bool {
-        self.exit_result.is_none()
+        self.info.exit_result.is_none()
     }
 }
 
@@ -64,46 +77,88 @@ fn emit_or_log(app: &AppHandle, event: &str, payload: impl Serialize + Clone) {
     }
 }
 
-async fn run_process_watcher(
-    app: AppHandle,
-    mut child: Child,
-    apps_state: LaunchedApps,
-    config_id: String,
-) {
-    log::debug!("Starting process watcher for config_id: {}", config_id);
-    let result = match child.wait().await {
-        Ok(status) => {
-            log::debug!("Process exited with status: {:?}", status);
-            if status.success() {
-                AppExitResult::Success
-            } else if let Some(code) = status.code() {
-                log::debug!("Process exited with code: {}", code);
-                AppExitResult::ExitCode(code)
-            } else if let Some(signal) = status.stopped_signal() {
-                log::debug!("Process stopped by signal: {}", signal);
-                AppExitResult::Signal(signal)
-            } else {
-                log::debug!("Process exited with unknown status");
-                AppExitResult::Unknown
+#[derive(Copy, Clone)]
+struct WaitChildParams {
+    timeout: Duration,
+}
+
+impl Default for WaitChildParams {
+    fn default() -> Self {
+        WaitChildParams {
+            timeout: Duration::from_millis(100),
+        }
+    }
+}
+
+// this methods locks the mutex and checks if the child process has exited every timeout
+// TODO: do I really need this? mb I can just send signal from kill instead of accessing the mutex
+async fn wait_child_with_mutex(child: Arc<Mutex<Child>>, params: WaitChildParams) -> AppExitResult {
+    loop {
+        let res = {
+            let mut guard = child.lock().await;
+            guard.try_wait()
+        };
+
+        match res {
+            Ok(Some(status)) => {
+                log::debug!("Process exited with status: {:?}", status);
+                return {
+                    if status.success() {
+                        AppExitResult::Success
+                    } else if let Some(code) = status.code() {
+                        log::debug!("Process exited with code: {}", code);
+                        AppExitResult::ExitCode(code)
+                    } else if let Some(signal) = status.stopped_signal() {
+                        log::debug!("Process stopped by signal: {}", signal);
+                        AppExitResult::Signal(signal)
+                    } else if let Some(signal) = status.signal() {
+                        log::debug!("Process terminated by signal: {}", signal);
+                        AppExitResult::Signal(signal)
+                    } else {
+                        log::debug!("Process exited with unknown status");
+                        AppExitResult::Unknown
+                    }
+                };
+            }
+            Ok(None) => {
+                sleep(params.timeout).await;
+            }
+            Err(e) => {
+                log::error!("Error waiting for process: {}", e);
+                return AppExitResult::Unknown;
             }
         }
-        Err(e) => {
-            log::debug!("Process wait error: {}", e);
-            AppExitResult::Unknown
-        }
+    }
+}
+
+async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id: String) {
+    let process = {
+        let map_guard = apps_state.0.lock().await;
+        map_guard
+            .get(&config_id)
+            .map(|state| Arc::clone(&state.process.child))
     };
 
-    let mut map_guard = apps_state.0.lock().await;
-    if let Some(app_state) = map_guard.get_mut(&config_id) {
-        log::debug!(
-            "Updating app state for {} with result: {:?}",
-            config_id,
-            result
-        );
-        app_state.exit_result = Some(result);
-        emit_or_log(&app, APP_UPDATE_EVENT, app_state.clone());
-    } else {
-        log::debug!("App {} not found in state map", config_id);
+    match process {
+        Some(process) => {
+            let result = wait_child_with_mutex(process, WaitChildParams::default()).await;
+            let mut map_guard = apps_state.0.lock().await;
+            if let Some(app_state) = map_guard.get_mut(&config_id) {
+                log::debug!(
+                    "Updating app state for {} with result: {:?}",
+                    config_id,
+                    result
+                );
+                app_state.info.exit_result = Some(result);
+                emit_or_log(&app, APP_UPDATE_EVENT, app_state.info.clone());
+            } else {
+                log::debug!("App {} not found in state map", config_id);
+            }
+        }
+        None => {
+            log::warn!("Process not found for config_id: {}", config_id);
+            return;
+        }
     }
 }
 
@@ -113,7 +168,7 @@ async fn launch_app(
     config_id: String,
     apps_state: State<'_, LaunchedApps>,
     app: AppHandle,
-) -> Result<AppState, String> {
+) -> Result<AppStateInfo, String> {
     let mut map_guard = apps_state.0.lock().await;
     if let Some(prev_app_state) = map_guard.get(&config_id) {
         if prev_app_state.is_running() {
@@ -128,32 +183,53 @@ async fn launch_app(
         .args(args)
         .spawn()
         .map_err(|e| format!("Launch error: {}", e))?;
+
     let pid = child.id().ok_or("Application immediately closed")?;
+
+    let state = AppState {
+        info: AppStateInfo {
+            config_id: config_id.to_owned(),
+            pid,
+            exit_result: None,
+        },
+        process: AppProcess {
+            child: Arc::new(Mutex::new(child)),
+        },
+    };
 
     tokio::spawn(run_process_watcher(
         app.to_owned(),
-        child,
         LaunchedApps(Arc::clone(&apps_state.0)),
         config_id.to_owned(),
     ));
-
-    let state = AppState {
-        config_id: config_id.to_owned(),
-        pid,
-        exit_result: None,
-    };
     map_guard.insert(config_id.to_owned(), state.clone());
-    emit_or_log(&app, APP_UPDATE_EVENT, state.clone());
-    Ok(state)
+    emit_or_log(&app, APP_UPDATE_EVENT, state.info.clone());
+    Ok(state.info)
+}
+
+#[tauri::command]
+async fn kill_app(config_id: String, apps_state: State<'_, LaunchedApps>) -> Result<(), String> {
+    let mut map_guard = apps_state.0.lock().await;
+
+    if let Some(state) = map_guard.get_mut(&config_id) {
+        let mut child = state.process.child.lock().await;
+        child
+            .kill()
+            .await
+            .map_err(|e| format!("Failed to kill process: {}", e))?;
+        Ok(())
+    } else {
+        Err("App not found".to_owned())
+    }
 }
 
 #[tauri::command]
 async fn get_command(
     config_id: String,
     apps_state: State<'_, LaunchedApps>,
-) -> Result<Option<AppState>, ()> {
+) -> Result<Option<AppStateInfo>, ()> {
     let map_guard = apps_state.0.lock().await;
-    Ok(map_guard.get(&config_id).map(|s| s.to_owned()))
+    Ok(map_guard.get(&config_id).map(|s| s.info.clone()))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -172,8 +248,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             get_app_configs,
+            get_command,
             launch_app,
-            get_command
+            kill_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

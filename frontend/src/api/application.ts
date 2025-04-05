@@ -34,4 +34,8 @@ export function getAppState(configId: string): Promise<AppState | null> {
   return invoke("get_command", { configId });
 }
 
+export function killApp(configId: string): Promise<void> {
+  return invoke("kill_app", { configId });
+}
+
 export const APP_UPDATE_EVENT = "app-updated";

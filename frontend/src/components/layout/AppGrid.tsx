@@ -1,6 +1,8 @@
 import { AppTile } from "@/components/cards/AppTile";
 import { App, isLaunched } from "@/entities/app";
 import { useFocusNavigation } from "@/hooks/useFocusNavigation";
+import { toast } from "sonner";
+import { killApp } from "@/api/application";
 
 interface AppGridProps {
   apps: App[];
@@ -14,6 +16,19 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
     onLaunchApp(command);
   };
 
+  const handleKillApp = async (app: App) => {
+    try {
+      await killApp(app.config.id);
+      toast.success(`${app.config.name} terminated`, {
+        description: "Application was successfully stopped",
+      });
+    } catch (error) {
+      toast.error(`Failed to kill ${app.config.name}`, {
+        description: `${error}`,
+      });
+    }
+  };
+
   return (
     <div className="flex gap-8 p-4">
       {apps.map((app, index) => (
@@ -25,6 +40,7 @@ export function AppGrid({ apps, onLaunchApp }: AppGridProps) {
           isRunning={isLaunched(app)}
           onFocus={() => setFocusedIndex(index)}
           onSelect={() => handleSelect(app)}
+          onKill={() => handleKillApp(app)}
         />
       ))}
     </div>
