@@ -55,7 +55,10 @@ export function AppTile({
           <div className="flex-1 flex items-center justify-center">
             <img src={icon} alt={name} className="w-32 h-32" />
             {isRunning && (
-              <div className="absolute bottom-2 right-2 w-3 h-3 bg-green-500 rounded-full" />
+              <div
+                data-testid="running-indicator"
+                className="absolute bottom-2 right-2 w-3 h-3 bg-green-500 rounded-full"
+              />
             )}
           </div>
           <h2 className="text-xl md:text-2xl font-bold mt-4">{name}</h2>
