@@ -5,7 +5,7 @@ import { AppGrid } from "./AppGrid";
 import { App } from "@/entities/app";
 
 vi.mock("@/components/cards/AppTile", () => ({
-  AppTile: ({ name, isFocused, ..._rest }: any) => (
+  AppTile: ({ name, isFocused, ... }: any) => (
     <div data-testid={`app-tile-${name}`} data-focused={String(isFocused)}>
       {name}
     </div>
