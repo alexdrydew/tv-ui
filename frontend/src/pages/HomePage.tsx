@@ -1,5 +1,4 @@
 import { TvAppLayout } from "@/components/layout/TvAppLayout";
-import { Header } from "@/components/layout/Header";
 import { AppGrid } from "@/components/layout/AppGrid";
 import { AppTile } from "@/components/cards/AppTile";
 import { info, error } from "@tauri-apps/plugin-log";
@@ -48,7 +47,6 @@ export function HomePage() {
 
   return (
     <TvAppLayout>
-      <Header />
       <main className="py-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-6 px-8">Apps</h2>
         <AppGrid<App>
