@@ -37,7 +37,7 @@ export function AppTile({
 
   const focusSelf = (e: { currentTarget: { focus: () => void } }) => {
     onFocus();
-    // we need to explicitly focus self here for in case the component
+    // we need to explicitly focus self here in case the component
     // lost focus but isFocused it still true
     e.currentTarget.focus();
   };
