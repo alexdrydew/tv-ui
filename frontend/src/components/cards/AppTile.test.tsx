@@ -43,6 +43,13 @@ describe("AppTile", () => {
     expect(mockOnSelect).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps focus after being clicked", async () => {
+    render(<AppTile {...defaultProps} />);
+    const button = screen.getByRole("button", { name: /Test App/i });
+    await userEvent.click(button);
+    expect(button).toHaveFocus();
+  });
+
   it("calls onFocus when focused", () => {
     render(<AppTile {...defaultProps} />);
     const button = screen.getByRole("button", { name: /Test App/i });
