@@ -1,8 +1,9 @@
 import { TvAppLayout } from "@/components/layout/TvAppLayout";
 import { Header } from "@/components/layout/Header";
 import { AppGrid } from "@/components/layout/AppGrid";
+import { AppTile } from "@/components/cards/AppTile";
 import { info, error } from "@tauri-apps/plugin-log";
-import { App, instantiateApp } from "@/entities/app";
+import { App, instantiateApp, isLaunched } from "@/entities/app";
 import { useApps } from "@/hooks/useApps";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -50,10 +51,29 @@ export function HomePage() {
       <Header />
       <main className="py-8">
         <h2 className="text-2xl md:text-3xl font-bold mb-6 px-8">Apps</h2>
-        <AppGrid
+        <AppGrid<App>
           apps={apps}
           onLaunchApp={handleLaunchApp}
           onKillApp={handleKillApp}
+          renderItem={({
+            app,
+            index,
+            isFocused,
+            setFocusedIndex,
+            onLaunchApp,
+            onKillApp,
+          }) => (
+            <AppTile
+              key={app.config.id}
+              name={app.config.name}
+              icon={app.config.icon}
+              isFocused={isFocused}
+              isRunning={isLaunched(app)}
+              onFocus={() => setFocusedIndex(index)}
+              onSelect={() => onLaunchApp(app)}
+              onKill={() => onKillApp(app)}
+            />
+          )}
         />
       </main>
       <Toaster />

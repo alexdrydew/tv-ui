@@ -4,14 +4,6 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AppGrid } from "./AppGrid";
 import { App } from "@/entities/app";
 
-vi.mock("@/components/cards/AppTile", () => ({
-  AppTile: ({ name, isFocused, ... }: any) => (
-    <div data-testid={`app-tile-${name}`} data-focused={String(isFocused)}>
-      {name}
-    </div>
-  ),
-}));
-
 const mockApps: App[] = [
   {
     config: {
@@ -57,10 +49,19 @@ describe("AppGrid", () => {
 
   it("should focus the first app tile initially", () => {
     render(
-      <AppGrid
+      <AppGrid<App>
         apps={mockApps}
         onLaunchApp={mockOnLaunchApp}
         onKillApp={mockOnKillApp}
+        renderItem={({ app, isFocused }) => (
+          <div
+            key={app.config.id}
+            data-testid={`app-tile-${app.config.name}`}
+            data-focused={String(isFocused)}
+          >
+            {app.config.name}
+          </div>
+        )}
       />,
     );
     expect(screen.getByTestId("app-tile-App One")).toHaveAttribute(
@@ -80,10 +81,19 @@ describe("AppGrid", () => {
   describe("Keyboard Navigation: ArrowRight", () => {
     it("should focus the next app tile when ArrowRight is pressed", () => {
       render(
-        <AppGrid
+        <AppGrid<App>
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          renderItem={({ app, isFocused }) => (
+            <div
+              key={app.config.id}
+              data-testid={`app-tile-${app.config.name}`}
+              data-focused={String(isFocused)}
+            >
+              {app.config.name}
+            </div>
+          )}
         />,
       );
       fireEvent.keyDown(document.body, { key: "ArrowRight" });
@@ -104,10 +114,19 @@ describe("AppGrid", () => {
 
     it("should focus the last app tile when ArrowRight is pressed multiple times", () => {
       render(
-        <AppGrid
+        <AppGrid<App>
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          renderItem={({ app, isFocused }) => (
+            <div
+              key={app.config.id}
+              data-testid={`app-tile-${app.config.name}`}
+              data-focused={String(isFocused)}
+            >
+              {app.config.name}
+            </div>
+          )}
         />,
       );
       fireEvent.keyDown(document.body, { key: "ArrowRight" });
@@ -129,10 +148,19 @@ describe("AppGrid", () => {
 
     it("should not change focus when ArrowRight is pressed on the last app tile", () => {
       render(
-        <AppGrid
+        <AppGrid<App>
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          renderItem={({ app, isFocused }) => (
+            <div
+              key={app.config.id}
+              data-testid={`app-tile-${app.config.name}`}
+              data-focused={String(isFocused)}
+            >
+              {app.config.name}
+            </div>
+          )}
         />,
       );
       fireEvent.keyDown(document.body, { key: "ArrowRight" });
@@ -162,10 +190,19 @@ describe("AppGrid", () => {
   describe("Keyboard Navigation: ArrowLeft", () => {
     it("should focus the previous app tile when ArrowLeft is pressed", () => {
       render(
-        <AppGrid
+        <AppGrid<App>
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          renderItem={({ app, isFocused }) => (
+            <div
+              key={app.config.id}
+              data-testid={`app-tile-${app.config.name}`}
+              data-focused={String(isFocused)}
+            >
+              {app.config.name}
+            </div>
+          )}
         />,
       );
       fireEvent.keyDown(document.body, { key: "ArrowRight" });
@@ -192,10 +229,19 @@ describe("AppGrid", () => {
 
     it("should not change focus when ArrowLeft is pressed on the first app tile", () => {
       render(
-        <AppGrid
+        <AppGrid<App>
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          renderItem={({ app, isFocused }) => (
+            <div
+              key={app.config.id}
+              data-testid={`app-tile-${app.config.name}`}
+              data-focused={String(isFocused)}
+            >
+              {app.config.name}
+            </div>
+          )}
         />,
       );
       expect(screen.getByTestId("app-tile-App One")).toHaveAttribute(

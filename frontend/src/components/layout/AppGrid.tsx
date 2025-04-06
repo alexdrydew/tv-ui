@@ -1,30 +1,41 @@
-import { AppTile } from "@/components/cards/AppTile";
-import { App, isLaunched } from "@/entities/app";
+import { App } from "@/entities/app";
 import { useFocusNavigation } from "@/hooks/useFocusNavigation";
+import React from "react";
 
-interface AppGridProps {
-  apps: App[];
-  onLaunchApp: (command: App) => void;
-  onKillApp: (command: App) => void;
+interface AppGridProps<T extends App> {
+  apps: T[];
+  onLaunchApp: (app: T) => void;
+  onKillApp: (app: T) => void;
+  renderItem: (props: {
+    app: T;
+    index: number;
+    isFocused: boolean;
+    setFocusedIndex: (index: number) => void;
+    onLaunchApp: (app: T) => void;
+    onKillApp: (app: T) => void;
+  }) => React.ReactNode;
 }
 
-export function AppGrid({ apps, onLaunchApp, onKillApp }: AppGridProps) {
+export function AppGrid<T extends App>({
+  apps,
+  onLaunchApp,
+  onKillApp,
+  renderItem,
+}: AppGridProps<T>) {
   const { focusedIndex, setFocusedIndex } = useFocusNavigation(apps.length);
 
   return (
     <div className="flex gap-8 p-4">
-      {apps.map((app, index) => (
-        <AppTile
-          key={app.config.id}
-          name={app.config.name}
-          icon={app.config.icon}
-          isFocused={focusedIndex === index}
-          isRunning={isLaunched(app)}
-          onFocus={() => setFocusedIndex(index)}
-          onSelect={() => onLaunchApp(app)}
-          onKill={() => onKillApp(app)}
-        />
-      ))}
+      {apps.map((app, index) =>
+        renderItem({
+          app,
+          index,
+          isFocused: focusedIndex === index,
+          setFocusedIndex,
+          onLaunchApp,
+          onKillApp,
+        }),
+      )}
     </div>
   );
 }
