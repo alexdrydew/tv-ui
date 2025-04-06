@@ -61,14 +61,17 @@ describe("AppTile", () => {
     render(<AppTile {...defaultProps} isFocused={true} />);
     const button = screen.getByRole("button", { name: /Test App/i });
     expect(button).toHaveFocus();
+    // TODO: should it really be called?
     expect(mockOnFocus).toHaveBeenCalledTimes(1);
   });
 
   it("shows running indicator when isRunning is true", () => {
     render(<AppTile {...defaultProps} isRunning={true} />);
     const button = screen.getByRole("button", { name: /Test App/i });
+    // TODO: what us we slightly change color?
     const indicator = button.querySelector(".bg-green-500");
     expect(indicator).toBeInTheDocument();
+    // TODO: should we really check such specific classes?
     expect(indicator).toHaveClass(
       "absolute bottom-2 right-2 w-3 h-3 rounded-full",
     );
@@ -77,6 +80,7 @@ describe("AppTile", () => {
   it("does not show running indicator when isRunning is false", () => {
     render(<AppTile {...defaultProps} isRunning={false} />);
     const button = screen.getByRole("button", { name: /Test App/i });
+    // TODO: what us we slightly change color?
     const indicator = button.querySelector(".bg-green-500");
     expect(indicator).not.toBeInTheDocument();
   });
