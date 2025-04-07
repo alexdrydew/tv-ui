@@ -19,7 +19,8 @@ pub fn run() {
             commands::get_app_state,
             commands::launch_app,
             commands::kill_app,
-            commands::create_app_config
+            commands::create_app_config,
+            commands::remove_app_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
