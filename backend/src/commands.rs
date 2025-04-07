@@ -461,10 +461,11 @@ mod tests {
 
     // --- Tests for remove_config_from_file ---
 
-    #[test]
-    fn test_remove_app_config_success() {
+    #[tokio::test]
+    async fn test_remove_config_from_file_success() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let id_to_remove = AppConfigId("app_to_remove".to_string());
+        let apps_state = LaunchedApps::default();
         let initial_configs = vec![
             AppConfig {
                 id: AppConfigId("app1".to_string()),
@@ -489,12 +490,12 @@ mod tests {
             serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
-        let result = remove_config_from_file( // Call the new function
+        let result = remove_config_from_file(
             id_to_remove.clone(),
             temp_file.path().to_str().unwrap(),
-            &apps_state, // Pass state
+            &apps_state,
         )
-        .await; // Await the async call
+        .await;
 
         assert!(result.is_ok());
         let remaining_configs = result.unwrap();
@@ -515,10 +516,10 @@ mod tests {
         assert_eq!(read_back_configs, remaining_configs);
     }
 
-    #[tokio::test] // Needs to be async now
-    async fn test_remove_config_from_file_not_found() { // Renamed test
+    #[tokio::test]
+    async fn test_remove_config_from_file_not_found() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let apps_state = LaunchedApps::default(); // Need default state
+        let apps_state = LaunchedApps::default();
         let initial_configs = vec![AppConfig {
             id: AppConfigId("app1".to_string()),
             name: "App One".to_string(),
@@ -530,12 +531,13 @@ mod tests {
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
         let id_to_remove = AppConfigId("non_existent_app".to_string());
-        let result = remove_config_from_file( // Call the new function
+        let result = remove_config_from_file(
+            // Call the new function
             id_to_remove.clone(),
             temp_file.path().to_str().unwrap(),
-            &apps_state, // Pass state
+            &apps_state,
         )
-        .await; // Await the async call
+        .await;
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
@@ -549,19 +551,19 @@ mod tests {
         assert_eq!(read_back_configs, initial_configs);
     }
 
-    #[tokio::test] // Needs to be async now
-    async fn test_remove_config_from_file_empty_file() { // Renamed test
+    #[tokio::test]
+    async fn test_remove_config_from_file_empty_file() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let apps_state = LaunchedApps::default(); // Need default state
         fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
 
         let id_to_remove = AppConfigId("any_id".to_string());
-        let result = remove_config_from_file( // Call the new function
+        let result = remove_config_from_file(
             id_to_remove.clone(),
             temp_file.path().to_str().unwrap(),
-            &apps_state, // Pass state
+            &apps_state,
         )
-        .await; // Await the async call
+        .await;
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
