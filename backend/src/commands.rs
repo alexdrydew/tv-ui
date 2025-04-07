@@ -280,7 +280,21 @@ pub async fn remove_app_config(
     config_id_to_remove: AppConfigId,
     config_path: String,
     app: AppHandle,
+    apps_state: State<'_, LaunchedApps>, // Add LaunchedApps state
 ) -> Result<(), String> {
+    // Check if the app is currently running
+    {
+        let apps_guard = apps_state.0.lock().await;
+        if let Some(state) = apps_guard.get(&config_id_to_remove) {
+            if state.is_running() {
+                return Err(format!(
+                    "Cannot remove config for running app: {:?}",
+                    config_id_to_remove
+                ));
+            }
+        }
+    } // Release the lock
+
     let mut configs = read_configs_from_file(&config_path)?;
 
     let initial_len = configs.len();
