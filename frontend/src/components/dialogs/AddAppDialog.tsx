@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "../ui/dialog";
 import {
   Form,
   FormControl,
@@ -27,7 +27,7 @@ import { nanoid } from "nanoid";
 
 const formSchema = z.object({
   name: z.string().min(1, "App name cannot be empty"),
-  icon: z.string().min(1, "Icon path cannot be empty"), // TODO: Add file picker later
+  icon: z.string().min(1, "Icon path cannot be empty"),
   launchCommand: z.string().min(1, "Launch command cannot be empty"),
 });
 
@@ -56,14 +56,14 @@ export function AddAppDialog({
   async function onSubmit(values: FormValues) {
     const newConfig: AppConfig = {
       ...values,
-      id: nanoid(), // Generate a unique ID
+      id: nanoid(),
     };
 
     try {
       await createAppConfig(newConfig, configFilePath);
       toast.success(`App "${newConfig.name}" added successfully.`);
       form.reset();
-      onOpenChange(false); // Close dialog on success
+      onOpenChange(false);
     } catch (e) {
       error(`Failed to add app: ${e}`);
       toast.error("Failed to add app", {
@@ -74,7 +74,7 @@ export function AddAppDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New App</DialogTitle>
           <DialogDescription>
@@ -106,7 +106,6 @@ export function AddAppDialog({
                 <FormItem>
                   <FormLabel>Icon Path</FormLabel>
                   <FormControl>
-                    {/* TODO: Replace with a file picker */}
                     <Input placeholder="/path/to/icon.png" {...field} />
                   </FormControl>
                   <FormDescription>

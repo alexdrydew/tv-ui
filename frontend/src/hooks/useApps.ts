@@ -61,7 +61,6 @@ export function useAppConfigs(configFileName: string): {
     };
   }, [configFilePath]);
 
-  // Listen for backend config update events
   useEffect(() => {
     if (!configFilePath) {
       return;
@@ -69,10 +68,7 @@ export function useAppConfigs(configFileName: string): {
     const unlistenPromise = listen<AppConfig[]>(
       CONFIG_UPDATE_EVENT,
       (event) => {
-        debug(
-          `Config update event received: ${JSON.stringify(event.payload)}`,
-        );
-        // Backend sends the full updated list
+        debug(`Config update event received: ${JSON.stringify(event.payload)}`);
         setConfig(event.payload);
       },
     );
