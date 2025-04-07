@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::time::Duration;
 use std::{collections::HashMap, os::unix::process::ExitStatusExt, sync::Arc};
 use tauri::Emitter;
 use tauri::{AppHandle, State};
 use tokio::process::Child;
 use tokio::time::sleep;
-use std::fs;
 use tokio::{process::Command, sync::Mutex};
 
 const APP_UPDATE_EVENT: &str = "app-updated";
@@ -274,6 +274,113 @@ pub async fn create_app_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_read_configs_file_not_found() {
+        let non_existent_path = "this/path/definitely/does/not/exist.json";
+        let result = read_configs_from_file(non_existent_path);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_read_configs_invalid_json() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        fs::write(temp_file.path(), "this is not valid json")
+            .expect("Failed to write invalid json");
+        let result = read_configs_from_file(temp_file.path().to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Config parse error"));
+    }
+
+    #[test]
+    fn test_read_configs_empty_array() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
+        let result = read_configs_from_file(temp_file.path().to_str().unwrap());
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_read_configs_valid_data() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let expected_configs = vec![AppConfig {
+            id: "test1".to_string(),
+            name: "Test App 1".to_string(),
+            icon: "icon1.png".to_string(),
+            launch_command: "cmd1".to_string(),
+        }];
+        let json_content =
+            serde_json::to_string(&expected_configs).expect("Failed to serialize test data");
+        fs::write(temp_file.path(), json_content).expect("Failed to write valid data");
+
+        let result = read_configs_from_file(temp_file.path().to_str().unwrap());
+        assert!(result.is_ok());
+        let actual_configs = result.unwrap();
+        assert_eq!(actual_configs, expected_configs);
+    }
+
+    #[test]
+    fn test_write_configs_empty() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let configs: Vec<AppConfig> = vec![];
+        let result = write_configs_to_file(temp_file.path().to_str().unwrap(), &configs);
+        assert!(result.is_ok());
+
+        let content = fs::read_to_string(temp_file.path()).expect("Failed to read back file");
+        // Expecting pretty-printed empty array
+        assert_eq!(content.trim(), "[]");
+    }
+
+    #[test]
+    fn test_write_configs_non_empty() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let configs = vec![
+            AppConfig {
+                id: "app1".to_string(),
+                name: "App One".to_string(),
+                icon: "icon1.png".to_string(),
+                launch_command: "command1".to_string(),
+            },
+            AppConfig {
+                id: "app2".to_string(),
+                name: "App Two".to_string(),
+                icon: "icon2.png".to_string(),
+                launch_command: "command2 --arg".to_string(),
+            },
+        ];
+        let result = write_configs_to_file(temp_file.path().to_str().unwrap(), &configs);
+        assert!(result.is_ok());
+
+        let content = fs::read_to_string(temp_file.path()).expect("Failed to read back file");
+        let expected_content =
+            serde_json::to_string_pretty(&configs).expect("Failed to serialize expected data");
+        assert_eq!(content, expected_content);
+    }
+
+    #[test]
+    fn test_write_then_read_configs() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let path_str = temp_file.path().to_str().unwrap();
+        let initial_configs = vec![AppConfig {
+            id: "combo".to_string(),
+            name: "Combo App".to_string(),
+            icon: "combo.ico".to_string(),
+            launch_command: "combo --run".to_string(),
+        }];
+
+        // Write
+        let write_result = write_configs_to_file(path_str, &initial_configs);
+        assert!(write_result.is_ok());
+
+        // Read back
+        let read_result = read_configs_from_file(path_str);
+        assert!(read_result.is_ok());
+        let read_configs = read_result.unwrap();
+        assert_eq!(read_configs, initial_configs);
+    }
 
     #[tokio::test]
     async fn test_wait_child_success() {
