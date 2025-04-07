@@ -275,13 +275,11 @@ pub async fn create_app_config(
     Ok(())
 }
 
-#[tauri::command]
-pub async fn remove_app_config(
+async fn remove_config_from_file(
     config_id_to_remove: AppConfigId,
-    config_path: String,
-    app: AppHandle,
-    apps_state: State<'_, LaunchedApps>,
-) -> Result<(), String> {
+    config_path: &str,
+    apps_state: &LaunchedApps,
+) -> Result<Vec<AppConfig>, String> {
     {
         let apps_guard = apps_state.0.lock().await;
         if let Some(state) = apps_guard.get(&config_id_to_remove) {
@@ -294,7 +292,7 @@ pub async fn remove_app_config(
         }
     }
 
-    let mut configs = read_configs_from_file(&config_path)?;
+    let mut configs = read_configs_from_file(config_path)?;
 
     let initial_len = configs.len();
     configs.retain(|c| c.id != config_id_to_remove);
@@ -306,10 +304,21 @@ pub async fn remove_app_config(
         ));
     }
 
-    write_configs_to_file(&config_path, &configs)?;
+    write_configs_to_file(config_path, &configs)?;
 
-    emit_or_log(&app, CONFIG_UPDATE_EVENT, configs);
+    Ok(configs)
+}
 
+#[tauri::command]
+pub async fn remove_app_config(
+    config_id_to_remove: AppConfigId,
+    config_path: String,
+    app: AppHandle,
+    apps_state: State<'_, LaunchedApps>,
+) -> Result<(), String> {
+    let updated_configs =
+        remove_config_from_file(config_id_to_remove, &config_path, &apps_state).await?;
+    emit_or_log(&app, CONFIG_UPDATE_EVENT, updated_configs);
     Ok(())
 }
 
@@ -450,28 +459,7 @@ mod tests {
         assert!(matches!(result, AppExitResult::ExitCode(42)));
     }
 
-    // --- Helper for remove_app_config tests ---
-    // Simulates the core logic without requiring AppHandle or async context
-    fn test_remove_config_logic(
-        config_id_to_remove: AppConfigId,
-        config_path: &str,
-    ) -> Result<Vec<AppConfig>, String> {
-        let mut configs = read_configs_from_file(config_path)?;
-        let initial_len = configs.len();
-        configs.retain(|c| c.id != config_id_to_remove);
-
-        if configs.len() == initial_len {
-            return Err(format!(
-                "Config with ID '{:?}' not found.",
-                config_id_to_remove
-            ));
-        }
-
-        write_configs_to_file(config_path, &configs)?;
-        Ok(configs) // Return the modified configs for verification
-    }
-
-    // --- Tests for remove_app_config logic ---
+    // --- Tests for remove_config_from_file ---
 
     #[test]
     fn test_remove_app_config_success() {
@@ -501,8 +489,12 @@ mod tests {
             serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
-        let result =
-            test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
+        let result = remove_config_from_file( // Call the new function
+            id_to_remove.clone(),
+            temp_file.path().to_str().unwrap(),
+            &apps_state, // Pass state
+        )
+        .await; // Await the async call
 
         assert!(result.is_ok());
         let remaining_configs = result.unwrap();
@@ -523,9 +515,10 @@ mod tests {
         assert_eq!(read_back_configs, remaining_configs);
     }
 
-    #[test]
-    fn test_remove_app_config_not_found() {
+    #[tokio::test] // Needs to be async now
+    async fn test_remove_config_from_file_not_found() { // Renamed test
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let apps_state = LaunchedApps::default(); // Need default state
         let initial_configs = vec![AppConfig {
             id: AppConfigId("app1".to_string()),
             name: "App One".to_string(),
@@ -537,8 +530,12 @@ mod tests {
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
         let id_to_remove = AppConfigId("non_existent_app".to_string());
-        let result =
-            test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
+        let result = remove_config_from_file( // Call the new function
+            id_to_remove.clone(),
+            temp_file.path().to_str().unwrap(),
+            &apps_state, // Pass state
+        )
+        .await; // Await the async call
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
@@ -552,14 +549,19 @@ mod tests {
         assert_eq!(read_back_configs, initial_configs);
     }
 
-    #[test]
-    fn test_remove_app_config_from_empty_file() {
+    #[tokio::test] // Needs to be async now
+    async fn test_remove_config_from_file_empty_file() { // Renamed test
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let apps_state = LaunchedApps::default(); // Need default state
         fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
 
         let id_to_remove = AppConfigId("any_id".to_string());
-        let result =
-            test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
+        let result = remove_config_from_file( // Call the new function
+            id_to_remove.clone(),
+            temp_file.path().to_str().unwrap(),
+            &apps_state, // Pass state
+        )
+        .await; // Await the async call
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
@@ -569,5 +571,67 @@ mod tests {
         let content = fs::read_to_string(temp_file.path())
             .expect("Failed to read config file after failed removal attempt");
         assert_eq!(content.trim(), "[]");
+    }
+
+    #[tokio::test]
+    async fn test_remove_config_from_file_app_running() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let apps_state = LaunchedApps::default();
+        let id_to_remove = AppConfigId("running_app".to_string());
+
+        // Setup: Add a "running" app state
+        {
+            let mut guard = apps_state.0.lock().await;
+            let dummy_child = Command::new("sleep") // Use a real command that can be spawned
+                .arg("60") // Sleep long enough for the test
+                .spawn()
+                .expect("Failed to spawn dummy child");
+            let pid = dummy_child.id().unwrap();
+            guard.insert(
+                id_to_remove.clone(),
+                AppState {
+                    info: AppStateInfo {
+                        config_id: id_to_remove.clone(),
+                        pid,
+                        exit_result: None, // None indicates running
+                    },
+                    process: AppProcess {
+                        child: Arc::new(Mutex::new(dummy_child)),
+                    },
+                },
+            );
+        }
+
+        // Setup: Write config file containing the app to remove
+        let initial_configs = vec![AppConfig {
+            id: id_to_remove.clone(),
+            name: "Running App".to_string(),
+            icon: "running.png".to_string(),
+            launch_command: "run_cmd".to_string(),
+        }];
+        let json_content =
+            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
+        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
+
+        // Act
+        let result = remove_config_from_file(
+            id_to_remove.clone(),
+            temp_file.path().to_str().unwrap(),
+            &apps_state,
+        )
+        .await;
+
+        // Assert
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(err_msg.contains("Cannot remove config for running app"));
+
+        // Cleanup: Kill the dummy process if it's still running
+        {
+            let mut guard = apps_state.0.lock().await;
+            if let Some(state) = guard.get_mut(&id_to_remove) {
+                let _ = state.process.child.lock().await.kill().await;
+            }
+        }
     }
 }
