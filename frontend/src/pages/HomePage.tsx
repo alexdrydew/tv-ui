@@ -4,11 +4,16 @@ import { AppTile } from "@/components/cards/AppTile";
 import { info, error } from "@tauri-apps/plugin-log";
 import { App, instantiateApp, isLaunched } from "@/entities/app";
 import { useApps } from "@/hooks/useApps";
+import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { killApp } from "@/api/application";
+import { Button } from "@/components/ui/button";
+import { AddAppDialog } from "@/components/dialogs/AddAppDialog";
+import { PlusIcon } from "lucide-react";
 
 export function HomePage() {
+  const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
   const handleLaunchApp = (app: App) => {
     info(`Launching app: ${app.config.name}`);
     instantiateApp(app)
@@ -39,16 +44,22 @@ export function HomePage() {
     }
   };
 
-  const apps = useApps();
+  const { apps, configFilePath } = useApps();
 
-  if (apps === undefined) {
+  if (apps === undefined || configFilePath === undefined) {
+    // Also wait for configFilePath
     return <div>Loading apps...</div>;
   }
 
   return (
     <TvAppLayout>
       <main className="py-8">
-        <h2 className="text-2xl md:text-3xl font-bold mb-6 px-8">Apps</h2>
+        <div className="flex justify-between items-center mb-6 px-8">
+          <h2 className="text-2xl md:text-3xl font-bold">Apps</h2>
+          <Button onClick={() => setIsAddAppDialogOpen(true)}>
+            <PlusIcon className="mr-2 h-4 w-4" /> Add App
+          </Button>
+        </div>
         <AppGrid<App>
           apps={apps}
           onLaunchApp={handleLaunchApp}
@@ -75,6 +86,11 @@ export function HomePage() {
         />
       </main>
       <Toaster />
+      <AddAppDialog
+        isOpen={isAddAppDialogOpen}
+        onOpenChange={setIsAddAppDialogOpen}
+        configFilePath={configFilePath}
+      />
     </TvAppLayout>
   );
 }

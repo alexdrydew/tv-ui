@@ -38,4 +38,11 @@ export function killApp(configId: string): Promise<void> {
   return invoke("kill_app", { configId });
 }
 
+export function createAppConfig(
+  newConfig: AppConfig,
+  configPath: string,
+): Promise<void> {
+  return invoke("create_app_config", { newConfig, configPath });
+}
+
 export const APP_UPDATE_EVENT = "app-updated";

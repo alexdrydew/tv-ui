@@ -3,12 +3,19 @@ import { initAppsFromConfigs } from "@/entities/app";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { watchImmediate } from "@tauri-apps/plugin-fs";
 import { debug, error, info } from "@tauri-apps/plugin-log";
-import { APP_UPDATE_EVENT, AppState } from "@/api/application";
+import {
+  APP_UPDATE_EVENT,
+  CONFIG_UPDATE_EVENT,
+  AppState,
+} from "@/api/application";
 import { App } from "@/entities/app";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 
-export function useAppConfigs(configFileName: string): AppConfig[] | undefined {
+export function useAppConfigs(configFileName: string): {
+  configs: AppConfig[] | undefined;
+  configFilePath: string | undefined;
+} {
   const [configFilePath, setConfigFilePath] = useState<string | undefined>();
 
   useEffect(() => {
@@ -54,7 +61,28 @@ export function useAppConfigs(configFileName: string): AppConfig[] | undefined {
     };
   }, [configFilePath]);
 
-  return config;
+  // Listen for backend config update events
+  useEffect(() => {
+    if (!configFilePath) {
+      return;
+    }
+    const unlistenPromise = listen<AppConfig[]>(
+      CONFIG_UPDATE_EVENT,
+      (event) => {
+        debug(
+          `Config update event received: ${JSON.stringify(event.payload)}`,
+        );
+        // Backend sends the full updated list
+        setConfig(event.payload);
+      },
+    );
+
+    return () => {
+      unlistenPromise.then((fn) => fn()).catch(error);
+    };
+  }, [configFilePath]); // Re-subscribe if configFilePath changes
+
+  return { configs: config, configFilePath };
 }
 
 export function useAppStateUpdateEventsSubscription(
@@ -72,11 +100,15 @@ export function useAppStateUpdateEventsSubscription(
   }, [onUpdate]);
 }
 
-export function useApps(): App[] | undefined {
-  const appConfigs = useAppConfigs("tv-ui.json");
+export function useApps(): {
+  apps: App[] | undefined;
+  configFilePath: string | undefined;
+} {
+  const { configs: appConfigs, configFilePath } = useAppConfigs("tv-ui.json");
   const [apps, setApps] = useState<App[] | undefined>([]);
 
   useEffect(() => {
+    // Check configs specifically, not the whole object
     if (appConfigs === undefined) {
       setApps(undefined);
       return;
@@ -119,5 +151,5 @@ export function useApps(): App[] | undefined {
 
   useAppStateUpdateEventsSubscription(updateApps);
 
-  return apps;
+  return { apps, configFilePath };
 }
