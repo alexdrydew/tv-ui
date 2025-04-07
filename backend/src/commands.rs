@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::hash::Hash;
 use std::time::Duration;
 use std::{collections::HashMap, os::unix::process::ExitStatusExt, sync::Arc};
 use tauri::Emitter;
 use tauri::{AppHandle, State};
 use tokio::process::Child;
 use tokio::time::sleep;
-use std::hash::Hash;
 use tokio::{process::Command, sync::Mutex};
 
 const APP_UPDATE_EVENT: &str = "app-updated";
@@ -280,9 +280,8 @@ pub async fn remove_app_config(
     config_id_to_remove: AppConfigId,
     config_path: String,
     app: AppHandle,
-    apps_state: State<'_, LaunchedApps>, // Add LaunchedApps state
+    apps_state: State<'_, LaunchedApps>,
 ) -> Result<(), String> {
-    // Check if the app is currently running
     {
         let apps_guard = apps_state.0.lock().await;
         if let Some(state) = apps_guard.get(&config_id_to_remove) {
@@ -293,7 +292,7 @@ pub async fn remove_app_config(
                 ));
             }
         }
-    } // Release the lock
+    }
 
     let mut configs = read_configs_from_file(&config_path)?;
 
@@ -502,7 +501,8 @@ mod tests {
             serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
-        let result = test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
+        let result =
+            test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
 
         assert!(result.is_ok());
         let remaining_configs = result.unwrap();
@@ -516,8 +516,8 @@ mod tests {
             .any(|c| c.id == AppConfigId("app3".to_string())));
 
         // Verify file content
-        let content = fs::read_to_string(temp_file.path())
-            .expect("Failed to read config file after removal");
+        let content =
+            fs::read_to_string(temp_file.path()).expect("Failed to read config file after removal");
         let read_back_configs: Vec<AppConfig> =
             serde_json::from_str(&content).expect("Failed to parse updated config file");
         assert_eq!(read_back_configs, remaining_configs);
@@ -537,7 +537,8 @@ mod tests {
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
         let id_to_remove = AppConfigId("non_existent_app".to_string());
-        let result = test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
+        let result =
+            test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
@@ -557,7 +558,8 @@ mod tests {
         fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
 
         let id_to_remove = AppConfigId("any_id".to_string());
-        let result = test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
+        let result =
+            test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
