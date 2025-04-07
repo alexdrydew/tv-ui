@@ -27,7 +27,7 @@ import { nanoid } from "nanoid";
 
 const formSchema = z.object({
   name: z.string().min(1, "App name cannot be empty"),
-  icon: z.string().min(1, "Icon path cannot be empty"),
+  icon: z.string().optional(),
   launchCommand: z.string().min(1, "Launch command cannot be empty"),
 });
 
@@ -55,7 +55,9 @@ export function AddAppDialog({
 
   async function onSubmit(values: FormValues) {
     const newConfig: AppConfig = {
-      ...values,
+      name: values.name,
+      icon: values.icon?.trim() ? values.icon.trim() : null,
+      launchCommand: values.launchCommand,
       id: nanoid(),
     };
 
@@ -104,12 +106,13 @@ export function AddAppDialog({
               name="icon"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Icon Path</FormLabel>
+                  <FormLabel>Icon Path (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="/path/to/icon.png" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Path to the application icon file.
+                    Path to the application icon file. Leave empty for default
+                    icon.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

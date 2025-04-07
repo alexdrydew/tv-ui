@@ -15,7 +15,7 @@ export interface AppState {
 export interface AppConfig {
   id: string;
   name: string;
-  icon: string;
+  icon: string | null; // Icon is now optional
   launchCommand: string;
 }
 

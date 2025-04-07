@@ -57,7 +57,7 @@ describe("AddAppDialog", () => {
       screen.getByText("Enter the details for the new application configuration."),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("App Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Icon Path")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Icon Path \(Optional\)/i)).toBeInTheDocument(); // Use regex to match optional label
     expect(screen.getByLabelText("Launch Command")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save App" })).toBeInTheDocument();
   });
@@ -77,8 +77,10 @@ describe("AddAppDialog", () => {
       await screen.findByText("App name cannot be empty"),
     ).toBeInTheDocument();
     expect(
-      await screen.findByText("Icon path cannot be empty"),
+      await screen.findByText("App name cannot be empty"),
     ).toBeInTheDocument();
+    // Icon is optional, so no error expected here
+    expect(screen.queryByText("Icon path cannot be empty")).not.toBeInTheDocument();
     expect(
       await screen.findByText("Launch command cannot be empty"),
     ).toBeInTheDocument();
@@ -90,7 +92,7 @@ describe("AddAppDialog", () => {
   it("calls createAppConfig with correct data on successful submission", async () => {
     render(<AddAppDialog {...defaultProps} />);
     const nameInput = screen.getByLabelText("App Name");
-    const iconInput = screen.getByLabelText("Icon Path");
+    const iconInput = screen.getByLabelText(/Icon Path \(Optional\)/i); // Use regex to match optional label
     const commandInput = screen.getByLabelText("Launch Command");
     const saveButton = screen.getByRole("button", { name: "Save App" });
 
@@ -104,7 +106,7 @@ describe("AddAppDialog", () => {
       {
         id: "mock-nanoid",
         name: "My Test App",
-        icon: "/path/icon.png",
+        icon: "/path/icon.png", // Provided icon
         launchCommand: "test-command --run",
       },
       configFilePath,
@@ -123,14 +125,48 @@ describe("AddAppDialog", () => {
     expect(iconInput).toHaveValue("");
     expect(commandInput).toHaveValue("");
   });
-
+ 
+  it("calls createAppConfig with null icon when icon field is empty", async () => {
+    render(<AddAppDialog {...defaultProps} />);
+    const nameInput = screen.getByLabelText("App Name");
+    const iconInput = screen.getByLabelText(/Icon Path/); // Match optional label
+    const commandInput = screen.getByLabelText("Launch Command");
+    const saveButton = screen.getByRole("button", { name: "Save App" });
+ 
+    await userEvent.type(nameInput, "App No Icon");
+    // Leave iconInput empty
+    await userEvent.clear(iconInput); // Ensure it's empty
+    await userEvent.type(commandInput, "no-icon-cmd");
+    await userEvent.click(saveButton);
+ 
+    expect(applicationApi.createAppConfig).toHaveBeenCalledTimes(1);
+    expect(applicationApi.createAppConfig).toHaveBeenCalledWith(
+      {
+        id: "mock-nanoid",
+        name: "App No Icon",
+        icon: null, // Expect null when input is empty
+        launchCommand: "no-icon-cmd",
+      },
+      configFilePath,
+    );
+ 
+    await vi.waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        'App "App No Icon" added successfully.',
+      );
+    });
+    await vi.waitFor(() => {
+      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+ 
   it("shows error toast and does not close dialog on failed submission", async () => {
     const errorMessage = "Backend error";
     vi.mocked(applicationApi.createAppConfig).mockRejectedValue(errorMessage);
 
     render(<AddAppDialog {...defaultProps} />);
     const nameInput = screen.getByLabelText("App Name");
-    const iconInput = screen.getByLabelText("Icon Path");
+    const iconInput = screen.getByLabelText(/Icon Path \(Optional\)/i); // Use regex to match optional label
     const commandInput = screen.getByLabelText("Launch Command");
     const saveButton = screen.getByRole("button", { name: "Save App" });
 

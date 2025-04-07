@@ -3,6 +3,17 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AppTile } from "./AppTile";
+import { AppWindow } from "lucide-react"; // Import for checking default icon
+
+// Mock lucide-react
+vi.mock("lucide-react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("lucide-react")>();
+  return {
+    ...original,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    AppWindow: (props: any) => <svg data-testid="default-icon" {...props} />,
+  };
+});
 
 describe("AppTile", () => {
   const mockOnSelect = vi.fn();
@@ -10,9 +21,9 @@ describe("AppTile", () => {
   const mockOnKill = vi.fn();
   const mockOnRemove = vi.fn();
 
-  const defaultProps = {
+  const defaultProps: React.ComponentProps<typeof AppTile> = {
     name: "Test App",
-    icon: "test-icon.png",
+    icon: "test-icon.png", // Default to having an icon for most tests
     isFocused: false,
     isRunning: false,
     onSelect: mockOnSelect,
@@ -29,13 +40,20 @@ describe("AppTile", () => {
     cleanup();
   });
 
-  it("renders the app name and icon", () => {
-    render(<AppTile {...defaultProps} />);
+  it("renders the app name and icon when icon is provided", () => {
+    render(<AppTile {...defaultProps} icon="test-icon.png" />);
     expect(screen.getByText("Test App")).toBeInTheDocument();
-    expect(screen.getByAltText("Test App")).toHaveAttribute(
-      "src",
-      "test-icon.png",
-    );
+    const img = screen.getByAltText("Test App");
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("src", "test-icon.png");
+    expect(screen.queryByTestId("default-icon")).not.toBeInTheDocument();
+  });
+
+  it("renders the app name and default icon when icon is null", () => {
+    render(<AppTile {...defaultProps} icon={null} />);
+    expect(screen.getByText("Test App")).toBeInTheDocument();
+    expect(screen.queryByAltText("Test App")).not.toBeInTheDocument();
+    expect(screen.getByTestId("default-icon")).toBeInTheDocument();
   });
 
   it("calls onSelect when clicked", async () => {

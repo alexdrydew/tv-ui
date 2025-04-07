@@ -39,7 +39,7 @@ pub struct AppState {
 pub struct AppConfig {
     pub id: AppConfigId,
     pub name: String,
-    pub icon: String,
+    pub icon: Option<String>,
     #[serde(rename = "launchCommand")]
     pub launch_command: String,
 }
@@ -162,7 +162,7 @@ async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id
             let mut map_guard = apps_state.0.lock().await;
             if let Some(app_state) = map_guard.get_mut(&config_id) {
                 log::debug!(
-                    "Updating app state for {:?} with result: {:?}", // Changed {} to {:?}
+                    "Updating app state for {:?} with result: {:?}",
                     config_id,
                     result
                 );
@@ -325,7 +325,7 @@ pub async fn remove_app_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile; // Added import
+    use tempfile::NamedTempFile;
 
     // --- Tests for read_configs_from_file ---
 
@@ -359,12 +359,20 @@ mod tests {
     #[test]
     fn test_read_configs_valid_data() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let expected_configs = vec![AppConfig {
-            id: AppConfigId("test1".to_string()),
-            name: "Test App 1".to_string(),
-            icon: "icon1.png".to_string(),
-            launch_command: "cmd1".to_string(),
-        }];
+        let expected_configs = vec![
+            AppConfig {
+                id: AppConfigId("test1".to_string()),
+                name: "Test App 1".to_string(),
+                icon: Some("icon1.png".to_string()),
+                launch_command: "cmd1".to_string(),
+            },
+            AppConfig {
+                id: AppConfigId("test2".to_string()),
+                name: "Test App 2 No Icon".to_string(),
+                icon: None,
+                launch_command: "cmd2".to_string(),
+            },
+        ];
         let json_content =
             serde_json::to_string(&expected_configs).expect("Failed to serialize test data");
         fs::write(temp_file.path(), json_content).expect("Failed to write valid data");
@@ -394,13 +402,13 @@ mod tests {
             AppConfig {
                 id: AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
-                icon: "icon1.png".to_string(),
+                icon: Some("icon1.png".to_string()),
                 launch_command: "command1".to_string(),
             },
             AppConfig {
                 id: AppConfigId("app2".to_string()),
                 name: "App Two".to_string(),
-                icon: "icon2.png".to_string(),
+                icon: None,
                 launch_command: "command2 --arg".to_string(),
             },
         ];
@@ -417,12 +425,20 @@ mod tests {
     fn test_write_then_read_configs() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let path_str = temp_file.path().to_str().unwrap();
-        let initial_configs = vec![AppConfig {
-            id: AppConfigId("combo".to_string()),
-            name: "Combo App".to_string(),
-            icon: "combo.ico".to_string(),
-            launch_command: "combo --run".to_string(),
-        }];
+        let initial_configs = vec![
+            AppConfig {
+                id: AppConfigId("combo".to_string()),
+                name: "Combo App".to_string(),
+                icon: Some("combo.ico".to_string()),
+                launch_command: "combo --run".to_string(),
+            },
+            AppConfig {
+                id: AppConfigId("combo2".to_string()),
+                name: "Combo App No Icon".to_string(),
+                icon: None,
+                launch_command: "combo2 --run".to_string(),
+            },
+        ];
 
         // Write
         let write_result = write_configs_to_file(path_str, &initial_configs);
@@ -470,19 +486,19 @@ mod tests {
             AppConfig {
                 id: AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
-                icon: "icon1.png".to_string(),
+                icon: Some("icon1.png".to_string()),
                 launch_command: "cmd1".to_string(),
             },
             AppConfig {
                 id: id_to_remove.clone(),
                 name: "App To Remove".to_string(),
-                icon: "remove.png".to_string(),
+                icon: Some("remove.png".to_string()),
                 launch_command: "remove_cmd".to_string(),
             },
             AppConfig {
                 id: AppConfigId("app3".to_string()),
                 name: "App Three".to_string(),
-                icon: "icon3.png".to_string(),
+                icon: None,
                 launch_command: "cmd3".to_string(),
             },
         ];
@@ -523,7 +539,7 @@ mod tests {
         let initial_configs = vec![AppConfig {
             id: AppConfigId("app1".to_string()),
             name: "App One".to_string(),
-            icon: "icon1.png".to_string(),
+            icon: Some("icon1.png".to_string()),
             launch_command: "cmd1".to_string(),
         }];
         let json_content =
@@ -532,7 +548,6 @@ mod tests {
 
         let id_to_remove = AppConfigId("non_existent_app".to_string());
         let result = remove_config_from_file(
-            // Call the new function
             id_to_remove.clone(),
             temp_file.path().to_str().unwrap(),
             &apps_state,
@@ -554,7 +569,7 @@ mod tests {
     #[tokio::test]
     async fn test_remove_config_from_file_empty_file() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let apps_state = LaunchedApps::default(); // Need default state
+        let apps_state = LaunchedApps::default();
         fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
 
         let id_to_remove = AppConfigId("any_id".to_string());
@@ -585,7 +600,7 @@ mod tests {
         {
             let mut guard = apps_state.0.lock().await;
             let dummy_child = Command::new("sleep") // Use a real command that can be spawned
-                .arg("60") // Sleep long enough for the test
+                .arg("60")
                 .spawn()
                 .expect("Failed to spawn dummy child");
             let pid = dummy_child.id().unwrap();
@@ -595,7 +610,7 @@ mod tests {
                     info: AppStateInfo {
                         config_id: id_to_remove.clone(),
                         pid,
-                        exit_result: None, // None indicates running
+                        exit_result: None,
                     },
                     process: AppProcess {
                         child: Arc::new(Mutex::new(dummy_child)),
@@ -608,7 +623,7 @@ mod tests {
         let initial_configs = vec![AppConfig {
             id: id_to_remove.clone(),
             name: "Running App".to_string(),
-            icon: "running.png".to_string(),
+            icon: Some("running.png".to_string()),
             launch_command: "run_cmd".to_string(),
         }];
         let json_content =

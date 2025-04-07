@@ -28,9 +28,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::commands::{
-        self, AppConfig, AppConfigId, AppProcess, AppState, AppStateInfo, LaunchedApps,
-    }; // Added AppConfigId
+    use super::commands::{self, AppConfig, AppConfigId, AppProcess, AppState, AppStateInfo, LaunchedApps};
     use std::{fs, sync::Arc, time::Duration};
     use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
     use tauri::{ipc, Manager, WebviewWindow};
@@ -271,13 +269,13 @@ mod tests {
             AppConfig {
                 id: commands::AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
-                icon: "icon1.png".to_string(),
+                icon: Some("icon1.png".to_string()), // Now optional
                 launch_command: "command1".to_string(),
             },
             AppConfig {
                 id: commands::AppConfigId("app2".to_string()),
                 name: "App Two".to_string(),
-                icon: "icon2.png".to_string(),
+                icon: None, // Test case with no icon
                 launch_command: "command2 --arg".to_string(),
             },
         ];

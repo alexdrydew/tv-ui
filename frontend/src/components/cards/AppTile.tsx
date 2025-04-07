@@ -1,3 +1,4 @@
+import { AppWindow } from "lucide-react"; // Import default icon
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/appButton";
 import { useRef, useLayoutEffect } from "react";
@@ -10,7 +11,7 @@ import {
 
 interface AppTileProps {
   name: string;
-  icon: string;
+  icon: string | null; // Icon can be null
   isFocused: boolean;
   isRunning: boolean;
   onSelect: () => void;
@@ -54,8 +55,15 @@ export function AppTile({
           onMouseOver={focusSelf}
           onFocus={focusSelf}
         >
-          <div className="flex-1 flex items-center justify-center">
-            <img src={icon} alt={name} className="w-32 h-32" />
+          <div className="flex-1 w-48 h-48 items-center justify-center">
+            {icon ? (
+              <img src={icon} alt={name} className="object-contain" />
+            ) : (
+              <AppWindow
+                data-testid="default-icon"
+                className="object-contain size-full"
+              />
+            )}
             {isRunning && (
               <div
                 data-testid="running-indicator"
