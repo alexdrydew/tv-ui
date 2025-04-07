@@ -28,7 +28,9 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::commands::{self, AppConfig, AppProcess, AppState, AppStateInfo, LaunchedApps};
+    use super::commands::{
+        self, AppConfig, AppConfigId, AppProcess, AppState, AppStateInfo, LaunchedApps,
+    }; // Added AppConfigId
     use std::{fs, sync::Arc, time::Duration};
     use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
     use tauri::{ipc, Manager, WebviewWindow};

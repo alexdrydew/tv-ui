@@ -162,7 +162,7 @@ async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id
             let mut map_guard = apps_state.0.lock().await;
             if let Some(app_state) = map_guard.get_mut(&config_id) {
                 log::debug!(
-                    "Updating app state for {} with result: {:?}",
+                    "Updating app state for {:?} with result: {:?}", // Changed {} to {:?}
                     config_id,
                     result
                 );
