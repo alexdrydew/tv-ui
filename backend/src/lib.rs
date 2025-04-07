@@ -58,7 +58,7 @@ mod tests {
 
     async fn setup_running_app_state(
         apps_state: &LaunchedApps,
-        config_id: String,
+        config_id: AppConfigId,
         sleep_duration: &str,
     ) -> (AppStateInfo, Arc<Mutex<Child>>) {
         let mut apps_guard = apps_state.0.lock().await;
@@ -80,7 +80,7 @@ mod tests {
                 child: Arc::clone(&child_arc),
             },
         };
-        apps_guard.insert(config_id, app_state);
+        apps_guard.insert(config_id.clone(), app_state);
         (state_info, child_arc)
     }
 
@@ -88,7 +88,7 @@ mod tests {
     async fn test_get_app_state_not_found() {
         let (_app, webview) = create_test_app();
 
-        let config_id = "non_existent_app".to_string();
+        let config_id = commands::AppConfigId("non_existent_app".to_string());
         let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
             &webview,
             tauri::webview::InvokeRequest {
@@ -146,7 +146,7 @@ mod tests {
     async fn test_kill_app_success() {
         let (app, webview) = create_test_app();
         let launched_apps_state = app.state::<LaunchedApps>();
-        let config_id = "test_kill_app".to_string();
+        let config_id = commands::AppConfigId("test_kill_app".to_string());
 
         let (_mock_state_info, child_arc) =
             setup_running_app_state(&launched_apps_state, config_id.clone(), "60").await;
@@ -180,7 +180,7 @@ mod tests {
     async fn test_kill_app_not_found() {
         let (_app, webview) = create_test_app();
 
-        let config_id = "non_existent_app_to_kill".to_string();
+        let config_id = commands::AppConfigId("non_existent_app_to_kill".to_string());
 
         let result = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
             &webview,
@@ -267,13 +267,13 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let expected_configs = vec![
             AppConfig {
-                id: "app1".to_string(),
+                id: commands::AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
                 icon: "icon1.png".to_string(),
                 launch_command: "command1".to_string(),
             },
             AppConfig {
-                id: "app2".to_string(),
+                id: commands::AppConfigId("app2".to_string()),
                 name: "App Two".to_string(),
                 icon: "icon2.png".to_string(),
                 launch_command: "command2 --arg".to_string(),

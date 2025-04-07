@@ -6,15 +6,19 @@ use tauri::Emitter;
 use tauri::{AppHandle, State};
 use tokio::process::Child;
 use tokio::time::sleep;
+use std::hash::Hash;
 use tokio::{process::Command, sync::Mutex};
 
 const APP_UPDATE_EVENT: &str = "app-updated";
 const CONFIG_UPDATE_EVENT: &str = "config-updated";
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub struct AppConfigId(pub String);
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AppStateInfo {
     #[serde(rename = "configId")]
-    pub config_id: String,
+    pub config_id: AppConfigId,
     pub pid: u32,
     #[serde(rename = "exitResult")]
     pub exit_result: Option<AppExitResult>,
@@ -33,7 +37,7 @@ pub struct AppState {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AppConfig {
-    pub id: String,
+    pub id: AppConfigId,
     pub name: String,
     pub icon: String,
     #[serde(rename = "launchCommand")]
@@ -144,7 +148,7 @@ async fn wait_child_with_mutex(child: Arc<Mutex<Child>>, params: WaitChildParams
     }
 }
 
-async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id: String) {
+async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id: AppConfigId) {
     let process = {
         let map_guard = apps_state.0.lock().await;
         map_guard
@@ -165,11 +169,11 @@ async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id
                 app_state.info.exit_result = Some(result);
                 emit_or_log(&app, APP_UPDATE_EVENT, app_state.info.clone());
             } else {
-                log::debug!("App {} not found in state map", config_id);
+                log::debug!("App {:?} not found in state map", config_id);
             }
         }
         None => {
-            log::warn!("Process not found for config_id: {}", config_id);
+            log::warn!("Process not found for config_id: {:?}", config_id);
         }
     }
 }
@@ -177,14 +181,14 @@ async fn run_process_watcher(app: AppHandle, apps_state: LaunchedApps, config_id
 #[tauri::command]
 pub async fn launch_app(
     command: String,
-    config_id: String,
+    config_id: AppConfigId,
     apps_state: State<'_, LaunchedApps>,
     app: AppHandle,
 ) -> Result<AppStateInfo, String> {
     let mut map_guard = apps_state.0.lock().await;
     if let Some(prev_app_state) = map_guard.get(&config_id) {
         if prev_app_state.is_running() {
-            return Err("Application is already started".to_owned());
+            return Err(format!("Application {:?} is already started", config_id));
         }
     }
 
@@ -200,7 +204,7 @@ pub async fn launch_app(
 
     let state = AppState {
         info: AppStateInfo {
-            config_id: config_id.to_owned(),
+            config_id: config_id.clone(),
             pid,
             exit_result: None,
         },
@@ -212,16 +216,16 @@ pub async fn launch_app(
     tokio::spawn(run_process_watcher(
         app.to_owned(),
         LaunchedApps(Arc::clone(&apps_state.0)),
-        config_id.to_owned(),
+        config_id.clone(),
     ));
-    map_guard.insert(config_id.to_owned(), state.clone());
+    map_guard.insert(config_id.clone(), state.clone());
     emit_or_log(&app, APP_UPDATE_EVENT, state.info.clone());
     Ok(state.info)
 }
 
 #[tauri::command]
 pub async fn kill_app(
-    config_id: String,
+    config_id: AppConfigId,
     apps_state: State<'_, LaunchedApps>,
 ) -> Result<(), String> {
     let mut map_guard = apps_state.0.lock().await;
@@ -240,7 +244,7 @@ pub async fn kill_app(
 
 #[tauri::command]
 pub async fn get_app_state(
-    config_id: String,
+    config_id: AppConfigId,
     apps_state: State<'_, LaunchedApps>,
 ) -> Result<Option<AppStateInfo>, ()> {
     let map_guard = apps_state.0.lock().await;
@@ -257,7 +261,7 @@ pub async fn create_app_config(
 
     if configs.iter().any(|c| c.id == new_config.id) {
         return Err(format!(
-            "Config with ID '{}' already exists.",
+            "Config with ID '{:?}' already exists.",
             new_config.id
         ));
     }
@@ -273,7 +277,7 @@ pub async fn create_app_config(
 
 #[tauri::command]
 pub async fn remove_app_config(
-    config_id_to_remove: String,
+    config_id_to_remove: AppConfigId,
     config_path: String,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -284,7 +288,7 @@ pub async fn remove_app_config(
 
     if configs.len() == initial_len {
         return Err(format!(
-            "Config with ID '{}' not found.",
+            "Config with ID '{:?}' not found.",
             config_id_to_remove
         ));
     }
@@ -334,7 +338,7 @@ mod tests {
     fn test_read_configs_valid_data() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let expected_configs = vec![AppConfig {
-            id: "test1".to_string(),
+            id: AppConfigId("test1".to_string()),
             name: "Test App 1".to_string(),
             icon: "icon1.png".to_string(),
             launch_command: "cmd1".to_string(),
@@ -366,13 +370,13 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let configs = vec![
             AppConfig {
-                id: "app1".to_string(),
+                id: AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
                 icon: "icon1.png".to_string(),
                 launch_command: "command1".to_string(),
             },
             AppConfig {
-                id: "app2".to_string(),
+                id: AppConfigId("app2".to_string()),
                 name: "App Two".to_string(),
                 icon: "icon2.png".to_string(),
                 launch_command: "command2 --arg".to_string(),
@@ -392,7 +396,7 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let path_str = temp_file.path().to_str().unwrap();
         let initial_configs = vec![AppConfig {
-            id: "combo".to_string(),
+            id: AppConfigId("combo".to_string()),
             name: "Combo App".to_string(),
             icon: "combo.ico".to_string(),
             launch_command: "combo --run".to_string(),
@@ -436,7 +440,7 @@ mod tests {
     // --- Helper for remove_app_config tests ---
     // Simulates the core logic without requiring AppHandle or async context
     fn test_remove_config_logic(
-        config_id_to_remove: &str,
+        config_id_to_remove: AppConfigId,
         config_path: &str,
     ) -> Result<Vec<AppConfig>, String> {
         let mut configs = read_configs_from_file(config_path)?;
@@ -445,7 +449,7 @@ mod tests {
 
         if configs.len() == initial_len {
             return Err(format!(
-                "Config with ID '{}' not found.",
+                "Config with ID '{:?}' not found.",
                 config_id_to_remove
             ));
         }
@@ -459,21 +463,22 @@ mod tests {
     #[test]
     fn test_remove_app_config_success() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let id_to_remove = AppConfigId("app_to_remove".to_string());
         let initial_configs = vec![
             AppConfig {
-                id: "app1".to_string(),
+                id: AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
                 icon: "icon1.png".to_string(),
                 launch_command: "cmd1".to_string(),
             },
             AppConfig {
-                id: "app_to_remove".to_string(),
+                id: id_to_remove.clone(),
                 name: "App To Remove".to_string(),
                 icon: "remove.png".to_string(),
                 launch_command: "remove_cmd".to_string(),
             },
             AppConfig {
-                id: "app3".to_string(),
+                id: AppConfigId("app3".to_string()),
                 name: "App Three".to_string(),
                 icon: "icon3.png".to_string(),
                 launch_command: "cmd3".to_string(),
@@ -483,17 +488,18 @@ mod tests {
             serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
-        let result =
-            test_remove_config_logic("app_to_remove", temp_file.path().to_str().unwrap());
+        let result = test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
 
         assert!(result.is_ok());
         let remaining_configs = result.unwrap();
         assert_eq!(remaining_configs.len(), 2);
-        assert!(!remaining_configs
+        assert!(!remaining_configs.iter().any(|c| c.id == id_to_remove));
+        assert!(remaining_configs
             .iter()
-            .any(|c| c.id == "app_to_remove"));
-        assert!(remaining_configs.iter().any(|c| c.id == "app1"));
-        assert!(remaining_configs.iter().any(|c| c.id == "app3"));
+            .any(|c| c.id == AppConfigId("app1".to_string())));
+        assert!(remaining_configs
+            .iter()
+            .any(|c| c.id == AppConfigId("app3".to_string())));
 
         // Verify file content
         let content = fs::read_to_string(temp_file.path())
@@ -507,7 +513,7 @@ mod tests {
     fn test_remove_app_config_not_found() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let initial_configs = vec![AppConfig {
-            id: "app1".to_string(),
+            id: AppConfigId("app1".to_string()),
             name: "App One".to_string(),
             icon: "icon1.png".to_string(),
             launch_command: "cmd1".to_string(),
@@ -516,12 +522,12 @@ mod tests {
             serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
         fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
 
-        let result =
-            test_remove_config_logic("non_existent_app", temp_file.path().to_str().unwrap());
+        let id_to_remove = AppConfigId("non_existent_app".to_string());
+        let result = test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
-        assert!(err_msg.contains("Config with ID 'non_existent_app' not found."));
+        assert!(err_msg.contains(&format!("Config with ID '{:?}' not found.", id_to_remove)));
 
         // Verify file content hasn't changed
         let content = fs::read_to_string(temp_file.path())
@@ -536,12 +542,12 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
 
-        let result =
-            test_remove_config_logic("any_id", temp_file.path().to_str().unwrap());
+        let id_to_remove = AppConfigId("any_id".to_string());
+        let result = test_remove_config_logic(id_to_remove.clone(), temp_file.path().to_str().unwrap());
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
-        assert!(err_msg.contains("Config with ID 'any_id' not found."));
+        assert!(err_msg.contains(&format!("Config with ID '{:?}' not found.", id_to_remove)));
 
         // Verify file content hasn't changed
         let content = fs::read_to_string(temp_file.path())
