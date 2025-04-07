@@ -46,3 +46,4 @@ export function createAppConfig(
 }
 
 export const APP_UPDATE_EVENT = "app-updated";
+export const CONFIG_UPDATE_EVENT = "config-updated";
