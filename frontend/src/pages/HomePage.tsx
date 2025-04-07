@@ -7,7 +7,7 @@ import { useApps } from "@/hooks/useApps";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { killApp } from "@/api/application";
+import { killApp, removeAppConfig } from "@/api/application"; // Import removeAppConfig
 import { Button } from "@/components/ui/button";
 import { AddAppDialog } from "@/components/dialogs/AddAppDialog";
 import { PlusIcon } from "lucide-react";
@@ -44,6 +44,32 @@ export function HomePage() {
     }
   };
 
+  const handleRemoveApp = async (app: App) => {
+    if (!configFilePath) {
+      error("Config file path is not available for removal.");
+      toast.error("Cannot remove app", {
+        description: "Configuration file path is missing.",
+      });
+      return;
+    }
+    if (isLaunched(app)) {
+      toast.error("Cannot remove a running app", {
+        description: "Please kill the app before removing its configuration.",
+      });
+      return;
+    }
+    try {
+      await removeAppConfig(app.config.id, configFilePath);
+      toast.success(`${app.config.name} configuration removed`);
+      // The useApps hook should update the list via the CONFIG_UPDATE_EVENT
+    } catch (e) {
+      error(`Failed to remove app config: ${e}`);
+      toast.error(`Failed to remove ${app.config.name}`, {
+        description: `${e}`,
+      });
+    }
+  };
+
   const { apps, configFilePath } = useApps();
 
   if (apps === undefined || configFilePath === undefined) {
@@ -64,6 +90,7 @@ export function HomePage() {
           apps={apps}
           onLaunchApp={handleLaunchApp}
           onKillApp={handleKillApp}
+          onRemoveApp={handleRemoveApp} // Pass handleRemoveApp
           renderItem={({
             app,
             index,
@@ -71,6 +98,7 @@ export function HomePage() {
             setFocusedIndex,
             onLaunchApp,
             onKillApp,
+            onRemoveApp, // Receive onRemoveApp
           }) => (
             <AppTile
               key={app.config.id}
@@ -81,6 +109,7 @@ export function HomePage() {
               onFocus={() => setFocusedIndex(index)}
               onSelect={() => onLaunchApp(app)}
               onKill={() => onKillApp(app)}
+              onRemove={() => onRemoveApp(app)} // Pass to AppTile's onRemove
             />
           )}
         />

@@ -16,6 +16,7 @@ interface AppTileProps {
   onSelect: () => void;
   onFocus: () => void;
   onKill: () => void;
+  onRemove: () => void; // Add onRemove prop
 }
 
 export function AppTile({
@@ -26,6 +27,7 @@ export function AppTile({
   onSelect,
   onFocus,
   onKill,
+  onRemove, // Destructure onRemove
 }: AppTileProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -71,6 +73,13 @@ export function AppTile({
           variant="destructive"
         >
           Kill
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={isRunning} // Disable if running
+          onClick={onRemove}
+          variant="destructive"
+        >
+          Remove
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
