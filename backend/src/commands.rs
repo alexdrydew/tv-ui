@@ -50,18 +50,16 @@ pub async fn get_app_configs(config_path: String) -> Result<Vec<AppConfig>, Stri
     serde_json::from_str(&content).map_err(|e| format!("Config parse error: {}", e))
 }
 
-// Helper function to read configs from file
 fn read_configs_from_file(path: &str) -> Result<Vec<AppConfig>, String> {
     match fs::read_to_string(path) {
         Ok(content) => {
             serde_json::from_str(&content).map_err(|e| format!("Config parse error: {}", e))
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(vec![]), // Return empty vec if file not found
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
         Err(e) => Err(format!("Failed to read config file: {}", e)),
     }
 }
 
-// Helper function to write configs to file
 fn write_configs_to_file(path: &str, configs: &[AppConfig]) -> Result<(), String> {
     let content =
         serde_json::to_string_pretty(configs).map_err(|e| format!("Serialization error: {}", e))?;
@@ -273,7 +271,6 @@ pub async fn create_app_config(
 
     write_configs_to_file(&config_path, &configs)?;
 
-    // Emit event with the updated list of configs
     emit_or_log(&app, CONFIG_UPDATE_EVENT, configs);
 
     Ok(())

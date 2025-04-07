@@ -19,7 +19,7 @@ pub fn run() {
             commands::get_app_state,
             commands::launch_app,
             commands::kill_app,
-            commands::create_app_config // Added new command
+            commands::create_app_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -42,10 +42,9 @@ mod tests {
             .manage(commands::LaunchedApps::default())
             // can't test launch_app due to https://github.com/tauri-apps/tauri/issues/12077
             .invoke_handler(tauri::generate_handler![
-                commands::get_app_configs, // Explicitly listed
-                commands::get_app_state,   // Explicitly listed
-                commands::kill_app         // Explicitly listed
-                // Cannot test commands requiring AppHandle: commands::create_app_config
+                commands::get_app_configs,
+                commands::get_app_state,
+                commands::kill_app
             ])
             .build(mock_context(noop_assets()))
             .expect("failed to build mock app");
