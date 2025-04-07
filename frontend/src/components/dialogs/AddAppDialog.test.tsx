@@ -7,7 +7,6 @@ import * as applicationApi from "@/api/application";
 import { toast } from "sonner";
 import * as nanoid from "nanoid";
 
-// Mock dependencies
 vi.mock("@/api/application", async (importOriginal) => {
   const actual = await importOriginal<typeof applicationApi>();
   return {
@@ -24,7 +23,6 @@ vi.mock("sonner", () => ({
 vi.mock("nanoid", () => ({
   nanoid: vi.fn(() => "mock-nanoid"),
 }));
-// Mock tauri log plugin if needed, but toast mocking might be sufficient
 vi.mock("@tauri-apps/plugin-log", () => ({
   error: vi.fn(),
   debug: vi.fn(),
@@ -43,7 +41,6 @@ describe("AddAppDialog", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset mocks that might have been resolved/rejected
     vi.mocked(applicationApi.createAppConfig).mockResolvedValue(undefined);
   });
 
@@ -105,7 +102,7 @@ describe("AddAppDialog", () => {
     expect(applicationApi.createAppConfig).toHaveBeenCalledTimes(1);
     expect(applicationApi.createAppConfig).toHaveBeenCalledWith(
       {
-        id: "mock-nanoid", // From mocked nanoid
+        id: "mock-nanoid",
         name: "My Test App",
         icon: "/path/icon.png",
         launchCommand: "test-command --run",
@@ -113,7 +110,6 @@ describe("AddAppDialog", () => {
       configFilePath,
     );
 
-    // Wait for async operations in onSubmit
     await vi.waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith(
         'App "My Test App" added successfully.',
@@ -123,7 +119,6 @@ describe("AddAppDialog", () => {
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });
 
-    // Check if form was reset (inputs should be empty)
     expect(nameInput).toHaveValue("");
     expect(iconInput).toHaveValue("");
     expect(commandInput).toHaveValue("");
@@ -146,7 +141,6 @@ describe("AddAppDialog", () => {
 
     expect(applicationApi.createAppConfig).toHaveBeenCalledTimes(1);
 
-    // Wait for async operations in onSubmit
     await vi.waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Failed to add app", {
         description: errorMessage,
@@ -155,13 +149,8 @@ describe("AddAppDialog", () => {
 
     expect(mockOnOpenChange).not.toHaveBeenCalledWith(false);
 
-    // Form should not be reset
     expect(nameInput).toHaveValue("Fail App");
     expect(iconInput).toHaveValue("/fail/icon.png");
     expect(commandInput).toHaveValue("fail-cmd");
   });
-
-  // Test dialog closing behavior (e.g., clicking outside - depends on Dialog implementation)
-  // This might require more complex setup depending on how shadcn/ui Dialog handles it.
-  // For now, we trust the underlying Dialog component handles its onOpenChange correctly.
 });
