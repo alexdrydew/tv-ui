@@ -8,6 +8,7 @@ describe("AppTile", () => {
   const mockOnSelect = vi.fn();
   const mockOnFocus = vi.fn();
   const mockOnKill = vi.fn();
+  const mockOnRemove = vi.fn();
 
   const defaultProps = {
     name: "Test App",
@@ -17,6 +18,7 @@ describe("AppTile", () => {
     onSelect: mockOnSelect,
     onFocus: mockOnFocus,
     onKill: mockOnKill,
+    onRemove: mockOnRemove,
   };
 
   beforeEach(() => {
@@ -104,5 +106,32 @@ describe("AppTile", () => {
 
     await userEvent.click(killMenuItem);
     expect(mockOnKill).toHaveBeenCalledTimes(1);
+  });
+
+  it("context menu 'Delete app' option is disabled when running", async () => {
+    render(<AppTile {...defaultProps} isRunning={true} />);
+    const button = screen.getByRole("button", { name: /Test App/i });
+    fireEvent.contextMenu(button);
+
+    const removeMenuItem = await screen.findByRole("menuitem", {
+      name: "Delete app",
+    });
+    expect(removeMenuItem).toBeInTheDocument();
+    expect(removeMenuItem).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("context menu 'Delete app' option is enabled and calls onRemove when not running", async () => {
+    render(<AppTile {...defaultProps} isRunning={false} />);
+    const button = screen.getByRole("button", { name: /Test App/i });
+    fireEvent.contextMenu(button);
+
+    const removeMenuItem = await screen.findByRole("menuitem", {
+      name: "Delete app",
+    });
+    expect(removeMenuItem).toBeInTheDocument();
+    expect(removeMenuItem).not.toHaveAttribute("aria-disabled", "true");
+
+    await userEvent.click(removeMenuItem);
+    expect(mockOnRemove).toHaveBeenCalledTimes(1);
   });
 });

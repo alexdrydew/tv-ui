@@ -52,16 +52,9 @@ export function HomePage() {
       });
       return;
     }
-    if (isLaunched(app)) {
-      toast.error("Cannot remove a running app", {
-        description: "Please kill the app before removing its configuration.",
-      });
-      return;
-    }
     try {
       await removeAppConfig(app.config.id, configFilePath);
       toast.success(`${app.config.name} configuration removed`);
-      // The useApps hook should update the list via the CONFIG_UPDATE_EVENT
     } catch (e) {
       error(`Failed to remove app config: ${e}`);
       toast.error(`Failed to remove ${app.config.name}`, {
@@ -73,7 +66,6 @@ export function HomePage() {
   const { apps, configFilePath } = useApps();
 
   if (apps === undefined || configFilePath === undefined) {
-    // Also wait for configFilePath
     return <div>Loading apps...</div>;
   }
 
@@ -90,7 +82,7 @@ export function HomePage() {
           apps={apps}
           onLaunchApp={handleLaunchApp}
           onKillApp={handleKillApp}
-          onRemoveApp={handleRemoveApp} // Pass handleRemoveApp
+          onRemoveApp={handleRemoveApp}
           renderItem={({
             app,
             index,
@@ -98,7 +90,7 @@ export function HomePage() {
             setFocusedIndex,
             onLaunchApp,
             onKillApp,
-            onRemoveApp, // Receive onRemoveApp
+            onRemoveApp,
           }) => (
             <AppTile
               key={app.config.id}
@@ -109,7 +101,7 @@ export function HomePage() {
               onFocus={() => setFocusedIndex(index)}
               onSelect={() => onLaunchApp(app)}
               onKill={() => onKillApp(app)}
-              onRemove={() => onRemoveApp(app)} // Pass to AppTile's onRemove
+              onRemove={() => onRemoveApp(app)}
             />
           )}
         />
