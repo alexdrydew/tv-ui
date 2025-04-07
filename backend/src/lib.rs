@@ -112,10 +112,10 @@ mod tests {
     async fn test_get_app_state_found() {
         let (app, webview) = create_test_app();
         let launched_apps_state = app.state::<LaunchedApps>();
-        let config_id = "test_app".to_string();
+        let config_id = commands::AppConfigId("test_app".to_string()); // Use newtype
 
         let (mock_state_info, _child_arc) =
-            setup_running_app_state(&launched_apps_state, config_id.clone(), "100").await;
+            setup_running_app_state(&launched_apps_state, config_id.clone(), "100").await; // Pass newtype
 
         let response = tauri::test::get_ipc_response::<WebviewWindow<MockRuntime>>(
             &webview,
@@ -124,7 +124,7 @@ mod tests {
                 callback: ipc::CallbackFn(0),
                 error: ipc::CallbackFn(1),
                 url: "http://tauri.localhost".parse().unwrap(),
-                body: ipc::InvokeBody::Json(serde_json::json!({ "configId": config_id })),
+                body: ipc::InvokeBody::Json(serde_json::json!({ "configId": config_id })), // Pass newtype
                 headers: Default::default(),
                 invoke_key: INVOKE_KEY.to_string(),
             },

@@ -79,7 +79,7 @@ impl AppState {
     }
 }
 
-pub struct LaunchedApps(pub Arc<Mutex<HashMap<String, AppState>>>);
+pub struct LaunchedApps(pub Arc<Mutex<HashMap<AppConfigId, AppState>>>);
 
 impl Default for LaunchedApps {
     fn default() -> Self {
