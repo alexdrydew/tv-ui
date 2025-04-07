@@ -45,5 +45,12 @@ export function createAppConfig(
   return invoke("create_app_config", { newConfig, configPath });
 }
 
+export function removeAppConfig(
+  configIdToRemove: string,
+  configPath: string,
+): Promise<void> {
+  return invoke("remove_app_config", { configIdToRemove, configPath });
+}
+
 export const APP_UPDATE_EVENT = "app-updated";
 export const CONFIG_UPDATE_EVENT = "config-updated";
