@@ -42,12 +42,7 @@ pub struct AppConfig {
 
 #[tauri::command]
 pub async fn get_app_configs(config_path: String) -> Result<Vec<AppConfig>, String> {
-    let content = match std::fs::read_to_string(&config_path) {
-        Ok(c) => c,
-        Err(_) => return Ok(vec![]),
-    };
-
-    serde_json::from_str(&content).map_err(|e| format!("Config parse error: {}", e))
+    read_configs_from_file(&config_path)
 }
 
 fn read_configs_from_file(path: &str) -> Result<Vec<AppConfig>, String> {
