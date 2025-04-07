@@ -53,115 +53,6 @@ fn read_configs_from_file(path: &str) -> Result<Vec<AppConfig>, String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
         Err(e) => Err(format!("Failed to read config file: {}", e)),
     }
-
-    fn test_remove_config_logic(
-        config_id_to_remove: &str,
-        config_path: &str,
-    ) -> Result<Vec<AppConfig>, String> {
-        let mut configs = read_configs_from_file(config_path)?;
-        let initial_len = configs.len();
-        configs.retain(|c| c.id != config_id_to_remove);
-
-        if configs.len() == initial_len {
-            return Err(format!(
-                "Config with ID '{}' not found.",
-                config_id_to_remove
-            ));
-        }
-
-        write_configs_to_file(config_path, &configs)?;
-        Ok(configs)
-    }
-
-    #[test]
-    fn test_remove_app_config_success() {
-        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let initial_configs = vec![
-            AppConfig {
-                id: "app1".to_string(),
-                name: "App One".to_string(),
-                icon: "icon1.png".to_string(),
-                launch_command: "cmd1".to_string(),
-            },
-            AppConfig {
-                id: "app_to_remove".to_string(),
-                name: "App To Remove".to_string(),
-                icon: "remove.png".to_string(),
-                launch_command: "remove_cmd".to_string(),
-            },
-            AppConfig {
-                id: "app3".to_string(),
-                name: "App Three".to_string(),
-                icon: "icon3.png".to_string(),
-                launch_command: "cmd3".to_string(),
-            },
-        ];
-        let json_content =
-            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
-        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
-
-        let result =
-            test_remove_config_logic("app_to_remove", temp_file.path().to_str().unwrap());
-
-        assert!(result.is_ok());
-        let remaining_configs = result.unwrap();
-        assert_eq!(remaining_configs.len(), 2);
-        assert!(!remaining_configs
-            .iter()
-            .any(|c| c.id == "app_to_remove"));
-        assert!(remaining_configs.iter().any(|c| c.id == "app1"));
-        assert!(remaining_configs.iter().any(|c| c.id == "app3"));
-
-        let content = fs::read_to_string(temp_file.path())
-            .expect("Failed to read config file after removal");
-        let read_back_configs: Vec<AppConfig> =
-            serde_json::from_str(&content).expect("Failed to parse updated config file");
-        assert_eq!(read_back_configs, remaining_configs);
-    }
-
-    #[test]
-    fn test_remove_app_config_not_found() {
-        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let initial_configs = vec![AppConfig {
-            id: "app1".to_string(),
-            name: "App One".to_string(),
-            icon: "icon1.png".to_string(),
-            launch_command: "cmd1".to_string(),
-        }];
-        let json_content =
-            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
-        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
-
-        let result =
-            test_remove_config_logic("non_existent_app", temp_file.path().to_str().unwrap());
-
-        assert!(result.is_err());
-        let err_msg = result.unwrap_err();
-        assert!(err_msg.contains("Config with ID 'non_existent_app' not found."));
-
-        let content = fs::read_to_string(temp_file.path())
-            .expect("Failed to read config file after failed removal attempt");
-        let read_back_configs: Vec<AppConfig> =
-            serde_json::from_str(&content).expect("Failed to parse original config file");
-        assert_eq!(read_back_configs, initial_configs);
-    }
-
-    #[test]
-    fn test_remove_app_config_from_empty_file() {
-        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
-
-        let result =
-            test_remove_config_logic("any_id", temp_file.path().to_str().unwrap());
-
-        assert!(result.is_err());
-        let err_msg = result.unwrap_err();
-        assert!(err_msg.contains("Config with ID 'any_id' not found."));
-
-        let content = fs::read_to_string(temp_file.path())
-            .expect("Failed to read config file after failed removal attempt");
-        assert_eq!(content.trim(), "[]");
-    }
 }
 
 fn write_configs_to_file(path: &str, configs: &[AppConfig]) -> Result<(), String> {
@@ -408,7 +299,9 @@ pub async fn remove_app_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
+    use tempfile::NamedTempFile; // Added import
+
+    // --- Tests for read_configs_from_file ---
 
     #[test]
     fn test_read_configs_file_not_found() {
@@ -538,5 +431,121 @@ mod tests {
         let child_arc = Arc::new(Mutex::new(child));
         let result = wait_child_with_mutex(child_arc, WaitChildParams::default()).await;
         assert!(matches!(result, AppExitResult::ExitCode(42)));
+    }
+
+    // --- Helper for remove_app_config tests ---
+    // Simulates the core logic without requiring AppHandle or async context
+    fn test_remove_config_logic(
+        config_id_to_remove: &str,
+        config_path: &str,
+    ) -> Result<Vec<AppConfig>, String> {
+        let mut configs = read_configs_from_file(config_path)?;
+        let initial_len = configs.len();
+        configs.retain(|c| c.id != config_id_to_remove);
+
+        if configs.len() == initial_len {
+            return Err(format!(
+                "Config with ID '{}' not found.",
+                config_id_to_remove
+            ));
+        }
+
+        write_configs_to_file(config_path, &configs)?;
+        Ok(configs) // Return the modified configs for verification
+    }
+
+    // --- Tests for remove_app_config logic ---
+
+    #[test]
+    fn test_remove_app_config_success() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let initial_configs = vec![
+            AppConfig {
+                id: "app1".to_string(),
+                name: "App One".to_string(),
+                icon: "icon1.png".to_string(),
+                launch_command: "cmd1".to_string(),
+            },
+            AppConfig {
+                id: "app_to_remove".to_string(),
+                name: "App To Remove".to_string(),
+                icon: "remove.png".to_string(),
+                launch_command: "remove_cmd".to_string(),
+            },
+            AppConfig {
+                id: "app3".to_string(),
+                name: "App Three".to_string(),
+                icon: "icon3.png".to_string(),
+                launch_command: "cmd3".to_string(),
+            },
+        ];
+        let json_content =
+            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
+        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
+
+        let result =
+            test_remove_config_logic("app_to_remove", temp_file.path().to_str().unwrap());
+
+        assert!(result.is_ok());
+        let remaining_configs = result.unwrap();
+        assert_eq!(remaining_configs.len(), 2);
+        assert!(!remaining_configs
+            .iter()
+            .any(|c| c.id == "app_to_remove"));
+        assert!(remaining_configs.iter().any(|c| c.id == "app1"));
+        assert!(remaining_configs.iter().any(|c| c.id == "app3"));
+
+        // Verify file content
+        let content = fs::read_to_string(temp_file.path())
+            .expect("Failed to read config file after removal");
+        let read_back_configs: Vec<AppConfig> =
+            serde_json::from_str(&content).expect("Failed to parse updated config file");
+        assert_eq!(read_back_configs, remaining_configs);
+    }
+
+    #[test]
+    fn test_remove_app_config_not_found() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let initial_configs = vec![AppConfig {
+            id: "app1".to_string(),
+            name: "App One".to_string(),
+            icon: "icon1.png".to_string(),
+            launch_command: "cmd1".to_string(),
+        }];
+        let json_content =
+            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
+        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
+
+        let result =
+            test_remove_config_logic("non_existent_app", temp_file.path().to_str().unwrap());
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(err_msg.contains("Config with ID 'non_existent_app' not found."));
+
+        // Verify file content hasn't changed
+        let content = fs::read_to_string(temp_file.path())
+            .expect("Failed to read config file after failed removal attempt");
+        let read_back_configs: Vec<AppConfig> =
+            serde_json::from_str(&content).expect("Failed to parse original config file");
+        assert_eq!(read_back_configs, initial_configs);
+    }
+
+    #[test]
+    fn test_remove_app_config_from_empty_file() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
+
+        let result =
+            test_remove_config_logic("any_id", temp_file.path().to_str().unwrap());
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(err_msg.contains("Config with ID 'any_id' not found."));
+
+        // Verify file content hasn't changed
+        let content = fs::read_to_string(temp_file.path())
+            .expect("Failed to read config file after failed removal attempt");
+        assert_eq!(content.trim(), "[]");
     }
 }
