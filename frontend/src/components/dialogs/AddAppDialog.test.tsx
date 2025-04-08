@@ -11,7 +11,7 @@ vi.mock("@/api/application", async (importOriginal) => {
   const actual = await importOriginal<typeof applicationApi>();
   return {
     ...actual,
-    createAppConfig: vi.fn(),
+    upsertAppConfig: vi.fn(), // Mock upsertAppConfig instead
   };
 });
 vi.mock("sonner", () => ({
@@ -41,7 +41,7 @@ describe("AddAppDialog", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(applicationApi.createAppConfig).mockResolvedValue(undefined);
+    vi.mocked(applicationApi.upsertAppConfig).mockResolvedValue(undefined); // Reset the correct mock
   });
 
   afterEach(() => {
@@ -85,11 +85,11 @@ describe("AddAppDialog", () => {
       await screen.findByText("Launch command cannot be empty"),
     ).toBeInTheDocument();
 
-    expect(applicationApi.createAppConfig).not.toHaveBeenCalled();
+    expect(applicationApi.upsertAppConfig).not.toHaveBeenCalled(); // Check the correct mock
     expect(mockOnOpenChange).not.toHaveBeenCalled();
   });
 
-  it("calls createAppConfig with correct data on successful submission", async () => {
+  it("calls upsertAppConfig with correct data on successful submission", async () => { // Test description updated
     render(<AddAppDialog {...defaultProps} />);
     const nameInput = screen.getByLabelText("App Name");
     const iconInput = screen.getByLabelText(/Icon Path \(Optional\)/i); // Use regex to match optional label
@@ -101,8 +101,15 @@ describe("AddAppDialog", () => {
     await userEvent.type(commandInput, "test-command --run");
     await userEvent.click(saveButton);
 
-    expect(applicationApi.createAppConfig).toHaveBeenCalledTimes(1);
-    expect(applicationApi.createAppConfig).toHaveBeenCalledWith(
+    // Wait for async operations triggered by submit to complete
+    await vi.waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        'App "My Test App" saved successfully.', // Updated toast message
+      );
+    });
+
+    expect(applicationApi.upsertAppConfig).toHaveBeenCalledTimes(1); // Check the correct mock AFTER waiting
+    expect(applicationApi.upsertAppConfig).toHaveBeenCalledWith( // Check the correct mock
       {
         id: "mock-nanoid",
         name: "My Test App",
@@ -112,11 +119,7 @@ describe("AddAppDialog", () => {
       configFilePath,
     );
 
-    await vi.waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        'App "My Test App" added successfully.',
-      );
-    });
+    // Already waited for toast above
     await vi.waitFor(() => {
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });
@@ -125,8 +128,8 @@ describe("AddAppDialog", () => {
     expect(iconInput).toHaveValue("");
     expect(commandInput).toHaveValue("");
   });
- 
-  it("calls createAppConfig with null icon when icon field is empty", async () => {
+
+  it("calls upsertAppConfig with null icon when icon field is empty", async () => { // Test description updated
     render(<AddAppDialog {...defaultProps} />);
     const nameInput = screen.getByLabelText("App Name");
     const iconInput = screen.getByLabelText(/Icon Path/); // Match optional label
@@ -138,9 +141,16 @@ describe("AddAppDialog", () => {
     await userEvent.clear(iconInput); // Ensure it's empty
     await userEvent.type(commandInput, "no-icon-cmd");
     await userEvent.click(saveButton);
- 
-    expect(applicationApi.createAppConfig).toHaveBeenCalledTimes(1);
-    expect(applicationApi.createAppConfig).toHaveBeenCalledWith(
+
+    // Wait for async operations triggered by submit to complete
+    await vi.waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        'App "App No Icon" saved successfully.', // Updated toast message
+      );
+    });
+
+    expect(applicationApi.upsertAppConfig).toHaveBeenCalledTimes(1); // Check the correct mock AFTER waiting
+    expect(applicationApi.upsertAppConfig).toHaveBeenCalledWith( // Check the correct mock
       {
         id: "mock-nanoid",
         name: "App No Icon",
@@ -149,20 +159,16 @@ describe("AddAppDialog", () => {
       },
       configFilePath,
     );
- 
-    await vi.waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        'App "App No Icon" added successfully.',
-      );
-    });
+
+    // Already waited for toast above
     await vi.waitFor(() => {
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });
   });
- 
+
   it("shows error toast and does not close dialog on failed submission", async () => {
     const errorMessage = "Backend error";
-    vi.mocked(applicationApi.createAppConfig).mockRejectedValue(errorMessage);
+    vi.mocked(applicationApi.upsertAppConfig).mockRejectedValue(errorMessage); // Mock the correct function
 
     render(<AddAppDialog {...defaultProps} />);
     const nameInput = screen.getByLabelText("App Name");
@@ -175,13 +181,15 @@ describe("AddAppDialog", () => {
     await userEvent.type(commandInput, "fail-cmd");
     await userEvent.click(saveButton);
 
-    expect(applicationApi.createAppConfig).toHaveBeenCalledTimes(1);
-
+    // Wait for async operations triggered by submit to complete
     await vi.waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Failed to add app", {
+      expect(toast.error).toHaveBeenCalledWith("Failed to add app", { // Keep error message generic
         description: errorMessage,
       });
     });
+
+    expect(applicationApi.upsertAppConfig).toHaveBeenCalledTimes(1); // Check the correct mock AFTER waiting
+    // Removed extra closing brace here
 
     expect(mockOnOpenChange).not.toHaveBeenCalledWith(false);
 

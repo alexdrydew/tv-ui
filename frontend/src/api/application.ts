@@ -38,11 +38,11 @@ export function killApp(configId: string): Promise<void> {
   return invoke("kill_app", { configId });
 }
 
-export function createAppConfig(
-  newConfig: AppConfig,
+export function upsertAppConfig(
+  configToUpsert: AppConfig,
   configPath: string,
 ): Promise<void> {
-  return invoke("create_app_config", { newConfig, configPath });
+  return invoke("upsert_app_config", { configToUpsert, configPath });
 }
 
 export function removeAppConfig(

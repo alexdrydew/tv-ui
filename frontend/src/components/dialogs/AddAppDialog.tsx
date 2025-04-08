@@ -20,7 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { AppConfig, createAppConfig } from "@/api/application";
+import { AppConfig, upsertAppConfig } from "@/api/application"; // Use upsertAppConfig import
 import { toast } from "sonner";
 import { error } from "@tauri-apps/plugin-log";
 import { nanoid } from "nanoid";
@@ -54,16 +54,16 @@ export function AddAppDialog({
   });
 
   async function onSubmit(values: FormValues) {
-    const newConfig: AppConfig = {
+    const configToUpsert: AppConfig = {
       name: values.name,
       icon: values.icon?.trim() ? values.icon.trim() : null,
       launchCommand: values.launchCommand,
-      id: nanoid(),
+      id: nanoid(), // Keep generating ID for new apps
     };
 
     try {
-      await createAppConfig(newConfig, configFilePath);
-      toast.success(`App "${newConfig.name}" added successfully.`);
+      await upsertAppConfig(configToUpsert, configFilePath);
+      toast.success(`App "${configToUpsert.name}" saved successfully.`);
       form.reset();
       onOpenChange(false);
     } catch (e) {

@@ -46,22 +46,32 @@ pub struct AppConfig {
 
 #[tauri::command]
 pub async fn get_app_configs(config_path: String) -> Result<Vec<AppConfig>, String> {
-    read_configs_from_file(&config_path)
+    read_configs_from_file(&config_path).map(|map| map.into_values().collect())
 }
 
-fn read_configs_from_file(path: &str) -> Result<Vec<AppConfig>, String> {
+fn read_configs_from_file(path: &str) -> Result<HashMap<AppConfigId, AppConfig>, String> {
     match fs::read_to_string(path) {
         Ok(content) => {
-            serde_json::from_str(&content).map_err(|e| format!("Config parse error: {}", e))
+            let configs_vec: Vec<AppConfig> =
+                serde_json::from_str(&content).map_err(|e| format!("Config parse error: {}", e))?;
+            let configs_map = configs_vec
+                .into_iter()
+                .map(|config| (config.id.clone(), config))
+                .collect();
+            Ok(configs_map)
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
         Err(e) => Err(format!("Failed to read config file: {}", e)),
     }
 }
 
-fn write_configs_to_file(path: &str, configs: &[AppConfig]) -> Result<(), String> {
-    let content =
-        serde_json::to_string_pretty(configs).map_err(|e| format!("Serialization error: {}", e))?;
+fn write_configs_to_file(
+    path: &str,
+    configs: &HashMap<AppConfigId, AppConfig>,
+) -> Result<(), String> {
+    let configs_vec: Vec<&AppConfig> = configs.values().collect();
+    let content = serde_json::to_string_pretty(&configs_vec)
+        .map_err(|e| format!("Serialization error: {}", e))?;
     fs::write(path, content).map_err(|e| format!("Failed to write config file: {}", e))
 }
 
@@ -251,27 +261,28 @@ pub async fn get_app_state(
     Ok(map_guard.get(&config_id).map(|s| s.info.clone()))
 }
 
+async fn upsert_config_in_file(
+    config_to_upsert: AppConfig,
+    config_path: &str,
+) -> Result<HashMap<AppConfigId, AppConfig>, String> {
+    let mut configs = read_configs_from_file(config_path)?;
+
+    configs.insert(config_to_upsert.id.clone(), config_to_upsert);
+
+    write_configs_to_file(config_path, &configs)?;
+
+    Ok(configs)
+}
+
 #[tauri::command]
-pub async fn create_app_config(
-    new_config: AppConfig,
+pub async fn upsert_app_config(
+    config_to_upsert: AppConfig,
     config_path: String,
     app: AppHandle,
 ) -> Result<(), String> {
-    let mut configs = read_configs_from_file(&config_path)?;
-
-    if configs.iter().any(|c| c.id == new_config.id) {
-        return Err(format!(
-            "Config with ID '{:?}' already exists.",
-            new_config.id
-        ));
-    }
-
-    configs.push(new_config);
-
-    write_configs_to_file(&config_path, &configs)?;
-
-    emit_or_log(&app, CONFIG_UPDATE_EVENT, configs);
-
+    let updated_configs_map = upsert_config_in_file(config_to_upsert, &config_path).await?;
+    let updated_configs_vec: Vec<AppConfig> = updated_configs_map.into_values().collect();
+    emit_or_log(&app, CONFIG_UPDATE_EVENT, updated_configs_vec);
     Ok(())
 }
 
@@ -279,7 +290,7 @@ async fn remove_config_from_file(
     config_id_to_remove: AppConfigId,
     config_path: &str,
     apps_state: &LaunchedApps,
-) -> Result<Vec<AppConfig>, String> {
+) -> Result<HashMap<AppConfigId, AppConfig>, String> {
     {
         let apps_guard = apps_state.0.lock().await;
         if let Some(state) = apps_guard.get(&config_id_to_remove) {
@@ -294,10 +305,7 @@ async fn remove_config_from_file(
 
     let mut configs = read_configs_from_file(config_path)?;
 
-    let initial_len = configs.len();
-    configs.retain(|c| c.id != config_id_to_remove);
-
-    if configs.len() == initial_len {
+    if configs.remove(&config_id_to_remove).is_none() {
         return Err(format!(
             "Config with ID '{:?}' not found.",
             config_id_to_remove
@@ -316,9 +324,10 @@ pub async fn remove_app_config(
     app: AppHandle,
     apps_state: State<'_, LaunchedApps>,
 ) -> Result<(), String> {
-    let updated_configs =
+    let updated_configs_map =
         remove_config_from_file(config_id_to_remove, &config_path, &apps_state).await?;
-    emit_or_log(&app, CONFIG_UPDATE_EVENT, updated_configs);
+    let updated_configs_vec: Vec<AppConfig> = updated_configs_map.into_values().collect();
+    emit_or_log(&app, CONFIG_UPDATE_EVENT, updated_configs_vec);
     Ok(())
 }
 
@@ -326,6 +335,112 @@ pub async fn remove_app_config(
 mod tests {
     use super::*;
     use tempfile::NamedTempFile;
+
+    // --- Tests for upsert_config_in_file ---
+
+    #[tokio::test]
+    async fn test_upsert_config_in_file_insert() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let path_str = temp_file.path().to_str().unwrap();
+
+        fs::write(path_str, "[]").expect("Failed to write empty array");
+
+        let new_config = AppConfig {
+            id: AppConfigId("new_app".to_string()),
+            name: "New App".to_string(),
+            icon: None,
+            launch_command: "new_cmd".to_string(),
+        };
+
+        let result = upsert_config_in_file(new_config.clone(), path_str).await;
+
+        assert!(result.is_ok());
+        let returned_configs_map = result.unwrap();
+
+        assert_eq!(returned_configs_map.len(), 1);
+        assert!(returned_configs_map.contains_key(&new_config.id));
+        assert_eq!(returned_configs_map.get(&new_config.id), Some(&new_config));
+
+        let read_back_configs_map = read_configs_from_file(path_str).unwrap();
+        assert_eq!(read_back_configs_map, returned_configs_map);
+    }
+
+    #[tokio::test]
+    async fn test_upsert_config_in_file_update() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let path_str = temp_file.path().to_str().unwrap();
+        let id_to_update = AppConfigId("app_to_update".to_string());
+
+        let initial_config_original = AppConfig {
+            id: id_to_update.clone(),
+            name: "App To Update (Original)".to_string(),
+            icon: Some("update_original.png".to_string()),
+            launch_command: "update_cmd_original".to_string(),
+        };
+        let other_config = AppConfig {
+            id: AppConfigId("other_app".to_string()),
+            name: "Other App".to_string(),
+            icon: None,
+            launch_command: "other_cmd".to_string(),
+        };
+        let mut initial_configs_map = HashMap::new();
+        initial_configs_map.insert(id_to_update.clone(), initial_config_original.clone());
+        initial_configs_map.insert(other_config.id.clone(), other_config.clone());
+
+        write_configs_to_file(path_str, &initial_configs_map).unwrap();
+
+        let updated_config = AppConfig {
+            id: id_to_update.clone(),
+            name: "App To Update (Updated)".to_string(),
+            icon: None,
+            launch_command: "update_cmd_updated".to_string(),
+        };
+
+        let result = upsert_config_in_file(updated_config.clone(), path_str).await;
+
+        assert!(result.is_ok());
+        let returned_configs_map = result.unwrap();
+
+        assert_eq!(returned_configs_map.len(), 2);
+        assert!(returned_configs_map.contains_key(&id_to_update));
+        assert_eq!(
+            returned_configs_map.get(&id_to_update),
+            Some(&updated_config)
+        );
+        assert_eq!(
+            returned_configs_map.get(&other_config.id),
+            Some(&other_config)
+        );
+
+        let read_back_configs_map = read_configs_from_file(path_str).unwrap();
+        assert_eq!(read_back_configs_map, returned_configs_map);
+    }
+
+    #[tokio::test]
+    async fn test_upsert_config_in_file_empty_file_insert() {
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let path_str = temp_file.path().to_str().unwrap();
+        fs::write(path_str, "[]").expect("Failed to write empty array");
+
+        let new_config = AppConfig {
+            id: AppConfigId("first_app".to_string()),
+            name: "First App".to_string(),
+            icon: Some("first.ico".to_string()),
+            launch_command: "first_cmd".to_string(),
+        };
+
+        let result = upsert_config_in_file(new_config.clone(), path_str).await;
+
+        assert!(result.is_ok());
+        let returned_configs_map = result.unwrap();
+
+        assert_eq!(returned_configs_map.len(), 1);
+        assert!(returned_configs_map.contains_key(&new_config.id));
+        assert_eq!(returned_configs_map.get(&new_config.id), Some(&new_config));
+
+        let read_back_configs_map = read_configs_from_file(path_str).unwrap();
+        assert_eq!(read_back_configs_map, returned_configs_map);
+    }
 
     // --- Tests for read_configs_from_file ---
 
@@ -359,34 +474,39 @@ mod tests {
     #[test]
     fn test_read_configs_valid_data() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let expected_configs = vec![
-            AppConfig {
-                id: AppConfigId("test1".to_string()),
+        let config1 = AppConfig {
+            id: AppConfigId("test1".to_string()),
                 name: "Test App 1".to_string(),
                 icon: Some("icon1.png".to_string()),
-                launch_command: "cmd1".to_string(),
-            },
-            AppConfig {
-                id: AppConfigId("test2".to_string()),
-                name: "Test App 2 No Icon".to_string(),
-                icon: None,
-                launch_command: "cmd2".to_string(),
-            },
-        ];
+            launch_command: "cmd1".to_string(),
+        };
+        let config2 = AppConfig {
+            id: AppConfigId("test2".to_string()),
+            name: "Test App 2 No Icon".to_string(),
+            icon: None,
+            launch_command: "cmd2".to_string(),
+        };
+        let expected_configs_vec = vec![config1.clone(), config2.clone()];
         let json_content =
-            serde_json::to_string(&expected_configs).expect("Failed to serialize test data");
+            serde_json::to_string(&expected_configs_vec).expect("Failed to serialize test data");
         fs::write(temp_file.path(), json_content).expect("Failed to write valid data");
 
         let result = read_configs_from_file(temp_file.path().to_str().unwrap());
         assert!(result.is_ok());
-        let actual_configs = result.unwrap();
-        assert_eq!(actual_configs, expected_configs);
+        let actual_configs_map = result.unwrap();
+
+        let mut expected_configs_map = HashMap::new();
+        expected_configs_map.insert(config1.id.clone(), config1);
+        expected_configs_map.insert(config2.id.clone(), config2);
+
+        assert_eq!(actual_configs_map.len(), 2);
+        assert_eq!(actual_configs_map, expected_configs_map);
     }
 
     #[test]
     fn test_write_configs_empty() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let configs: Vec<AppConfig> = vec![];
+        let configs: HashMap<AppConfigId, AppConfig> = HashMap::new();
         let result = write_configs_to_file(temp_file.path().to_str().unwrap(), &configs);
         assert!(result.is_ok());
 
@@ -397,57 +517,64 @@ mod tests {
     #[test]
     fn test_write_configs_non_empty() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-        let configs = vec![
-            AppConfig {
-                id: AppConfigId("app1".to_string()),
+        let config1 = AppConfig {
+            id: AppConfigId("app1".to_string()),
                 name: "App One".to_string(),
                 icon: Some("icon1.png".to_string()),
-                launch_command: "command1".to_string(),
-            },
-            AppConfig {
-                id: AppConfigId("app2".to_string()),
-                name: "App Two".to_string(),
-                icon: None,
-                launch_command: "command2 --arg".to_string(),
-            },
-        ];
-        let result = write_configs_to_file(temp_file.path().to_str().unwrap(), &configs);
+            launch_command: "command1".to_string(),
+        };
+        let config2 = AppConfig {
+            id: AppConfigId("app2".to_string()),
+            name: "App Two".to_string(),
+            icon: None,
+            launch_command: "command2 --arg".to_string(),
+        };
+        let mut configs_map = HashMap::new();
+        configs_map.insert(config1.id.clone(), config1.clone());
+        configs_map.insert(config2.id.clone(), config2.clone());
+
+        let result = write_configs_to_file(temp_file.path().to_str().unwrap(), &configs_map);
         assert!(result.is_ok());
 
         let content = fs::read_to_string(temp_file.path()).expect("Failed to read back file");
-        let expected_content =
-            serde_json::to_string_pretty(&configs).expect("Failed to serialize expected data");
-        assert_eq!(content, expected_content);
+        let read_back_vec: Vec<AppConfig> =
+            serde_json::from_str(&content).expect("Failed to parse written content");
+        let mut read_back_map = HashMap::new();
+        for config in read_back_vec {
+            read_back_map.insert(config.id.clone(), config);
+        }
+        assert_eq!(read_back_map, configs_map);
     }
 
     #[test]
     fn test_write_then_read_configs() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let path_str = temp_file.path().to_str().unwrap();
-        let initial_configs = vec![
-            AppConfig {
-                id: AppConfigId("combo".to_string()),
+        let config1 = AppConfig {
+            id: AppConfigId("combo".to_string()),
                 name: "Combo App".to_string(),
                 icon: Some("combo.ico".to_string()),
-                launch_command: "combo --run".to_string(),
-            },
-            AppConfig {
-                id: AppConfigId("combo2".to_string()),
-                name: "Combo App No Icon".to_string(),
-                icon: None,
-                launch_command: "combo2 --run".to_string(),
-            },
-        ];
+            launch_command: "combo --run".to_string(),
+        };
+        let config2 = AppConfig {
+            id: AppConfigId("combo2".to_string()),
+            name: "Combo App No Icon".to_string(),
+            icon: None,
+            launch_command: "combo2 --run".to_string(),
+        };
+        let mut initial_configs_map = HashMap::new();
+        initial_configs_map.insert(config1.id.clone(), config1.clone());
+        initial_configs_map.insert(config2.id.clone(), config2.clone());
 
         // Write
-        let write_result = write_configs_to_file(path_str, &initial_configs);
+        let write_result = write_configs_to_file(path_str, &initial_configs_map);
         assert!(write_result.is_ok());
 
         // Read back
         let read_result = read_configs_from_file(path_str);
         assert!(read_result.is_ok());
-        let read_configs = read_result.unwrap();
-        assert_eq!(read_configs, initial_configs);
+        let read_configs_map = read_result.unwrap();
+        assert_eq!(read_configs_map, initial_configs_map);
     }
 
     #[tokio::test]
@@ -481,29 +608,32 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let id_to_remove = AppConfigId("app_to_remove".to_string());
         let apps_state = LaunchedApps::default();
-        let initial_configs = vec![
-            AppConfig {
-                id: AppConfigId("app1".to_string()),
-                name: "App One".to_string(),
-                icon: Some("icon1.png".to_string()),
-                launch_command: "cmd1".to_string(),
-            },
-            AppConfig {
-                id: id_to_remove.clone(),
-                name: "App To Remove".to_string(),
-                icon: Some("remove.png".to_string()),
-                launch_command: "remove_cmd".to_string(),
-            },
-            AppConfig {
-                id: AppConfigId("app3".to_string()),
-                name: "App Three".to_string(),
-                icon: None,
-                launch_command: "cmd3".to_string(),
-            },
-        ];
-        let json_content =
-            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
-        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
+
+        let config1 = AppConfig {
+            id: AppConfigId("app1".to_string()),
+            name: "App One".to_string(),
+            icon: Some("icon1.png".to_string()),
+            launch_command: "cmd1".to_string(),
+        };
+        let config_to_remove = AppConfig {
+            id: id_to_remove.clone(),
+            name: "App To Remove".to_string(),
+            icon: Some("remove.png".to_string()),
+            launch_command: "remove_cmd".to_string(),
+        };
+        let config3 = AppConfig {
+            id: AppConfigId("app3".to_string()),
+            name: "App Three".to_string(),
+            icon: None,
+            launch_command: "cmd3".to_string(),
+        };
+        let mut initial_configs_map = HashMap::new();
+        initial_configs_map.insert(config1.id.clone(), config1.clone());
+        initial_configs_map.insert(id_to_remove.clone(), config_to_remove.clone());
+        initial_configs_map.insert(config3.id.clone(), config3.clone());
+
+        write_configs_to_file(temp_file.path().to_str().unwrap(), &initial_configs_map)
+            .expect("Failed to write initial config");
 
         let result = remove_config_from_file(
             id_to_remove.clone(),
@@ -513,37 +643,32 @@ mod tests {
         .await;
 
         assert!(result.is_ok());
-        let remaining_configs = result.unwrap();
-        assert_eq!(remaining_configs.len(), 2);
-        assert!(!remaining_configs.iter().any(|c| c.id == id_to_remove));
-        assert!(remaining_configs
-            .iter()
-            .any(|c| c.id == AppConfigId("app1".to_string())));
-        assert!(remaining_configs
-            .iter()
-            .any(|c| c.id == AppConfigId("app3".to_string())));
+        let remaining_configs_map = result.unwrap();
+        assert_eq!(remaining_configs_map.len(), 2);
+        assert!(!remaining_configs_map.contains_key(&id_to_remove));
+        assert!(remaining_configs_map.contains_key(&config1.id));
+        assert!(remaining_configs_map.contains_key(&config3.id));
 
-        // Verify file content
-        let content =
-            fs::read_to_string(temp_file.path()).expect("Failed to read config file after removal");
-        let read_back_configs: Vec<AppConfig> =
-            serde_json::from_str(&content).expect("Failed to parse updated config file");
-        assert_eq!(read_back_configs, remaining_configs);
+        let read_back_map = read_configs_from_file(temp_file.path().to_str().unwrap())
+            .expect("Failed to read config file after removal");
+        assert_eq!(read_back_map, remaining_configs_map);
     }
 
     #[tokio::test]
     async fn test_remove_config_from_file_not_found() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let apps_state = LaunchedApps::default();
-        let initial_configs = vec![AppConfig {
+        let config1 = AppConfig {
             id: AppConfigId("app1".to_string()),
             name: "App One".to_string(),
             icon: Some("icon1.png".to_string()),
             launch_command: "cmd1".to_string(),
-        }];
-        let json_content =
-            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
-        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
+        };
+        let mut initial_configs_map = HashMap::new();
+        initial_configs_map.insert(config1.id.clone(), config1.clone());
+
+        write_configs_to_file(temp_file.path().to_str().unwrap(), &initial_configs_map)
+            .expect("Failed to write initial config");
 
         let id_to_remove = AppConfigId("non_existent_app".to_string());
         let result = remove_config_from_file(
@@ -557,19 +682,18 @@ mod tests {
         let err_msg = result.unwrap_err();
         assert!(err_msg.contains(&format!("Config with ID '{:?}' not found.", id_to_remove)));
 
-        // Verify file content hasn't changed
-        let content = fs::read_to_string(temp_file.path())
+        let read_back_map = read_configs_from_file(temp_file.path().to_str().unwrap())
             .expect("Failed to read config file after failed removal attempt");
-        let read_back_configs: Vec<AppConfig> =
-            serde_json::from_str(&content).expect("Failed to parse original config file");
-        assert_eq!(read_back_configs, initial_configs);
+        assert_eq!(read_back_map, initial_configs_map);
     }
 
     #[tokio::test]
     async fn test_remove_config_from_file_empty_file() {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let apps_state = LaunchedApps::default();
-        fs::write(temp_file.path(), "[]").expect("Failed to write empty array");
+        let empty_map: HashMap<AppConfigId, AppConfig> = HashMap::new();
+        write_configs_to_file(temp_file.path().to_str().unwrap(), &empty_map)
+            .expect("Failed to write empty map");
 
         let id_to_remove = AppConfigId("any_id".to_string());
         let result = remove_config_from_file(
@@ -583,10 +707,9 @@ mod tests {
         let err_msg = result.unwrap_err();
         assert!(err_msg.contains(&format!("Config with ID '{:?}' not found.", id_to_remove)));
 
-        // Verify file content hasn't changed
-        let content = fs::read_to_string(temp_file.path())
+        let read_back_map = read_configs_from_file(temp_file.path().to_str().unwrap())
             .expect("Failed to read config file after failed removal attempt");
-        assert_eq!(content.trim(), "[]");
+        assert!(read_back_map.is_empty());
     }
 
     #[tokio::test]
@@ -598,7 +721,7 @@ mod tests {
         // Setup: Add a "running" app state
         {
             let mut guard = apps_state.0.lock().await;
-            let dummy_child = Command::new("sleep") // Use a real command that can be spawned
+            let dummy_child = Command::new("sleep")
                 .arg("60")
                 .spawn()
                 .expect("Failed to spawn dummy child");
@@ -618,16 +741,16 @@ mod tests {
             );
         }
 
-        // Setup: Write config file containing the app to remove
-        let initial_configs = vec![AppConfig {
+        let config_to_remove = AppConfig {
             id: id_to_remove.clone(),
             name: "Running App".to_string(),
             icon: Some("running.png".to_string()),
             launch_command: "run_cmd".to_string(),
-        }];
-        let json_content =
-            serde_json::to_string(&initial_configs).expect("Failed to serialize initial data");
-        fs::write(temp_file.path(), json_content).expect("Failed to write initial config");
+        };
+        let mut initial_configs_map = HashMap::new();
+        initial_configs_map.insert(id_to_remove.clone(), config_to_remove.clone());
+        write_configs_to_file(temp_file.path().to_str().unwrap(), &initial_configs_map)
+            .expect("Failed to write initial config");
 
         // Act
         let result = remove_config_from_file(
@@ -642,7 +765,6 @@ mod tests {
         let err_msg = result.unwrap_err();
         assert!(err_msg.contains("Cannot remove config for running app"));
 
-        // Cleanup: Kill the dummy process if it's still running
         {
             let mut guard = apps_state.0.lock().await;
             if let Some(state) = guard.get_mut(&id_to_remove) {
