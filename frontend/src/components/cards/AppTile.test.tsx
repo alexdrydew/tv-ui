@@ -3,9 +3,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { AppTile } from "./AppTile";
-import { AppWindow } from "lucide-react"; // Import for checking default icon
 
-// Mock lucide-react
 vi.mock("lucide-react", async (importOriginal) => {
   const original = await importOriginal<typeof import("lucide-react")>();
   return {

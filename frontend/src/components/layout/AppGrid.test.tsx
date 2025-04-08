@@ -36,6 +36,8 @@ const mockApps: App[] = [
 
 const mockOnLaunchApp = vi.fn();
 const mockOnKillApp = vi.fn();
+const mockOnRemoveApp = vi.fn();
+const mockOnEditApp = vi.fn();
 
 describe("AppGrid", () => {
   beforeEach(() => {
@@ -53,6 +55,8 @@ describe("AppGrid", () => {
         apps={mockApps}
         onLaunchApp={mockOnLaunchApp}
         onKillApp={mockOnKillApp}
+        onRemoveApp={mockOnRemoveApp}
+        onEditApp={mockOnEditApp}
         renderItem={({ app, isFocused }) => (
           <div
             key={app.config.id}
@@ -85,6 +89,8 @@ describe("AppGrid", () => {
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          onRemoveApp={mockOnRemoveApp}
+          onEditApp={mockOnEditApp}
           renderItem={({ app, isFocused }) => (
             <div
               key={app.config.id}
@@ -118,6 +124,8 @@ describe("AppGrid", () => {
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          onRemoveApp={mockOnRemoveApp}
+          onEditApp={mockOnEditApp}
           renderItem={({ app, isFocused }) => (
             <div
               key={app.config.id}
@@ -152,6 +160,8 @@ describe("AppGrid", () => {
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          onRemoveApp={mockOnRemoveApp}
+          onEditApp={mockOnEditApp}
           renderItem={({ app, isFocused }) => (
             <div
               key={app.config.id}
@@ -194,6 +204,8 @@ describe("AppGrid", () => {
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          onRemoveApp={mockOnRemoveApp}
+          onEditApp={mockOnEditApp}
           renderItem={({ app, isFocused }) => (
             <div
               key={app.config.id}
@@ -233,6 +245,8 @@ describe("AppGrid", () => {
           apps={mockApps}
           onLaunchApp={mockOnLaunchApp}
           onKillApp={mockOnKillApp}
+          onRemoveApp={mockOnRemoveApp}
+          onEditApp={mockOnEditApp}
           renderItem={({ app, isFocused }) => (
             <div
               key={app.config.id}
