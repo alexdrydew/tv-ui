@@ -391,7 +391,6 @@ mod tests {
         assert!(result.is_ok());
 
         let content = fs::read_to_string(temp_file.path()).expect("Failed to read back file");
-        // Expecting pretty-printed empty array
         assert_eq!(content.trim(), "[]");
     }
 
