@@ -20,6 +20,7 @@ describe("AppTile", () => {
   const mockOnFocus = vi.fn();
   const mockOnKill = vi.fn();
   const mockOnRemove = vi.fn();
+  const mockOnEdit = vi.fn();
 
   const defaultProps: React.ComponentProps<typeof AppTile> = {
     name: "Test App",
@@ -30,6 +31,7 @@ describe("AppTile", () => {
     onFocus: mockOnFocus,
     onKill: mockOnKill,
     onRemove: mockOnRemove,
+    onEdit: mockOnEdit,
   };
 
   beforeEach(() => {
@@ -151,5 +153,28 @@ describe("AppTile", () => {
 
     await userEvent.click(removeMenuItem);
     expect(mockOnRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("context menu 'Edit' option is disabled when running", async () => {
+    render(<AppTile {...defaultProps} isRunning={true} />);
+    const button = screen.getByRole("button", { name: /Test App/i });
+    fireEvent.contextMenu(button);
+
+    const editMenuItem = await screen.findByRole("menuitem", { name: "Edit" });
+    expect(editMenuItem).toBeInTheDocument();
+    expect(editMenuItem).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("context menu 'Edit' option is enabled and calls onEdit when not running", async () => {
+    render(<AppTile {...defaultProps} isRunning={false} />);
+    const button = screen.getByRole("button", { name: /Test App/i });
+    fireEvent.contextMenu(button);
+
+    const editMenuItem = await screen.findByRole("menuitem", { name: "Edit" });
+    expect(editMenuItem).toBeInTheDocument();
+    expect(editMenuItem).not.toHaveAttribute("aria-disabled", "true");
+
+    await userEvent.click(editMenuItem);
+    expect(mockOnEdit).toHaveBeenCalledTimes(1);
   });
 });

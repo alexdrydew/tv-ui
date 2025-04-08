@@ -1,4 +1,4 @@
-import { AppWindow } from "lucide-react"; // Import default icon
+import { AppWindow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/appButton";
 import { useRef, useLayoutEffect } from "react";
@@ -11,13 +11,14 @@ import {
 
 interface AppTileProps {
   name: string;
-  icon: string | null; // Icon can be null
+  icon: string | null;
   isFocused: boolean;
   isRunning: boolean;
   onSelect: () => void;
   onFocus: () => void;
   onKill: () => void;
   onRemove: () => void;
+  onEdit: () => void;
 }
 
 export function AppTile({
@@ -29,6 +30,7 @@ export function AppTile({
   onFocus,
   onKill,
   onRemove,
+  onEdit,
 }: AppTileProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -75,6 +77,9 @@ export function AppTile({
         </Button>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-64">
+        <ContextMenuItem disabled={isRunning} onClick={onEdit}>
+          Edit
+        </ContextMenuItem>
         <ContextMenuItem
           disabled={!isRunning}
           onClick={onKill}

@@ -3,17 +3,19 @@ import { AppGrid } from "@/components/layout/AppGrid";
 import { AppTile } from "@/components/cards/AppTile";
 import { info, error } from "@tauri-apps/plugin-log";
 import { App, instantiateApp, isLaunched } from "@/entities/app";
+import { AppConfig, killApp, removeAppConfig } from "@/api/application";
 import { useApps } from "@/hooks/useApps";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { killApp, removeAppConfig } from "@/api/application"; // Import removeAppConfig
 import { Button } from "@/components/ui/button";
-import { AddAppDialog } from "@/components/dialogs/AddAppDialog";
+import { AppConfigDialog } from "@/components/dialogs/AppConfigDialog";
 import { PlusIcon } from "lucide-react";
 
 export function HomePage() {
   const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
+  const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
+  const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
   const handleLaunchApp = (app: App) => {
     info(`Launching app: ${app.config.name}`);
     instantiateApp(app)
@@ -42,6 +44,11 @@ export function HomePage() {
         description: `${error}`,
       });
     }
+  };
+
+  const handleEditApp = (app: App) => {
+    setEditingApp(app.config);
+    setIsEditAppDialogOpen(true);
   };
 
   const handleRemoveApp = async (app: App) => {
@@ -83,6 +90,7 @@ export function HomePage() {
           onLaunchApp={handleLaunchApp}
           onKillApp={handleKillApp}
           onRemoveApp={handleRemoveApp}
+          onEditApp={handleEditApp}
           renderItem={({
             app,
             index,
@@ -91,6 +99,7 @@ export function HomePage() {
             onLaunchApp,
             onKillApp,
             onRemoveApp,
+            onEditApp,
           }) => (
             <AppTile
               key={app.config.id}
@@ -102,15 +111,22 @@ export function HomePage() {
               onSelect={() => onLaunchApp(app)}
               onKill={() => onKillApp(app)}
               onRemove={() => onRemoveApp(app)}
+              onEdit={() => onEditApp(app)}
             />
           )}
         />
       </main>
       <Toaster />
-      <AddAppDialog
+      <AppConfigDialog
         isOpen={isAddAppDialogOpen}
         onOpenChange={setIsAddAppDialogOpen}
         configFilePath={configFilePath}
+      />
+      <AppConfigDialog
+        isOpen={isEditAppDialogOpen}
+        onOpenChange={setIsEditAppDialogOpen}
+        configFilePath={configFilePath}
+        appToEdit={editingApp}
       />
     </TvAppLayout>
   );

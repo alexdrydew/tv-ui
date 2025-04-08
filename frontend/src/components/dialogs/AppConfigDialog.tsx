@@ -20,10 +20,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { AppConfig, upsertAppConfig } from "@/api/application"; // Use upsertAppConfig import
+import { AppConfig, upsertAppConfig } from "@/api/application";
 import { toast } from "sonner";
 import { error } from "@tauri-apps/plugin-log";
 import { nanoid } from "nanoid";
+import { useEffect } from "react";
 
 const formSchema = z.object({
   name: z.string().min(1, "App name cannot be empty"),
@@ -37,13 +38,17 @@ interface AddAppDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   configFilePath: string;
+  appToEdit?: AppConfig | null;
 }
 
-export function AddAppDialog({
+export function AppConfigDialog({
   isOpen,
   onOpenChange,
   configFilePath,
+  appToEdit = null,
 }: AddAppDialogProps) {
+  const isEditing = appToEdit !== null;
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,34 +58,66 @@ export function AddAppDialog({
     },
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      if (appToEdit) {
+        form.reset({
+          name: appToEdit.name,
+          icon: appToEdit.icon ?? "",
+          launchCommand: appToEdit.launchCommand,
+        });
+      } else {
+        form.reset({
+          name: "",
+          icon: "",
+          launchCommand: "",
+        });
+      }
+    }
+  }, [isOpen, appToEdit, form]);
+
   async function onSubmit(values: FormValues) {
     const configToUpsert: AppConfig = {
+      id: appToEdit?.id ?? nanoid(),
       name: values.name,
       icon: values.icon?.trim() ? values.icon.trim() : null,
       launchCommand: values.launchCommand,
-      id: nanoid(), // Keep generating ID for new apps
     };
+
+    const actionVerb = isEditing ? "updated" : "added";
+    const toastTitle = isEditing ? "App Updated" : "App Added";
 
     try {
       await upsertAppConfig(configToUpsert, configFilePath);
-      toast.success(`App "${configToUpsert.name}" saved successfully.`);
-      form.reset();
+      toast.success(toastTitle, {
+        description: `App "${configToUpsert.name}" ${actionVerb} successfully.`,
+      });
       onOpenChange(false);
     } catch (e) {
-      error(`Failed to add app: ${e}`);
-      toast.error("Failed to add app", {
+      const errorAction = isEditing ? "update" : "add";
+      error(`Failed to ${errorAction} app: ${e}`);
+      toast.error(`Failed to ${errorAction} app`, {
         description: `${e}`,
       });
     }
   }
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      form.reset();
+    }
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New App</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit App" : "Add New App"}</DialogTitle>
           <DialogDescription>
-            Enter the details for the new application configuration.
+            {isEditing
+              ? `Update the details for ${appToEdit.name}.`
+              : "Enter the details for the new application configuration."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -135,7 +172,9 @@ export function AddAppDialog({
               )}
             />
             <DialogFooter>
-              <Button type="submit">Save App</Button>
+              <Button type="submit">
+                {isEditing ? "Save Changes" : "Save App"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

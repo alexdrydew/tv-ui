@@ -6,7 +6,8 @@ interface AppGridProps<T extends App> {
   apps: T[];
   onLaunchApp: (app: T) => void;
   onKillApp: (app: T) => void;
-  onRemoveApp: (app: T) => void; // Add onRemoveApp prop
+  onRemoveApp: (app: T) => void;
+  onEditApp: (app: T) => void;
   renderItem: (props: {
     app: T;
     index: number;
@@ -14,7 +15,8 @@ interface AppGridProps<T extends App> {
     setFocusedIndex: (index: number) => void;
     onLaunchApp: (app: T) => void;
     onKillApp: (app: T) => void;
-    onRemoveApp: (app: T) => void; // Add onRemoveApp prop
+    onRemoveApp: (app: T) => void;
+    onEditApp: (app: T) => void;
   }) => React.ReactNode;
 }
 
@@ -22,7 +24,8 @@ export function AppGrid<T extends App>({
   apps,
   onLaunchApp,
   onKillApp,
-  onRemoveApp, // Destructure onRemoveApp
+  onRemoveApp,
+  onEditApp,
   renderItem,
 }: AppGridProps<T>) {
   const { focusedIndex, setFocusedIndex } = useFocusNavigation(apps.length);
@@ -37,7 +40,8 @@ export function AppGrid<T extends App>({
           setFocusedIndex,
           onLaunchApp,
           onKillApp,
-          onRemoveApp, // Pass onRemoveApp down
+          onRemoveApp,
+          onEditApp,
         }),
       )}
     </div>
