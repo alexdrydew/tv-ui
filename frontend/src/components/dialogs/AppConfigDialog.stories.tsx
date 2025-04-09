@@ -16,18 +16,14 @@ const meta = {
   title: "Dialogs/AppConfigDialog",
   component: AppConfigDialog,
   parameters: {
-    // Optional: Add layout parameter if needed, e.g., centered
     layout: "centered",
   },
-  tags: ["autodocs"],
   args: {
-    // Default args for all stories
-    isOpen: true, // Keep the dialog open by default in Storybook
-    onOpenChange: fn(), // Mock function for open state changes
+    isOpen: true,
+    onOpenChange: fn(),
     configFilePath: "/fake/path/to/config.json",
   },
   decorators: [
-    // Add Toaster decorator
     (Story) => (
       <div>
         <Story />
@@ -40,16 +36,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// Story for adding a new app (default state)
 export const AddNewApp: Story = {
   args: {
-    appToEdit: null, // Explicitly null for add mode
+    appToEdit: null,
   },
 };
 
-// Story for editing an existing app
 export const EditApp: Story = {
   args: {
-    appToEdit: mockAppToEdit, // Pass mock data for editing
+    appToEdit: mockAppToEdit,
   },
 };
