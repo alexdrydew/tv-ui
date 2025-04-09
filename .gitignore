@@ -14,5 +14,10 @@ neutralino.js
 .aider.*
 .tmp*
 
+vitest.shims.d.ts
+vitest.workspace.ts
+.storybook*
+frontend/src/stories/
+
 **/node_modules/*
 .aider*
