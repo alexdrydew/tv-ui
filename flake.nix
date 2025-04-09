@@ -56,7 +56,7 @@
               nodePackages.typescript
               nodePackages.typescript-language-server
             ]
-            ++ (lib.optionals stdenv.isLinux webkitgtk_4_1);
+            ++ (lib.optionals stdenv.isLinux [webkitgtk_4_1]);
         };
       }
     );
