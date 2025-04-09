@@ -22,9 +22,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { AppConfig, upsertAppConfig } from "@/api/application";
 import { toast } from "sonner";
-import { error } from "@tauri-apps/plugin-log";
 import { nanoid } from "nanoid";
 import { useEffect } from "react";
+import { error } from "@/api/logging";
 
 const formSchema = z.object({
   name: z.string().min(1, "App name cannot be empty"),

@@ -1,7 +1,6 @@
 import { TvAppLayout } from "@/components/layout/TvAppLayout";
 import { AppGrid } from "@/components/layout/AppGrid";
 import { AppTile } from "@/components/cards/AppTile";
-import { info, error } from "@tauri-apps/plugin-log";
 import { App, instantiateApp, isLaunched } from "@/entities/app";
 import { AppConfig, killApp, removeAppConfig } from "@/api/application";
 import { useApps } from "@/hooks/useApps";
@@ -11,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AppConfigDialog } from "@/components/dialogs/AppConfigDialog";
 import { PlusIcon } from "lucide-react";
+import { error, info } from "@/api/logging";
 
 export function HomePage() {
   const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
