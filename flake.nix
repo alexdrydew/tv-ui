@@ -20,7 +20,7 @@
         shellHook = ''
           $SHELL
         '';
-        devShell = pkgs.mkShell {
+        devShell = pkgs.mkShell rec {
           env = {
             # this somehow fixes https://github.com/rust-lang/rust-analyzer/issues/19135
             RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
@@ -56,7 +56,9 @@
               nodePackages.typescript
               nodePackages.typescript-language-server
             ]
-            ++ (lib.optionals stdenv.isLinux [webkitgtk_4_1]);
+            ++ (lib.optionals stdenv.isLinux [webkitgtk_4_1 patchelf]);
+
+          LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)} ";
         };
       }
     );
