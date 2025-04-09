@@ -1,4 +1,4 @@
-import { attachConsole, error } from "@tauri-apps/plugin-log";
+import { attachConsole, error } from "@/api/logging"; // Use the new API module
 import { useEffect } from "react";
 
 export function useConsoleLogging() {
