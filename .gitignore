@@ -21,3 +21,6 @@ frontend/src/stories/
 
 **/node_modules/*
 .aider*
+
+
+test-results/
