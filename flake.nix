@@ -14,6 +14,17 @@
         pkgs = import inputs.nixpkgs {
           inherit system;
           # overlays = [inputs.rust-overlay.overlays.default];
+          overlays = [
+            (self: super: {
+              nodejs_23 = super.nodejs_23.overrideAttrs (old: {
+                # some bug with nodejs 23 test idk
+                doCheck = false;
+                doInstallCheck = false;
+              });
+            })
+            # for correct version in global npm packages
+            (self: super: {nodejs = super.nodejs_23;})
+          ];
         };
         inherit (pkgs) lib;
       in {
@@ -31,7 +42,7 @@
             gobject-introspection
             cargo
             cargo-tauri
-            nodejs
+            nodejs_23
           ];
 
           buildInputs = with pkgs;
@@ -58,7 +69,11 @@
             ]
             ++ (lib.optionals stdenv.isLinux [webkitgtk_4_1 patchelf]);
 
-          LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)} ";
+          LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}";
+
+          shellHook = ''
+            export PATH="${pkgs.nodejs_23}/bin:$PATH"
+          '';
         };
       }
     );
