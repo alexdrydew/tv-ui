@@ -24,7 +24,7 @@
         "create-renderer": "cd packages && npm create vite@latest renderer",
         "integrate-renderer": "npm start --workspace @app/integrate-renderer",
         "init": "npm run create-renderer && npm run integrate-renderer && npm install",
-        "prepare": "husky && husky install"
+        "prepare": "husky"
     },
     "devDependencies": {
         "@eslint/js": "^9.24.0",
