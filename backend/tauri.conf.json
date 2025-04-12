@@ -14,8 +14,6 @@
       {
         "title": "My TV Launcher",
         "resizable": true,
-        "height": 1080,
-        "width": 1920,
         "fullscreen": true
       }
     ],
