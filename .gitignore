@@ -21,6 +21,6 @@ frontend/src/stories/
 
 **/node_modules/*
 .aider*
-
+.eslintcache
 
 test-results/
