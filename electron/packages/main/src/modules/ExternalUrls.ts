@@ -1,7 +1,7 @@
-import { AppModule } from "../AppModule.js";
-import { ModuleContext } from "../ModuleContext.js";
-import { shell } from "electron";
-import { URL } from "node:url";
+import { AppModule } from '../AppModule.js';
+import { ModuleContext } from '../ModuleContext.js';
+import { shell } from 'electron';
+import { URL } from 'node:url';
 
 export class ExternalUrls implements AppModule {
     readonly #externalUrls: Set<string>;
@@ -11,7 +11,7 @@ export class ExternalUrls implements AppModule {
     }
 
     enable({ app }: ModuleContext): Promise<void> | void {
-        app.on("web-contents-created", (_, contents) => {
+        app.on('web-contents-created', (_, contents) => {
             contents.setWindowOpenHandler(({ url }) => {
                 const { origin } = new URL(url);
 
@@ -24,7 +24,7 @@ export class ExternalUrls implements AppModule {
                 }
 
                 // Prevent creating a new window.
-                return { action: "deny" };
+                return { action: 'deny' };
             });
         });
     }

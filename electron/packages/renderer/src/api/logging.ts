@@ -1,5 +1,5 @@
 export function attachConsole(): Promise<() => void> {
-    throw new Error("Function not implemented.");
+    throw new Error('Function not implemented.');
 }
 
 export function error(_message: string): Promise<void> {

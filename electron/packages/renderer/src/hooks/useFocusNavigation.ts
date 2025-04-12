@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 export function useFocusNavigation(itemCount: number) {
     const [focusedIndex, setFocusedIndex] = useState(0);
@@ -6,12 +6,12 @@ export function useFocusNavigation(itemCount: number) {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             switch (e.key) {
-                case "ArrowRight":
+                case 'ArrowRight':
                     setFocusedIndex((prev) =>
                         Math.min(prev + 1, itemCount - 1),
                     );
                     break;
-                case "ArrowLeft":
+                case 'ArrowLeft':
                     setFocusedIndex((prev) => Math.max(prev - 1, 0));
                     break;
                 // TODO:
@@ -24,8 +24,8 @@ export function useFocusNavigation(itemCount: number) {
             }
         };
 
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, [itemCount]);
 
     return { focusedIndex, setFocusedIndex };

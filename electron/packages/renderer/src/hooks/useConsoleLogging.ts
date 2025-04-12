@@ -1,5 +1,5 @@
-import { attachConsole, error } from "@/api/logging"; // Use the new API module
-import { useEffect } from "react";
+import { attachConsole, error } from '@/api/logging'; // Use the new API module
+import { useEffect } from 'react';
 
 export function useConsoleLogging() {
     useEffect(() => {

@@ -1,4 +1,4 @@
-import { AppConfig, AppState, launchApp } from "@/api/application";
+import { AppConfig, AppState, launchApp } from '@/api/application';
 
 export interface App {
     config: AppConfig;

@@ -1,8 +1,8 @@
-import { AppConfig, getAppConfigs } from "@/api/application";
-import { initAppsFromConfigs } from "@/entities/app";
-import { App } from "@/entities/app";
-import { useEffect, useState } from "react";
-import { error } from "@/api/logging";
+import { AppConfig, getAppConfigs } from '@/api/application';
+import { initAppsFromConfigs } from '@/entities/app';
+import { App } from '@/entities/app';
+import { useEffect, useState } from 'react';
+import { error } from '@/api/logging';
 
 export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
@@ -95,7 +95,7 @@ export function useApps(): {
     apps: App[] | undefined;
     configFilePath: string | undefined;
 } {
-    const { configs: appConfigs, configFilePath } = useAppConfigs("tv-ui.json");
+    const { configs: appConfigs, configFilePath } = useAppConfigs('tv-ui.json');
     const [apps, setApps] = useState<App[] | undefined>([]);
 
     useEffect(() => {

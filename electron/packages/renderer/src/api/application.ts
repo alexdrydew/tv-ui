@@ -1,8 +1,8 @@
 export type AppExitResult =
-    | "Success"
+    | 'Success'
     | { ExitCode: number }
     | { Signal: number }
-    | "Unknown"
+    | 'Unknown'
     | null;
 
 export interface AppState {
@@ -21,7 +21,7 @@ export function launchApp(
     _command: string,
     _configId: string,
 ): Promise<AppState> {
-    throw new Error("Function not implemented.");
+    throw new Error('Function not implemented.');
 }
 
 export function getAppConfigs(_configPath: string): Promise<AppConfig[]> {
@@ -29,26 +29,26 @@ export function getAppConfigs(_configPath: string): Promise<AppConfig[]> {
 }
 
 export function getAppState(_configId: string): Promise<AppState | null> {
-    throw new Error("Function not implemented.");
+    throw new Error('Function not implemented.');
 }
 
 export function killApp(_configId: string): Promise<void> {
-    throw new Error("Function not implemented.");
+    throw new Error('Function not implemented.');
 }
 
 export function upsertAppConfig(
     _configToUpsert: AppConfig,
     _configPath: string,
 ): Promise<void> {
-    throw new Error("Function not implemented.");
+    throw new Error('Function not implemented.');
 }
 
 export function removeAppConfig(
     _configIdToRemove: string,
     _configPath: string,
 ): Promise<void> {
-    throw new Error("Function not implemented.");
+    throw new Error('Function not implemented.');
 }
 
-export const APP_UPDATE_EVENT = "app-updated";
-export const CONFIG_UPDATE_EVENT = "config-updated";
+export const APP_UPDATE_EVENT = 'app-updated';
+export const CONFIG_UPDATE_EVENT = 'config-updated';
