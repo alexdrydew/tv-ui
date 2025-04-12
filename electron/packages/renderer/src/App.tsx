@@ -1,9 +1,9 @@
 import { HomePage } from "./pages/HomePage";
 
 function App() {
-  // useConsoleLogging();
+    // useConsoleLogging();
 
-  return <HomePage />;
+    return <HomePage />;
 }
 
 export default App;

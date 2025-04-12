@@ -5,6 +5,6 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 // https://vite.dev/config/
 export default defineConfig({
-  type: "module",
-  plugins: [tailwindcss(), react(), tsconfigPaths()],
+    type: "module",
+    plugins: [tailwindcss(), react(), tsconfigPaths()],
 } as UserConfig);
