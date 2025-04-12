@@ -1,6 +1,6 @@
-import { getNodeMajorVersion } from "@app/electron-versions";
-import { spawn } from "child_process";
-import electronPath from "electron";
+import { getNodeMajorVersion } from '@app/electron-versions';
+import { spawn } from 'child_process';
+import electronPath from 'electron';
 
 export default /**
  * @type {import('vite').UserConfig}
@@ -9,17 +9,17 @@ export default /**
 ({
     build: {
         ssr: true,
-        sourcemap: "inline",
-        outDir: "dist",
-        assetsDir: ".",
+        sourcemap: 'inline',
+        outDir: 'dist',
+        assetsDir: '.',
         target: `node${getNodeMajorVersion()}`,
         lib: {
-            entry: "src/index.ts",
-            formats: ["es"],
+            entry: 'src/index.ts',
+            formats: ['es'],
         },
         rollupOptions: {
             output: {
-                entryFileNames: "[name].js",
+                entryFileNames: '[name].js',
             },
         },
         emptyOutDir: true,
@@ -40,18 +40,18 @@ function handleHotReload() {
     let rendererWatchServer = null;
 
     return {
-        name: "@app/main-process-hot-reload",
+        name: '@app/main-process-hot-reload',
 
         config(config, env) {
-            if (env.mode !== "development") {
+            if (env.mode !== 'development') {
                 return;
             }
 
             const rendererWatchServerProvider = config.plugins.find(
-                (p) => p.name === "@app/renderer-watch-server-provider",
+                (p) => p.name === '@app/renderer-watch-server-provider',
             );
             if (!rendererWatchServerProvider) {
-                throw new Error("Renderer watch server provider not found");
+                throw new Error('Renderer watch server provider not found');
             }
 
             rendererWatchServer =
@@ -68,24 +68,24 @@ function handleHotReload() {
         },
 
         writeBundle() {
-            if (process.env.NODE_ENV !== "development") {
+            if (process.env.NODE_ENV !== 'development') {
                 return;
             }
 
             /** Kill electron if a process already exists */
             if (electronApp !== null) {
-                electronApp.removeListener("exit", process.exit);
-                electronApp.kill("SIGINT");
+                electronApp.removeListener('exit', process.exit);
+                electronApp.kill('SIGINT');
                 electronApp = null;
             }
 
             /** Spawn a new electron process */
-            electronApp = spawn(String(electronPath), ["--inspect", "."], {
-                stdio: "inherit",
+            electronApp = spawn(String(electronPath), ['--inspect', '.'], {
+                stdio: 'inherit',
             });
 
             /** Stops the watch script when the application has been quit */
-            electronApp.addListener("exit", process.exit);
+            electronApp.addListener('exit', process.exit);
         },
     };
 }

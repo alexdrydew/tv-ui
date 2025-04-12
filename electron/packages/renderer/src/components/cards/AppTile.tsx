@@ -1,13 +1,13 @@
-import { AppWindow } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "../ui/appButton";
-import { useRef, useLayoutEffect } from "react";
+import { AppWindow } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '../ui/appButton';
+import { useRef, useLayoutEffect } from 'react';
 import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
     ContextMenuTrigger,
-} from "../ui/context-menu";
+} from '../ui/context-menu';
 
 interface AppTileProps {
     name: string;
@@ -53,7 +53,7 @@ export function AppTile({
                 <Button
                     ref={buttonRef}
                     className={cn(
-                        "flex flex-col items-center w-64 h-64 relative",
+                        'flex flex-col items-center w-64 h-64 relative',
                     )}
                     onClick={onSelect}
                     onMouseOver={focusSelf}

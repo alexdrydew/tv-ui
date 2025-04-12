@@ -1,7 +1,7 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -9,7 +9,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "../ui/dialog";
+} from '../ui/dialog';
 import {
     Form,
     FormControl,
@@ -18,19 +18,19 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { AppConfig } from "@/api/application";
-import { upsertAppConfig } from "@/api/upsertAppConfig";
-import { toast } from "sonner";
-import { nanoid } from "nanoid";
-import { useEffect } from "react";
-import { error } from "@/api/logging";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { AppConfig } from '@/api/application';
+import { upsertAppConfig } from '@/api/upsertAppConfig';
+import { toast } from 'sonner';
+import { nanoid } from 'nanoid';
+import { useEffect } from 'react';
+import { error } from '@/api/logging';
 
 const formSchema = z.object({
-    name: z.string().min(1, "App name cannot be empty"),
+    name: z.string().min(1, 'App name cannot be empty'),
     icon: z.string().optional(),
-    launchCommand: z.string().min(1, "Launch command cannot be empty"),
+    launchCommand: z.string().min(1, 'Launch command cannot be empty'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -53,9 +53,9 @@ export function AppConfigDialog({
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            name: "",
-            icon: "",
-            launchCommand: "",
+            name: '',
+            icon: '',
+            launchCommand: '',
         },
     });
 
@@ -64,14 +64,14 @@ export function AppConfigDialog({
             if (appToEdit) {
                 form.reset({
                     name: appToEdit.name,
-                    icon: appToEdit.icon ?? "",
+                    icon: appToEdit.icon ?? '',
                     launchCommand: appToEdit.launchCommand,
                 });
             } else {
                 form.reset({
-                    name: "",
-                    icon: "",
-                    launchCommand: "",
+                    name: '',
+                    icon: '',
+                    launchCommand: '',
                 });
             }
         }
@@ -85,8 +85,8 @@ export function AppConfigDialog({
             launchCommand: values.launchCommand,
         };
 
-        const actionVerb = isEditing ? "updated" : "added";
-        const toastTitle = isEditing ? "App Updated" : "App Added";
+        const actionVerb = isEditing ? 'updated' : 'added';
+        const toastTitle = isEditing ? 'App Updated' : 'App Added';
 
         try {
             await upsertAppConfig(configToUpsert, configFilePath);
@@ -95,7 +95,7 @@ export function AppConfigDialog({
             });
             onOpenChange(false);
         } catch (e) {
-            const errorAction = isEditing ? "update" : "add";
+            const errorAction = isEditing ? 'update' : 'add';
             error(`Failed to ${errorAction} app: ${e}`);
             toast.error(`Failed to ${errorAction} app`, {
                 description: `${e}`,
@@ -115,12 +115,12 @@ export function AppConfigDialog({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {isEditing ? "Edit App" : "Add New App"}
+                        {isEditing ? 'Edit App' : 'Add New App'}
                     </DialogTitle>
                     <DialogDescription>
                         {isEditing
                             ? `Update the details for ${appToEdit.name}.`
-                            : "Enter the details for the new application configuration."}
+                            : 'Enter the details for the new application configuration.'}
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
@@ -189,7 +189,7 @@ export function AppConfigDialog({
                         />
                         <DialogFooter>
                             <Button type="submit">
-                                {isEditing ? "Save Changes" : "Save App"}
+                                {isEditing ? 'Save Changes' : 'Save App'}
                             </Button>
                         </DialogFooter>
                     </form>

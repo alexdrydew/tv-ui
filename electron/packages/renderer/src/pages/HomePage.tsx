@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { toast, Toaster } from "sonner";
-import { PlusIcon } from "lucide-react";
-import { AppConfig, killApp, removeAppConfig } from "@/api/application";
-import { App, instantiateApp, isLaunched } from "@/entities/app";
-import { Button } from "@/components/ui/appButton";
-import { AppGrid } from "@/components/layout/AppGrid";
-import { AppTile } from "@/components/cards/AppTile";
-import { AppConfigDialog } from "@/components/dialogs/AppConfigDialog";
-import { TvAppLayout } from "@/components/layout/TvAppLayout";
-import { error, info } from "@/api/logging";
+import { useState } from 'react';
+import { toast, Toaster } from 'sonner';
+import { PlusIcon } from 'lucide-react';
+import { AppConfig, killApp, removeAppConfig } from '@/api/application';
+import { App, instantiateApp, isLaunched } from '@/entities/app';
+import { Button } from '@/components/ui/appButton';
+import { AppGrid } from '@/components/layout/AppGrid';
+import { AppTile } from '@/components/cards/AppTile';
+import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
+import { TvAppLayout } from '@/components/layout/TvAppLayout';
+import { error, info } from '@/api/logging';
 
 export function HomePage() {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
@@ -35,7 +35,7 @@ export function HomePage() {
         try {
             await killApp(app.config.id);
             toast.success(`${app.config.name} terminated`, {
-                description: "Application was successfully stopped",
+                description: 'Application was successfully stopped',
             });
         } catch (error) {
             toast.error(`Failed to kill ${app.config.name}`, {
@@ -51,9 +51,9 @@ export function HomePage() {
 
     const handleRemoveApp = async (app: App) => {
         if (!configFilePath) {
-            error("Config file path is not available for removal.");
-            toast.error("Cannot remove app", {
-                description: "Configuration file path is missing.",
+            error('Config file path is not available for removal.');
+            toast.error('Cannot remove app', {
+                description: 'Configuration file path is missing.',
             });
             return;
         }
@@ -70,7 +70,7 @@ export function HomePage() {
 
     // const { apps, configFilePath } = useApps();
     const apps: App[] = [];
-    const configFilePath = "/Users/alexdrydew/.config/tv-ui/apps.json";
+    const configFilePath = '/Users/alexdrydew/.config/tv-ui/apps.json';
 
     console.log(apps);
     console.log(configFilePath);

@@ -1,6 +1,6 @@
-import { AppModule } from "../AppModule.js";
-import { ModuleContext } from "../ModuleContext.js";
-import installer from "electron-devtools-installer";
+import { AppModule } from '../AppModule.js';
+import { ModuleContext } from '../ModuleContext.js';
+import installer from 'electron-devtools-installer';
 
 const {
     REDUX_DEVTOOLS,

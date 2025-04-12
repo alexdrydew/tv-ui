@@ -143,7 +143,7 @@ so you don't need to worry about it.
 
 ```ts
 // preload/src/index.ts
-import { readFile } from "node:fs/promises";
+import { readFile } from 'node:fs/promises';
 
 // Encapsulate types if you use typescript
 interface UserData {
@@ -152,8 +152,8 @@ interface UserData {
 
 // Will call `electron.contextBridge.exposeInMainWorld('getUserData', getUserData)`
 export function getUserData(): Promise<UserData> {
-    return readFile("/path/to/file/in/user/filesystem.json", {
-        encoding: "utf8",
+    return readFile('/path/to/file/in/user/filesystem.json', {
+        encoding: 'utf8',
     }).then(JSON.parse);
 }
 ```
@@ -162,7 +162,7 @@ Now you can import and call the method in renderer
 
 ```ts
 // renderer/src/anywere/component.ts
-import { getUserData } from "@app/preload";
+import { getUserData } from '@app/preload';
 
 // Method will came from exposed context
 // const userData = globalThis['getUserData']
