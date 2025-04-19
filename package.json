@@ -22,8 +22,6 @@
         "start": "node packages/dev-mode.js",
         "typecheck": "npm run typecheck -ws --if-present",
         "create-renderer": "cd packages && npm create vite@latest renderer",
-        "integrate-renderer": "npm start --workspace @app/integrate-renderer",
-        "init": "npm run create-renderer && npm run integrate-renderer && npm install",
         "prepare": "husky"
     },
     "devDependencies": {
@@ -44,6 +42,7 @@
         "lint-staged": "^15.5.1",
         "playwright": "^1.51.1",
         "prettier": "3.5.3",
+        "typescript": "^5.8.3",
         "typescript-eslint": "^8.29.1"
     },
     "dependencies": {

@@ -6,14 +6,14 @@
         "sourceMap": false,
         "moduleResolution": "NodeNext",
         "skipLibCheck": true,
-        "strict": true,
         "isolatedModules": true,
         "types": ["node"],
         "baseUrl": ".",
         "paths": {
             "@app/preload": ["../preload"],
             "@app/renderer": ["../renderer"]
-        }
+        },
+        "strict": true
     },
     "include": ["src/**/*.ts", "../../types/**/*.d.ts"],
     "exclude": ["**/*.spec.ts", "**/*.test.ts"]

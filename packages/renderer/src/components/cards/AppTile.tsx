@@ -11,7 +11,7 @@ import {
 
 interface AppTileProps {
     name: string;
-    icon: string | null;
+    icon: string | undefined;
     isFocused: boolean;
     isRunning: boolean;
     onSelect: () => void;

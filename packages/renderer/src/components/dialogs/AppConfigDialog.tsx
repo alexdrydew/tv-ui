@@ -20,12 +20,12 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { AppConfig } from '@/api/application';
-import { upsertAppConfig } from '@/api/upsertAppConfig';
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
 import { useEffect } from 'react';
 import { error } from '@/api/logging';
+import { upsertAppConfig } from '@app/preload';
+import { AppConfig } from '@app/types';
 
 const formSchema = z.object({
     name: z.string().min(1, 'App name cannot be empty'),
@@ -81,7 +81,7 @@ export function AppConfigDialog({
         const configToUpsert: AppConfig = {
             id: appToEdit?.id ?? nanoid(),
             name: values.name,
-            icon: values.icon?.trim() ? values.icon.trim() : null,
+            icon: values.icon?.trim() ? values.icon.trim() : undefined,
             launchCommand: values.launchCommand,
         };
 

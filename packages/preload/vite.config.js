@@ -1,11 +1,9 @@
+import { defineConfig } from 'vite';
+import tsconfigPaths from 'vite-tsconfig-paths';
 import { resolveModuleExportNames } from 'mlly';
 import { getChromeMajorVersion } from '@app/electron-versions';
 
-export default /**
- * @type {import('vite').UserConfig}
- * @see https://vitejs.dev/config/
- */
-({
+export default defineConfig({
     build: {
         ssr: true,
         sourcemap: 'inline',
@@ -27,7 +25,7 @@ export default /**
         emptyOutDir: true,
         reportCompressedSize: false,
     },
-    plugins: [mockExposed(), handleHotReload()],
+    plugins: [tsconfigPaths(), mockExposed(), handleHotReload()],
 });
 
 /**

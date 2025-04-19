@@ -1,5 +1,5 @@
-import { App } from '@/entities/app';
 import { useFocusNavigation } from '@/hooks/useFocusNavigation';
+import { App } from '@app/types';
 import React from 'react';
 
 interface AppGridProps<T extends App> {

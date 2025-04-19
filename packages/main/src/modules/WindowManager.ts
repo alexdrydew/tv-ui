@@ -1,9 +1,10 @@
-import type { AppModule } from '../AppModule.js';
+import { AppModule } from '../AppModule.js';
 import { ModuleContext } from '../ModuleContext.js';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, type WebContents } from 'electron';
 import type { AppInitConfig } from '../AppInitConfig.js';
 
-class WindowManager implements AppModule {
+export class WindowManager implements AppModule {
+    #mainWindow: BrowserWindow | null = null;
     readonly #preload: { path: string };
     readonly #renderer: { path: string } | URL;
     readonly #openDevTools;
@@ -20,6 +21,14 @@ class WindowManager implements AppModule {
         this.#openDevTools = openDevTools;
     }
 
+    get mainWindow(): BrowserWindow | null {
+        return this.#mainWindow;
+    }
+
+    get mainWebContents(): WebContents | null {
+        return this.#mainWindow?.webContents ?? null;
+    }
+
     async enable({ app }: ModuleContext): Promise<void> {
         await app.whenReady();
         await this.restoreOrCreateWindow(true);
@@ -28,7 +37,7 @@ class WindowManager implements AppModule {
     }
 
     async createWindow(): Promise<BrowserWindow> {
-        const browserWindow = new BrowserWindow({
+        this.#mainWindow = new BrowserWindow({
             show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
             webPreferences: {
                 nodeIntegration: false,
@@ -40,38 +49,47 @@ class WindowManager implements AppModule {
         });
 
         if (this.#renderer instanceof URL) {
-            await browserWindow.loadURL(this.#renderer.href);
+            // Use this.#mainWindow here instead of the undefined browserWindow
+            await this.#mainWindow.loadURL(this.#renderer.href);
         } else {
-            await browserWindow.loadFile(this.#renderer.path);
+            await this.#mainWindow.loadFile(this.#renderer.path);
         }
 
-        return browserWindow;
+        // Emitted when the window is ready to be shown
+        // This helps in preventing a white screen during window initialization.
+        this.#mainWindow.once('ready-to-show', () => {
+            this.#mainWindow?.show();
+            if (this.#openDevTools) {
+                this.#mainWindow?.webContents.openDevTools();
+            }
+        });
+
+        return this.#mainWindow;
     }
 
-    async restoreOrCreateWindow(show = false) {
+    async restoreOrCreateWindow(show = false): Promise<BrowserWindow> {
+        // Attempt to find existing non-destroyed window
         let window = BrowserWindow.getAllWindows().find(
             (w) => !w.isDestroyed(),
         );
 
-        if (window === undefined) {
+        // If a window exists, update our reference
+        if (window) {
+            this.#mainWindow = window;
+        }
+        // If no window exists, create one
+        else {
             window = await this.createWindow();
+            this.#mainWindow = window; // Ensure mainWindow is set after creation
         }
 
-        if (!show) {
-            return window;
+        if (show) {
+            if (window.isMinimized()) {
+                window.restore();
+            }
+            window.show();
+            window.focus();
         }
-
-        if (window.isMinimized()) {
-            window.restore();
-        }
-
-        window?.show();
-
-        if (this.#openDevTools) {
-            window?.webContents.openDevTools();
-        }
-
-        window.focus();
 
         return window;
     }

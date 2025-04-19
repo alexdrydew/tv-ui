@@ -1,39 +1,40 @@
 import { useState } from 'react';
 import { toast, Toaster } from 'sonner';
 import { PlusIcon } from 'lucide-react';
-import { AppConfig, killApp, removeAppConfig } from '@/api/application';
-import { App, instantiateApp, isLaunched } from '@/entities/app';
 import { Button } from '@/components/ui/appButton';
 import { AppGrid } from '@/components/layout/AppGrid';
 import { AppTile } from '@/components/cards/AppTile';
 import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { error, info } from '@/api/logging';
+import { versions } from '@app/preload';
+import { useApps } from '@/hooks/useApps';
+import { App, AppConfig, isLaunched } from '@app/types';
 
 export function HomePage() {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
     const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
-    const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
+    const [editingApp] = useState<AppConfig | null>(null);
     const handleLaunchApp = (app: App) => {
         info(`Launching app: ${app.config.name}`);
-        instantiateApp(app)
-            .then((appState) => {
-                toast(`${app.config.name} launched successfully`, {
-                    description: `PID: ${appState.pid}`,
-                });
-                info(`App launched with PID: ${appState.pid}`);
-            })
-            .catch((e) => {
-                toast(`Failed to launch app: ${app.config.name}`, {
-                    description: `${e}`,
-                });
-                error(`Failed to launch app: ${e}`);
-            });
+        // instantiateApp(app)
+        //     .then((appState) => {
+        //         toast(`${app.config.name} launched successfully`, {
+        //             description: `PID: ${appState.pid}`,
+        //         });
+        //         info(`App launched with PID: ${appState.pid}`);
+        //     })
+        //     .catch((e) => {
+        //         toast(`Failed to launch app: ${app.config.name}`, {
+        //             description: `${e}`,
+        //         });
+        //         error(`Failed to launch app: ${e}`);
+        //     });
     };
 
     const handleKillApp = async (app: App) => {
         try {
-            await killApp(app.config.id);
+            // await killApp(app.config.id);
             toast.success(`${app.config.name} terminated`, {
                 description: 'Application was successfully stopped',
             });
@@ -44,8 +45,9 @@ export function HomePage() {
         }
     };
 
-    const handleEditApp = (app: App) => {
-        setEditingApp(app.config);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleEditApp = (_app: App) => {
+        // setEditingApp(app.config);
         setIsEditAppDialogOpen(true);
     };
 
@@ -58,7 +60,7 @@ export function HomePage() {
             return;
         }
         try {
-            await removeAppConfig(app.config.id, configFilePath);
+            // await removeAppConfig(app.config.id, configFilePath);
             toast.success(`${app.config.name} configuration removed`);
         } catch (e) {
             error(`Failed to remove app config: ${e}`);
@@ -68,9 +70,7 @@ export function HomePage() {
         }
     };
 
-    // const { apps, configFilePath } = useApps();
-    const apps: App[] = [];
-    const configFilePath = '/Users/alexdrydew/.config/tv-ui/apps.json';
+    const { apps, configFilePath } = useApps();
 
     console.log(apps);
     console.log(configFilePath);
@@ -83,7 +83,9 @@ export function HomePage() {
         <TvAppLayout>
             <main className="py-8">
                 <div className="flex justify-between items-center mb-6 px-8">
-                    <h2 className="text-2xl md:text-3xl font-bold">Apps</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold">
+                        Apps {JSON.stringify(versions)}
+                    </h2>
                     <Button onClick={() => setIsAddAppDialogOpen(true)}>
                         <PlusIcon className="mr-2 h-4 w-4" /> Add App
                     </Button>
