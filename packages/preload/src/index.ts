@@ -1,9 +1,6 @@
-import { sha256sum } from './nodeCrypto.js';
 import { versions } from './versions.js';
-import { ipcRenderer } from 'electron';
+import '@zod-plugin/effect';
 
-function send(channel: string, message: string) {
-    return ipcRenderer.invoke(channel, message);
-}
-
-export { sha256sum, versions, send };
+export { versions };
+// export * from './configs/commands.js';
+export { getAppConfigs, upsertAppConfig } from './configs/commands.js';

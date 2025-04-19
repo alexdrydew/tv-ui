@@ -47,7 +47,7 @@ const rendererWatchServerProvider = {
  */
 
 /** @type {string[]} */
-const packagesToStart = ['packages/preload', 'packages/main'];
+const packagesToStart = ['packages/preload', 'packages/main', 'packages/types'];
 
 for (const pkg of packagesToStart) {
     await build({

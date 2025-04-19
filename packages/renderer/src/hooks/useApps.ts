@@ -1,16 +1,20 @@
-import { AppConfig, getAppConfigs } from '@/api/application';
-import { initAppsFromConfigs } from '@/entities/app';
-import { App } from '@/entities/app';
-import { useEffect, useState } from 'react';
-import { error } from '@/api/logging';
+import { useEffect, useState, useCallback } from 'react';
+import { error, debug } from '@/api/logging';
+import {
+    App,
+    AppConfig,
+    AppState,
+    AppStateInfo,
+    initAppsFromConfigs,
+} from '@app/types';
+import { getAppConfigs } from '@app/preload';
 
 export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
     configFilePath: string | undefined;
 } {
-    const configFilePath = `/Users/alexdrydew/.config/tv-ui/${configFileName}`;
-
     // TODO: get from electron
+    const configFilePath = `/Users/alexdrydew/.config/tv-ui/${configFileName}`;
 
     // useEffect(() => {
     //   const appConfigDir = new Promise(() => "/Users/alexdrydew/.config/tv-ui");
@@ -28,68 +32,66 @@ export function useAppConfigs(configFileName: string): {
         getAppConfigs(configFilePath).then(setConfig).catch(error);
     }, [configFilePath]);
 
+    // // Listen for config updates from the main process via IPC
     // useEffect(() => {
-    //   if (!configFilePath) {
-    //     return;
-    //   }
+    //     const configUpdateListener = (
+    //         _event: unknown,
+    //         updatedConfigs: AppConfig[],
+    //     ) => {
+    //         debug(
+    //             `IPC Event Received [${CONFIG_UPDATE_EVENT}]: ${JSON.stringify(updatedConfigs)}`,
+    //         );
+    //         setConfig(updatedConfigs);
+    //     };
     //
-    //   debug(`Watching config file: ${configFilePath}`);
+    //     debug(`Setting up IPC listener for ${CONFIG_UPDATE_EVENT}`);
+    //     window.ipcRenderer.on(CONFIG_UPDATE_EVENT, configUpdateListener);
     //
-    //   const unWatch = watchImmediate(
-    //     configFilePath,
-    //     (event) => {
-    //       if (typeof event.type !== "string" && "access" in event.type) {
-    //         return;
-    //       }
-    //
-    //       debug(`File system event received: ${JSON.stringify(event)}`);
-    //       if (event.paths.some((p) => p === configFilePath)) {
-    //         info("Config file updated");
-    //         getAppConfigs(configFilePath).then(setConfig).catch(error);
-    //       }
-    //     },
-    //     { recursive: false },
-    //   );
-    //
-    //   return () => {
-    //     unWatch.then((fn) => fn()).catch(error);
-    //   };
-    // }, [configFilePath]);
-    //
-    // useEffect(() => {
-    //   if (!configFilePath) {
-    //     return;
-    //   }
-    //   const unlistenPromise = listen<AppConfig[]>(
-    //     CONFIG_UPDATE_EVENT,
-    //     (event) => {
-    //       debug(`Config update event received: ${JSON.stringify(event.payload)}`);
-    //       setConfig(event.payload);
-    //     },
-    //   );
-    //
-    //   return () => {
-    //     unlistenPromise.then((fn) => fn()).catch(error);
-    //   };
-    // }, [configFilePath]); // Re-subscribe if configFilePath changes
+    //     // Cleanup function
+    //     return () => {
+    //         debug(`Removing IPC listener for ${CONFIG_UPDATE_EVENT}`);
+    //         window.ipcRenderer.removeListener(
+    //             CONFIG_UPDATE_EVENT,
+    //             configUpdateListener,
+    //         );
+    //     };
+    // }, []); // Run only once
 
     return { configs, configFilePath };
 }
 
-// export function useAppStateUpdateEventsSubscription(
-//   onUpdate: (state: AppState) => void,
-// ) {
-//   useEffect(() => {
-//     const unlistenPromise = listen<AppState>(APP_UPDATE_EVENT, (event) => {
-//       debug(`App state update event received: ${JSON.stringify(event)}`);
-//       onUpdate(event.payload);
-//     });
-//
-//     return () => {
-//       unlistenPromise.then((fn) => fn()).catch(console.error);
-//     };
-//   }, [onUpdate]);
-// }
+/**
+ * Subscribes to application state update events from the main process.
+ * @param _onUpdate Callback function to execute when an app state update is received.
+ */
+export function useAppStateUpdateEventsSubscription(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _onUpdate: (stateInfo: AppStateInfo) => void,
+) {
+    // useEffect(() => {
+    //     const appUpdateListener = (
+    //         _event: unknown,
+    //         stateInfo: AppStateInfo,
+    //     ) => {
+    //         debug(
+    //             `IPC Event Received [${APP_UPDATE_EVENT}]: ${JSON.stringify(stateInfo)}`,
+    //         );
+    //         onUpdate(stateInfo);
+    //     };
+    //
+    //     debug(`Setting up IPC listener for ${APP_UPDATE_EVENT}`);
+    //     window.ipcRenderer.on(APP_UPDATE_EVENT, appUpdateListener);
+    //
+    //     // Cleanup function
+    //     return () => {
+    //         debug(`Removing IPC listener for ${APP_UPDATE_EVENT}`);
+    //         window.ipcRenderer.removeListener(
+    //             APP_UPDATE_EVENT,
+    //             appUpdateListener,
+    //         );
+    //     };
+    // }, [onUpdate]); // Re-subscribe if the onUpdate callback changes
+}
 
 export function useApps(): {
     apps: App[] | undefined;
@@ -104,42 +106,85 @@ export function useApps(): {
             return;
         }
 
+        if (appConfigs === undefined) {
+            debug('App configs are undefined, setting apps to undefined.');
+            setApps(undefined);
+            return;
+        }
+        debug(
+            `Initializing apps from ${appConfigs.length} configs: ${JSON.stringify(appConfigs.map((c) => c.id))}`,
+        );
         setApps(initAppsFromConfigs(appConfigs));
     }, [appConfigs]);
 
-    // const updateApps = useCallback(
-    //   (state: AppState) => {
-    //     if (apps === undefined) {
-    //       return;
-    //     }
-    //
-    //     const newApps = [...apps];
-    //     const targetAppIdx = newApps.findIndex(
-    //       (app) => app.config.id == state.configId,
-    //     );
-    //     if (targetAppIdx === -1) {
-    //       return;
-    //     }
-    //
-    //     const targetApp = { ...newApps[targetAppIdx] };
-    //     const instanceIdx = targetApp.instances.findIndex(
-    //       (instance) => instance.pid == state.pid,
-    //     );
-    //     if (instanceIdx === -1) {
-    //       targetApp.instances.push(state);
-    //     } else {
-    //       targetApp.instances[instanceIdx] = state;
-    //     }
-    //
-    //     newApps[targetAppIdx] = targetApp;
-    //
-    //     setApps(newApps);
-    //     debug(JSON.stringify(newApps));
-    //   },
-    //   [apps],
-    // );
+    const updateApps = useCallback(
+        (stateInfo: AppStateInfo) => {
+            setApps((currentApps) => {
+                if (currentApps === undefined) {
+                    error(
+                        `Received app update for ${stateInfo.configId} but current apps state is undefined.`,
+                    );
+                    return undefined; // Or handle appropriately
+                }
 
-    // useAppStateUpdateEventsSubscription(updateApps);
+                const targetAppIndex = currentApps.findIndex(
+                    (app) => app.config.id === stateInfo.configId,
+                );
+
+                if (targetAppIndex === -1) {
+                    error(
+                        `Received app update for unknown configId: ${stateInfo.configId}`,
+                    );
+                    return currentApps; // No change if config ID doesn't match
+                }
+
+                // Create a new array for immutability
+                const newApps = [...currentApps];
+                // Clone the target app and its instances
+                const targetApp = {
+                    ...newApps[targetAppIndex],
+                    instances: [...newApps[targetAppIndex].instances],
+                };
+
+                const instanceIndex = targetApp.instances.findIndex(
+                    (instance) => instance.pid === stateInfo.pid,
+                );
+
+                // Map AppStateInfo from main process to the AppState used in renderer/entities
+                const updatedInstanceState: AppState = {
+                    configId: stateInfo.configId,
+                    pid: stateInfo.pid,
+                    exitResult: stateInfo.exitResult,
+                };
+
+                if (instanceIndex === -1) {
+                    // New instance launched
+                    debug(
+                        `Adding new instance (PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
+                    );
+                    targetApp.instances.push(updatedInstanceState);
+                } else {
+                    // Update existing instance state (e.g., exitResult changed)
+                    debug(
+                        `Updating instance (PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
+                    );
+                    targetApp.instances[instanceIndex] = updatedInstanceState;
+                }
+
+                // Update the app in the new array
+                newApps[targetAppIndex] = targetApp;
+
+                debug(
+                    `Updated apps state: ${JSON.stringify(newApps.map((a) => ({ id: a.config.id, instances: a.instances.length })))}`,
+                );
+                return newApps;
+            });
+        },
+        [], // No dependencies needed for the callback itself
+    );
+
+    // Subscribe to app state updates
+    useAppStateUpdateEventsSubscription(updateApps);
 
     return { apps, configFilePath };
 }
