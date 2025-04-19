@@ -1,64 +1,62 @@
-import { AppModule } from '../AppModule.js';
-import electronUpdater, {
-    type AppUpdater,
-    type Logger,
-} from 'electron-updater';
+import {AppModule} from '../AppModule.js';
+import electronUpdater, {type AppUpdater, type Logger} from 'electron-updater';
 
-type DownloadNotification = Parameters<
-    AppUpdater['checkForUpdatesAndNotify']
->[0];
+type DownloadNotification = Parameters<AppUpdater['checkForUpdatesAndNotify']>[0];
 
 export class AutoUpdater implements AppModule {
-    readonly #logger: Logger | null;
-    readonly #notification: DownloadNotification;
 
-    constructor({
-        logger = null,
-        downloadNotification = undefined,
-    }: {
-        logger?: Logger | null | undefined;
-        downloadNotification?: DownloadNotification;
-    } = {}) {
-        this.#logger = logger;
-        this.#notification = downloadNotification;
-    }
+  readonly #logger: Logger | null;
+  readonly #notification: DownloadNotification;
 
-    async enable(): Promise<void> {
-        await this.runAutoUpdater();
-    }
+  constructor(
+    {
+      logger = null,
+      downloadNotification = undefined,
+    }:
+      {
+        logger?: Logger | null | undefined,
+        downloadNotification?: DownloadNotification
+      } = {},
+  ) {
+    this.#logger = logger;
+    this.#notification = downloadNotification;
+  }
 
-    getAutoUpdater(): AppUpdater {
-        // Using destructuring to access autoUpdater due to the CommonJS module of 'electron-updater'.
-        // It is a workaround for ESM compatibility issues, see https://github.com/electron-userland/electron-builder/issues/7976.
-        const { autoUpdater } = electronUpdater;
-        return autoUpdater;
-    }
+  async enable(): Promise<void> {
+    await this.runAutoUpdater();
+  }
 
-    async runAutoUpdater() {
-        const updater = this.getAutoUpdater();
-        try {
-            updater.logger = this.#logger || null;
-            updater.fullChangelog = true;
+  getAutoUpdater(): AppUpdater {
+    // Using destructuring to access autoUpdater due to the CommonJS module of 'electron-updater'.
+    // It is a workaround for ESM compatibility issues, see https://github.com/electron-userland/electron-builder/issues/7976.
+    const {autoUpdater} = electronUpdater;
+    return autoUpdater;
+  }
 
-            if (import.meta.env.VITE_DISTRIBUTION_CHANNEL) {
-                updater.channel = import.meta.env.VITE_DISTRIBUTION_CHANNEL;
-            }
+  async runAutoUpdater() {
+    const updater = this.getAutoUpdater();
+    try {
+      updater.logger = this.#logger || null;
+      updater.fullChangelog = true;
 
-            return await updater.checkForUpdatesAndNotify(this.#notification);
-        } catch (error) {
-            if (error instanceof Error) {
-                if (error.message.includes('No published versions')) {
-                    return null;
-                }
-            }
+      if (import.meta.env.VITE_DISTRIBUTION_CHANNEL) {
+        updater.channel = import.meta.env.VITE_DISTRIBUTION_CHANNEL;
+      }
 
-            throw error;
+      return await updater.checkForUpdatesAndNotify(this.#notification);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('No published versions')) {
+          return null;
         }
+      }
+
+      throw error;
     }
+  }
 }
 
-export function autoUpdater(
-    ...args: ConstructorParameters<typeof AutoUpdater>
-) {
-    return new AutoUpdater(...args);
+
+export function autoUpdater(...args: ConstructorParameters<typeof AutoUpdater>) {
+  return new AutoUpdater(...args);
 }
