@@ -8,6 +8,23 @@
     </head>
     <body>
         <div id="root"></div>
-        <script type="module" src="/src/main.tsx"></script>
+        <!-- Inline script to conditionally delay loading main.tsx in dev -->
+        <!-- this is a workaround for vite + electron bug: https://github.com/electron/electron/issues/40777 -->
+        <script type="module">
+            function loadMainScript() {
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = '/src/main.tsx';
+                document.body.appendChild(script);
+            }
+
+            if (import.meta.env.DEV) {
+                const delayMs = 500;
+                console.log(`HTML: Delaying main script load by ${delayMs}ms for potential preload race condition...`);
+                setTimeout(loadMainScript, delayMs);
+            } else {
+                loadMainScript();
+            }
+        </script>
     </body>
 </html>

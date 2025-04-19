@@ -29,14 +29,8 @@ export function useAppConfigs(configFileName: string): {
         if (!configFilePath) {
             return;
         }
-        if (!getAppConfigs) {
-            console.error('getAppConfigs is not available');
-            error('getAppConfigs is not available');
-            return;
-        }
-        console.log(getAppConfigs.toString());
         getAppConfigs(configFilePath).then(setConfig).catch(error);
-    }, [configFilePath, getAppConfigs]);
+    }, [configFilePath]);
 
     // // Listen for config updates from the main process via IPC
     // useEffect(() => {

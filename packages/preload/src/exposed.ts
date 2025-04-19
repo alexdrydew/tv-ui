@@ -9,6 +9,6 @@ for (const exportsKey in exports) {
         contextBridge.exposeInMainWorld(btoa(exportsKey), exports[exportsKey]);
     }
 }
-
+console.debug('preload finish');
 // Re-export for tests
 export * from './index.js';
