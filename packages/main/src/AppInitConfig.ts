@@ -1,11 +1,11 @@
 export type AppInitConfig = {
-    preload: {
-        path: string;
-    };
+  preload: {
+    path: string;
+  };
 
-    renderer:
-        | {
-              path: string;
-          }
-        | URL;
+  renderer:
+    | {
+        path: string;
+      }
+    | URL;
 };
