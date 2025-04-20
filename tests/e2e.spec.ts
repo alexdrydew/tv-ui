@@ -3,7 +3,8 @@ import { _electron as electron } from 'playwright';
 import { expect, test as base } from '@playwright/test';
 import type { BrowserWindow } from 'electron';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path'; // Import join
+import { tmpdir } from 'node:os'; // Import tmpdir
 import { globSync } from 'glob';
 import { platform } from 'node:process';
 
@@ -31,10 +32,10 @@ const test = base.extend<TestFixtures>({
                 throw new Error('App Executable path not found');
             }
 
-            // Ensure the config file exists before launching the app
-            // TODO: Get this path dynamically instead of hardcoding
-            const configFilePath = '/Users/alexdrydew/.config/tv-ui/tv-ui.json';
-            const configDir = dirname(configFilePath);
+            // Generate a temporary path for the config file
+            const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
+            const configFilePath = join(tempConfigDir, 'tv-ui.json');
+            const configDir = dirname(configFilePath); // Should be tempConfigDir
 
             // Define a sample app config
             const sampleAppConfig = [
@@ -66,9 +67,14 @@ const test = base.extend<TestFixtures>({
                 );
             }
 
+            // Launch the app, setting the environment variable
             const electronApp = await electron.launch({
                 executablePath: executablePath,
                 args: ['--no-sandbox'],
+                env: {
+                    ...process.env, // Pass existing env vars
+                    TV_UI_CONFIG_PATH: configFilePath, // Set our config path var
+                },
             });
 
             electronApp.on('console', (msg) => {
@@ -82,13 +88,14 @@ const test = base.extend<TestFixtures>({
             // This code runs after all the tests in the worker process.
             await electronApp.close();
 
-            // Clean up the dummy config file using the path defined earlier
+            // Clean up the temporary directory and config file
             try {
-                await rm(configFilePath, { force: true }); // force: true prevents error if file doesn't exist
-                console.log(`Cleaned up dummy config file: ${configFilePath}`);
-            } catch (err) {
-                // Log error but don't fail the test run just for cleanup failure
-                console.error(`Failed to clean up dummy config file: ${err}`);
+                // Use the tempConfigDir path generated earlier
+                await rm(tempConfigDir, { recursive: true, force: true });
+                console.log(`Cleaned up temporary config dir: ${tempConfigDir}`);
+                console.error(
+                    `Failed to clean up temporary config dir: ${err}`,
+                );
             }
         },
         { scope: 'worker', auto: true } as any,

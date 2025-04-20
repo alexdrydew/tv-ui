@@ -7,14 +7,17 @@ import {
     AppStateInfo,
     initAppsFromConfigs,
 } from '@app/types';
-import { getAppConfigs } from '@app/preload';
+import { getAppConfigs, getEnv } from '@app/preload'; // Import getEnv
 
 export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
     configFilePath: string | undefined;
 } {
-    // TODO: get from electron
-    const configFilePath = `/Users/alexdrydew/.config/tv-ui/${configFileName}`;
+    // Get path from env var or use default
+    // TODO: Get default base path from electron/OS APIs instead of hardcoding
+    const configFilePath =
+        getEnv('TV_UI_CONFIG_PATH') ??
+        `/Users/alexdrydew/.config/tv-ui/${configFileName}`;
 
     // useEffect(() => {
     //   const appConfigDir = new Promise(() => "/Users/alexdrydew/.config/tv-ui");
