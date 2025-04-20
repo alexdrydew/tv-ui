@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { error, debug } from '@/api/logging';
 import {
     App,
+    App,
     AppConfig,
     AppState,
     AppStateInfo,
     initAppsFromConfigs,
 } from '@app/types';
-import { getAppConfigs, getEnv } from '@app/preload'; // Import getEnv
+import { getAppConfigs, getEnv, onConfigUpdate } from '@app/preload'; // Import onConfigUpdate
 
 export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
@@ -35,7 +36,24 @@ export function useAppConfigs(configFileName: string): {
         getAppConfigs(configFilePath).then(setConfig).catch(error);
     }, [configFilePath]);
 
-    // // Listen for config updates from the main process via IPC
+    // Listen for config updates from the preload script
+    useEffect(() => {
+        debug('Setting up config update listener');
+        const unsubscribe = onConfigUpdate((updatedConfigs: AppConfig[]) => {
+            debug(
+                `Received config update via preload listener: ${updatedConfigs.length} configs`,
+            );
+            setConfig(updatedConfigs);
+        });
+
+        // Cleanup function
+        return () => {
+            debug('Removing config update listener');
+            unsubscribe();
+        };
+    }, []); // Run only once on mount
+
+    // // Listen for config updates from the main process via IPC (OLD CODE)
     // useEffect(() => {
     //     const configUpdateListener = (
     //         _event: unknown,
