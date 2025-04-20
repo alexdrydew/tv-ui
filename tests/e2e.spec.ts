@@ -70,7 +70,8 @@ const test = base.extend<TestFixtures>({
 
     // electronApp fixture now depends on configFilePath
     electronApp: [
-        async ({ configFilePath }, use) => { // Depend on configFilePath
+        async ({ configFilePath }, use) => {
+            // Depend on configFilePath
             let executablePattern = 'dist/*/root{,.*}';
             if (platform === 'darwin') {
                 executablePattern += '/Contents/*/root';
@@ -206,23 +207,19 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
         'The "Add New App" dialog should close after saving',
     ).not.toBeVisible();
 
-    // *** Start: Verify config file update ***
-    // Use configFilePath directly from the fixture context
+    // Verify config file update
     expect(
         configFilePath,
         'configFilePath from fixture should be defined',
     ).toBeDefined();
 
-    // Read the updated config file
     const configFileContent = await readFile(configFilePath!, 'utf-8');
     const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
 
-    // Find the newly added config
     const addedConfig = updatedConfigs.find(
         (config) => config.name === appName,
     );
 
-    // Assert that the config was added correctly
     expect(
         addedConfig,
         `Config file should contain an entry for "${appName}"`,
@@ -231,7 +228,6 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
         addedConfig?.launchCommand,
         `Config entry for "${appName}" should have the correct launch command`,
     ).toBe(launchCommand);
-    // *** End: Verify config file update ***
 
     // Verify the new app tile is visible (this part might still fail)
     const newAppTile = page.getByRole('button', { name: appName });
