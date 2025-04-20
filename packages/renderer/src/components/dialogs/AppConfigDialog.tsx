@@ -1,4 +1,3 @@
-import { error } from '@/api/logging';
 import { Button } from '@/components/ui/button';
 import {
     Form,
@@ -10,14 +9,12 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { upsertAppConfig } from '@app/preload';
 import { AppConfig } from '@app/types';
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import { Schema } from 'effect';
 import { nanoid } from 'nanoid';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
 import {
     Dialog,
     DialogContent,
@@ -41,17 +38,21 @@ type FormValues = Schema.Schema.Type<typeof AppConfigFormSchema>;
 interface AddAppDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    configFilePath: string;
+    configFilePath: string; // Keep configFilePath if needed for context, though not used directly for saving here
     appToEdit?: AppConfig | null;
+    onSave: (config: AppConfig) => Promise<void>; // Add the onSave prop
+    mode: 'add' | 'edit'; // Keep mode to adjust dialog text
 }
 
 export function AppConfigDialog({
     isOpen,
     onOpenChange,
-    configFilePath,
+    // configFilePath, // No longer needed for internal saving
     appToEdit = null,
+    onSave, // Destructure onSave
+    mode, // Destructure mode
 }: AddAppDialogProps) {
-    const isEditing = appToEdit !== null;
+    const isEditing = mode === 'edit' && appToEdit !== null;
 
     const form = useForm<FormValues>({
         resolver: effectTsResolver(AppConfigFormSchema),
@@ -64,7 +65,7 @@ export function AppConfigDialog({
 
     useEffect(() => {
         if (isOpen) {
-            if (appToEdit) {
+            if (isEditing) {
                 form.reset({
                     name: appToEdit.name,
                     icon: appToEdit.icon ?? '',
@@ -78,8 +79,9 @@ export function AppConfigDialog({
                 });
             }
         }
-    }, [isOpen, appToEdit, form]);
+    }, [isOpen, isEditing, appToEdit, form]);
 
+    // onSubmit now calls the passed onSave prop
     async function onSubmit(values: FormValues) {
         const configToUpsert: AppConfig = {
             id: appToEdit?.id ?? nanoid(),
@@ -88,27 +90,14 @@ export function AppConfigDialog({
             launchCommand: values.launchCommand,
         };
 
-        const actionVerb = isEditing ? 'updated' : 'added';
-        const toastTitle = isEditing ? 'App Updated' : 'App Added';
-
-        try {
-            await upsertAppConfig(configToUpsert, configFilePath);
-            toast.success(toastTitle, {
-                description: `App "${configToUpsert.name}" ${actionVerb} successfully.`,
-            });
-            onOpenChange(false);
-        } catch (e) {
-            const errorAction = isEditing ? 'update' : 'add';
-            error(`Failed to ${errorAction} app: ${e}`);
-            toast.error(`Failed to ${errorAction} app`, {
-                description: `${e}`,
-            });
-        }
+        // Call the parent's save handler
+        await onSave(configToUpsert);
+        // Parent handler is responsible for closing the dialog and showing toasts
     }
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
-            form.reset();
+            form.reset(); // Reset form when closing
         }
         onOpenChange(open);
     };
@@ -122,7 +111,7 @@ export function AppConfigDialog({
                     </DialogTitle>
                     <DialogDescription>
                         {isEditing
-                            ? `Update the details for ${appToEdit.name}.`
+                            ? `Update the details for ${appToEdit?.name ?? 'the app'}.` // Safer access to name
                             : 'Enter the details for the new application configuration.'}
                     </DialogDescription>
                 </DialogHeader>
@@ -160,6 +149,8 @@ export function AppConfigDialog({
                                         <Input
                                             placeholder="/path/to/icon.png"
                                             {...field}
+                                            // Ensure value is handled correctly for optional field
+                                            value={field.value ?? ''}
                                         />
                                     </FormControl>
                                     <FormDescription>
