@@ -204,11 +204,9 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     return Effect.runPromise(effect);
 }
 
-// Changed: Accepts launchInstanceId instead of configId
 export async function killApp(
     launchInstanceId: LaunchInstanceId,
 ): Promise<void> {
-    // Use launchInstanceId for lookup
     const appState = launchedApps.get(launchInstanceId);
 
     if (!appState) {
