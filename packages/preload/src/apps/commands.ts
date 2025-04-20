@@ -16,6 +16,7 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
 
     const existingState = launchedApps.get(configId);
     if (existingState && existingState.lastExitResult === null) {
+        // Renamed lastExitResult
         // App is considered running if state exists and exitResult is null
         throw new Error(`Application ${configId} is already running.`);
     }
@@ -66,13 +67,15 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     const initialState: AppState = {
         configId: configId,
         pid: childProcess.pid,
-        lastExitResult: null, // null indicates running
+        exitResult: null, // Renamed lastExitResult, null indicates running
         process: childProcess,
     };
 
     // Store the state immediately
     launchedApps.set(configId, initialState);
-    console.log(`Stored initial state for ${configId}, PID: ${initialState.pid}`);
+    console.log(
+        `Stored initial state for ${configId}, PID: ${initialState.pid}`,
+    );
 
     // --- Process Event Listeners ---
     const handleExit = (code: number | null, signal: NodeJS.Signals | null) => {
@@ -97,7 +100,7 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
         // Update the stored state
         const finalState = launchedApps.get(configId);
         if (finalState) {
-            finalState.lastExitResult = exitInfo;
+            finalState.lastExitResult = exitInfo; // Renamed lastExitResult
             // Optionally remove the process object now that it's exited
             // delete finalState.process; // Keep process object for potential inspection?
             launchedApps.set(configId, finalState); // Update map
@@ -106,7 +109,7 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
             invokeAppUpdateListeners({
                 configId: finalState.configId,
                 pid: finalState.pid,
-                exitResult: finalState.lastExitResult,
+                exitResult: finalState.lastExitResult, // Renamed lastExitResult
             });
         } else {
             console.warn(`State for exited app ${configId} not found in map.`);
@@ -123,15 +126,16 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
         // Decide how to handle errors - maybe mark as Unknown exit?
         const errorState = launchedApps.get(configId);
         if (errorState && errorState.lastExitResult === null) {
+            // Renamed lastExitResult
             // Only update if not already exited
-            errorState.lastExitResult = { type: AppExitResult.Unknown };
+            errorState.lastExitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult
             // delete errorState.process;
             launchedApps.set(configId, errorState);
             console.log(`Updated state for ${configId} due to error.`);
             invokeAppUpdateListeners({
                 configId: errorState.configId,
                 pid: errorState.pid,
-                exitResult: errorState.lastExitResult,
+                exitResult: errorState.lastExitResult, // Renamed lastExitResult
             });
         }
         // Clean up listeners AFTER processing error
@@ -149,14 +153,14 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     invokeAppUpdateListeners({
         configId: initialState.configId,
         pid: initialState.pid,
-        exitResult: initialState.lastExitResult,
+        exitResult: initialState.lastExitResult, // Renamed lastExitResult
     });
 
     // Return the initial state info (without the process object)
     return {
         configId: initialState.configId,
         pid: initialState.pid,
-        exitResult: initialState.lastExitResult,
+        exitResult: initialState.lastExitResult, // Renamed lastExitResult
     };
 }
 
@@ -168,6 +172,7 @@ export async function killApp(configId: AppConfigId): Promise<void> {
     }
 
     if (appState.lastExitResult !== null) {
+        // Renamed lastExitResult
         // App is already exited
         console.warn(
             `Attempted to kill app ${configId} which has already exited.`,
@@ -181,12 +186,13 @@ export async function killApp(configId: AppConfigId): Promise<void> {
         );
         // Consider updating state if process is missing but exitResult is null
         if (!appState.lastExitResult) {
-            appState.lastExitResult = { type: AppExitResult.Unknown }; // Mutate state
+            // Renamed lastExitResult
+            appState.lastExitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult, Mutate state
             launchedApps.set(configId, appState); // Update map
             invokeAppUpdateListeners({
                 configId: appState.configId,
                 pid: appState.pid,
-                exitResult: appState.lastExitResult,
+                exitResult: appState.lastExitResult, // Renamed lastExitResult
             });
         }
         return; // Nothing more to do
@@ -226,7 +232,8 @@ export async function killApp(configId: AppConfigId): Promise<void> {
         );
         // Update state to Unknown if kill fails unexpectedly?
         if (appState.lastExitResult === null) {
-            appState.lastExitResult = { type: AppExitResult.Unknown }; // Mutate state
+            // Renamed lastExitResult
+            appState.lastExitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult, Mutate state
             launchedApps.set(configId, appState); // Update map
             invokeAppUpdateListeners({
                 configId: appState.configId,

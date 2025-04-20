@@ -51,7 +51,7 @@ const test = base.extend<TestFixtures>({
                 );
             }
 
-            await use(configFilePath); // Yield the path
+            await use(configFilePath);
 
             // Cleanup
             try {
