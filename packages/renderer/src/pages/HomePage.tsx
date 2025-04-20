@@ -1,15 +1,14 @@
-import { useState } from 'react';
-import { toast, Toaster } from 'sonner';
-import { PlusIcon } from 'lucide-react';
-import { Button } from '@/components/ui/appButton';
-import { AppGrid } from '@/components/layout/AppGrid';
+import { error, info } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
 import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
+import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
-import { error, info } from '@/api/logging';
-import { versions } from '@app/preload';
+import { Button } from '@/components/ui/appButton';
 import { useApps } from '@/hooks/useApps';
 import { App, AppConfig, isLaunched } from '@app/types';
+import { PlusIcon } from 'lucide-react';
+import { useState } from 'react';
+import { toast, Toaster } from 'sonner';
 
 export function HomePage() {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
@@ -72,9 +71,6 @@ export function HomePage() {
 
     const { apps, configFilePath } = useApps();
 
-    console.log(apps);
-    console.log(configFilePath);
-
     if (apps === undefined || configFilePath === undefined) {
         return <div>Loading apps...</div>;
     }
@@ -83,9 +79,6 @@ export function HomePage() {
         <TvAppLayout>
             <main className="py-8">
                 <div className="flex justify-between items-center mb-6 px-8">
-                    <h2 className="text-2xl md:text-3xl font-bold">
-                        Apps {JSON.stringify(versions)}
-                    </h2>
                     <Button onClick={() => setIsAddAppDialogOpen(true)}>
                         <PlusIcon className="mr-2 h-4 w-4" /> Add App
                     </Button>
