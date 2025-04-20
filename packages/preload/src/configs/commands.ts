@@ -1,8 +1,8 @@
-import { AppConfig, AppConfigId } from '@app/types'; // Removed CONFIG_UPDATE_EVENT
+import { AppConfig, AppConfigId } from '@app/types';
 import { Effect, pipe } from 'effect';
 import { ConfigNotFoundError } from './errors.js';
 import { readConfigsFromFile, writeConfigsToFileEffect } from './fs.js';
-import { invokeConfigUpdateListeners } from '../events.js'; // Import the direct invocation function
+import { invokeConfigUpdateListeners } from '../events.js';
 
 export async function getAppConfigs(configPath: string): Promise<AppConfig[]> {
     const effect = readConfigsFromFile(configPath);

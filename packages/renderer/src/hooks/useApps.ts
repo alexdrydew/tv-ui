@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { error, debug } from '@/api/logging';
 import {
     App,
-    App,
     AppConfig,
     AppState,
     AppStateInfo,
@@ -14,8 +13,6 @@ export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
     configFilePath: string | undefined;
 } {
-    // Get path from env var or use default
-    // TODO: Get default base path from electron/OS APIs instead of hardcoding
     const configFilePath =
         getEnv('TV_UI_CONFIG_PATH') ??
         `/Users/alexdrydew/.config/tv-ui/${configFileName}`;
