@@ -4,6 +4,7 @@ import { UnknownException } from 'effect/Cause';
 export type ProcessError =
     | ProcessNotFoundError
     | PermissionDeniedError
+    | SignalSendFailedError // Added new error type
     | UnknownProcessError;
 
 export class ProcessNotFoundError extends Data.TaggedError(
@@ -24,6 +25,28 @@ export class PermissionDeniedError extends Data.TaggedError(
     readonly message?: string;
 }> {}
 
+// New error for when process.kill returns false
+export class SignalSendFailedError extends Data.TaggedError(
+    'SignalSendFailedError',
+)<{
+    readonly pid: number;
+    readonly signal: NodeJS.Signals | number;
+    readonly message?: string;
+}> {
+    constructor(args: {
+        pid: number;
+        signal: NodeJS.Signals | number;
+        message?: string;
+    }) {
+        super({
+            ...args,
+            message:
+                args.message ??
+                `process.kill(${args.pid}, '${args.signal}') returned false, indicating the signal could not be sent.`,
+        });
+    }
+}
+
 export class UnknownProcessError extends Data.TaggedError('UnknownProcessError')<{
     readonly cause?: unknown;
     readonly code?: string;
@@ -42,6 +65,11 @@ export function mapProcessError(
     error: unknown,
     pid?: number,
 ): ProcessError | UnknownException {
+    // Handle the explicitly thrown SignalSendFailedError
+    if (error instanceof SignalSendFailedError) {
+        return error;
+    }
+
     if (error instanceof Error && 'code' in error) {
         const nodeError = error as NodeProcessError;
         const props = {
@@ -62,6 +90,6 @@ export function mapProcessError(
                 });
         }
     }
-    // If it's not a recognizable Node error, wrap it
+    // If it's not a recognizable Node error or our specific error, wrap it
     return new UnknownException(error);
 }
