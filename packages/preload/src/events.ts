@@ -1,4 +1,4 @@
-import { AppConfig, AppConfigId } from '@app/types'; // Removed CONFIG_UPDATE_EVENT, added AppConfigId
+import { AppConfig, AppConfigId } from '@app/types';
 
 export type ConfigUpdateListener = (updatedConfigs: AppConfig[]) => void;
 
