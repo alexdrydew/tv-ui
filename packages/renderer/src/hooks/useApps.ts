@@ -5,9 +5,18 @@ import {
     AppConfig,
     AppConfigId,
     AppState,
+    App,
+    AppConfig,
+    AppConfigId,
+    AppState,
     AppStateInfo,
 } from '@app/types';
-import { getAppConfigs, getEnv, onConfigUpdate } from '@app/preload';
+import {
+    getAppConfigs,
+    getEnv,
+    onAppUpdate,
+    onConfigUpdate,
+} from '@app/preload';
 
 export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
@@ -73,36 +82,27 @@ export function useAppConfigs(configFileName: string): {
 }
 
 /**
- * Subscribes to application state update events from the main process.
- * @param _onUpdate Callback function to execute when an app state update is received.
+ * Subscribes to application state update events via the preload event system.
+ * @param onUpdate Callback function to execute when an app state update is received.
  */
 export function useAppStateUpdateEventsSubscription(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _onUpdate: (stateInfo: AppStateInfo) => void,
+    onUpdate: (stateInfo: AppStateInfo) => void,
 ) {
-    // useEffect(() => {
-    //     const appUpdateListener = (
-    //         _event: unknown,
-    //         stateInfo: AppStateInfo,
-    //     ) => {
-    //         debug(
-    //             `IPC Event Received [${APP_UPDATE_EVENT}]: ${JSON.stringify(stateInfo)}`,
-    //         );
-    //         onUpdate(stateInfo);
-    //     };
-    //
-    //     debug(`Setting up IPC listener for ${APP_UPDATE_EVENT}`);
-    //     window.ipcRenderer.on(APP_UPDATE_EVENT, appUpdateListener);
-    //
-    //     // Cleanup function
-    //     return () => {
-    //         debug(`Removing IPC listener for ${APP_UPDATE_EVENT}`);
-    //         window.ipcRenderer.removeListener(
-    //             APP_UPDATE_EVENT,
-    //             appUpdateListener,
-    //         );
-    //     };
-    // }, [onUpdate]); // Re-subscribe if the onUpdate callback changes
+    useEffect(() => {
+        debug('Setting up app state update listener');
+        const unsubscribe = onAppUpdate((stateInfo: AppStateInfo) => {
+            debug(
+                `Received app state update via preload listener: ${JSON.stringify(stateInfo)}`,
+            );
+            onUpdate(stateInfo);
+        });
+
+        // Cleanup function
+        return () => {
+            debug('Removing app state update listener');
+            unsubscribe();
+        };
+    }, [onUpdate]); // Re-subscribe if the onUpdate callback changes
 }
 
 export function useApps(): {

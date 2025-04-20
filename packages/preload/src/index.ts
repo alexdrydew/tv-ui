@@ -3,10 +3,12 @@ import { versions } from './versions.js';
 export { versions };
 export {
     getAppConfigs,
+    getAppConfigs,
     upsertAppConfig,
     removeAppConfig,
+    launchApp,
 } from './configs/commands.js';
-export { onConfigUpdate } from './events.js';
+export { onConfigUpdate, onAppUpdate } from './events.js';
 
 /**
  * Retrieves the value of an environment variable.

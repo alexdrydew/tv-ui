@@ -2,10 +2,14 @@ import { error, info } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
 import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
 import { AppGrid } from '@/components/layout/AppGrid';
+import { error, info, debug } from '@/api/logging';
+import { AppTile } from '@/components/cards/AppTile';
+import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
+import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
 import { useApps } from '@/hooks/useApps';
-import { removeAppConfig } from '@app/preload';
+import { launchApp, removeAppConfig } from '@app/preload';
 import { App, AppConfig, isLaunched } from '@app/types';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -15,21 +19,24 @@ export function HomePage() {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
     const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
     const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
-    const handleLaunchApp = (app: App) => {
-        info(`Launching app: ${app.config.name}`);
-        // instantiateApp(app)
-        //     .then((appState) => {
-        //         toast(`${app.config.name} launched successfully`, {
-        //             description: `PID: ${appState.pid}`,
-        //         });
-        //         info(`App launched with PID: ${appState.pid}`);
-        //     })
-        //     .catch((e) => {
-        //         toast(`Failed to launch app: ${app.config.name}`, {
-        //             description: `${e}`,
-        //         });
-        //         error(`Failed to launch app: ${e}`);
-        //     });
+    const handleLaunchApp = async (app: App) => {
+        info(`Attempting to launch app: ${app.config.name}`);
+        try {
+            const appState = await launchApp(app.config);
+            toast.success(`${app.config.name} launched successfully`, {
+                description: `PID: ${appState.pid}`,
+            });
+            info(
+                `App ${app.config.name} (ID: ${app.config.id}) launched with PID: ${appState.pid}`,
+            );
+            // The useApps hook will update the state based on the event emitted by launchApp
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            toast.error(`Failed to launch app: ${app.config.name}`, {
+                description: errorMessage,
+            });
+            error(`Failed to launch app ${app.config.name}: ${errorMessage}`);
+        }
     };
 
     const handleKillApp = async (app: App) => {
