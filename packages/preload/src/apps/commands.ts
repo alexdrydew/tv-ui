@@ -5,8 +5,8 @@ import {
     AppExitResult,
     AppStateInfo,
 } from '@app/types';
-import { spawn } from 'node:child_process';
-import { Effect } from 'effect';
+import { spawn, ChildProcess } from 'node:child_process'; // Added ChildProcess back
+import { Effect, pipe } from 'effect'; // Added pipe
 import { invokeAppUpdateListeners } from '../events.js';
 import {
     AppAlreadyRunningError,
@@ -22,30 +22,136 @@ function launchAppEffect(
     AppStateInfo,
     AppAlreadyRunningError | InvalidCommandError | SpawnError
 > {
-    return Effect.gen(function* (_) {
-        const configId = config.id;
-        const command = config.launchCommand;
+    const configId = config.id;
+    const command = config.launchCommand;
 
+    // Helper function to setup listeners
+    const setupListeners = (
+        pid: number,
+        childProcess: ChildProcess,
+    ): Effect.Effect<void> =>
+        Effect.sync(() => {
+            const handleExit = (
+                code: number | null,
+                signal: NodeJS.Signals | null,
+            ) => {
+                console.log(
+                    `App ${configId} (PID: ${pid}) exited. Code: ${code}, Signal: ${signal}`,
+                );
+                let exitInfo: AppExitInfo;
+                if (signal) {
+                    exitInfo = { type: AppExitResult.Signal, signal: signal };
+                } else if (code === 0) {
+                    exitInfo = { type: AppExitResult.Success };
+                } else if (code !== null) {
+                    exitInfo = { type: AppExitResult.ExitCode, code: code };
+                } else {
+                    console.warn(
+                        `App ${configId} exited with null code and null signal.`,
+                    );
+                    exitInfo = { type: AppExitResult.Unknown };
+                }
+
+                const finalState = launchedApps.get(configId);
+                if (finalState) {
+                    finalState.exitResult = exitInfo;
+                    launchedApps.set(configId, finalState);
+                    console.log(`Updated state for ${configId} with exit info.`);
+                    invokeAppUpdateListeners({
+                        configId: finalState.configId,
+                        pid: finalState.pid,
+                        exitResult: finalState.exitResult,
+                    });
+                } else {
+                    console.warn(
+                        `State for exited app ${configId} not found in map.`,
+                    );
+                }
+                childProcess.removeAllListeners();
+            };
+
+            const handleError = (err: Error) => {
+                console.error(
+                    `Error in launched app ${configId} (PID: ${pid}):`,
+                    err,
+                );
+                const errorState = launchedApps.get(configId);
+                if (errorState && errorState.exitResult === null) {
+                    errorState.exitResult = { type: AppExitResult.Unknown };
+                    launchedApps.set(configId, errorState);
+                    console.log(`Updated state for ${configId} due to error.`);
+                    invokeAppUpdateListeners({
+                        configId: errorState.configId,
+                        pid: errorState.pid,
+                        exitResult: errorState.exitResult,
+                    });
+                }
+                childProcess.removeAllListeners();
+            };
+
+            childProcess.on('exit', handleExit);
+            childProcess.on('error', handleError);
+        });
+
+    // Helper function to check PID asynchronously
+    const checkPid = (
+        childProcess: ChildProcess,
+    ): Effect.Effect<number, SpawnError> =>
+        Effect.async<number, SpawnError>((resume) => {
+            if (childProcess.pid !== undefined) {
+                resume(Effect.succeed(childProcess.pid));
+                return;
+            }
+            let spawnErrorMsg = 'Unknown spawn error';
+            const errorListener = (err: Error) => {
+                spawnErrorMsg = err.message;
+            };
+            childProcess.once('error', errorListener);
+            const timeoutId = setTimeout(() => {
+                childProcess.removeListener('error', errorListener);
+                if (childProcess.pid !== undefined) {
+                    resume(Effect.succeed(childProcess.pid));
+                } else {
+                    resume(
+                        Effect.fail(
+                            new SpawnError({
+                                configId,
+                                message:
+                                    spawnErrorMsg !== 'Unknown spawn error'
+                                        ? `Failed to get PID. Error: ${spawnErrorMsg}`
+                                        : 'Failed to get PID. Process might have exited immediately.',
+                            }),
+                        ),
+                    );
+                }
+            }, 50);
+            return Effect.sync(() => clearTimeout(timeoutId));
+        });
+
+    return pipe(
         // 1. Check if already running
-        const existingState = yield* _(
-            Effect.sync(() => launchedApps.get(configId)),
-        );
-        if (existingState && existingState.exitResult === null) {
-            return yield* _(
-                Effect.fail(new AppAlreadyRunningError({ configId })),
-            );
-        }
-
+        Effect.sync(() => launchedApps.get(configId)),
+        Effect.flatMap((existingState) =>
+            existingState && existingState.exitResult === null
+                ? Effect.fail(new AppAlreadyRunningError({ configId }))
+                : Effect.succeed(config), // Pass config if not running
+        ),
         // 2. Parse command
-        const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g);
-        if (!parts || parts.length === 0) {
-            return yield* _(Effect.fail(new InvalidCommandError({ command })));
-        }
-        const cmd = parts[0].replace(/"/g, '');
-        const args = parts.slice(1).map((arg) => arg.replace(/"/g, ''));
-
+        Effect.flatMap((currentConfig) => {
+            const parts = currentConfig.launchCommand.match(
+                /(?:[^\s"]+|"[^"]*")+/g,
+            );
+            if (!parts || parts.length === 0) {
+                return Effect.fail(
+                    new InvalidCommandError({ command: currentConfig.launchCommand }),
+                );
+            }
+            const cmd = parts[0].replace(/"/g, '');
+            const args = parts.slice(1).map((arg) => arg.replace(/"/g, ''));
+            return Effect.succeed({ cmd, args });
+        }),
         // 3. Spawn process
-        const childProcess = yield* _(
+        Effect.flatMap(({ cmd, args }) =>
             Effect.try({
                 try: () =>
                     spawn(cmd, args, { stdio: 'ignore', detached: false }),
@@ -56,159 +162,51 @@ function launchAppEffect(
                         message: `Spawn failed: ${error instanceof Error ? error.message : String(error)}`,
                     }),
             }),
-        );
-
+        ),
         // 4. Check PID asynchronously
-        const pid = yield* _(
-            Effect.async<number, SpawnError>((resume) => {
-                if (childProcess.pid !== undefined) {
-                    resume(Effect.succeed(childProcess.pid));
-                    return;
-                }
-
-                // Handle case where PID is initially undefined (immediate exit/error)
-                let spawnErrorMsg = 'Unknown spawn error';
-                const errorListener = (err: Error) => {
-                    spawnErrorMsg = err.message;
-                };
-                childProcess.once('error', errorListener);
-
-                // Give a brief moment for error/exit events
-                const timeoutId = setTimeout(() => {
-                    childProcess.removeListener('error', errorListener); // Clean up temp listener
-                    if (childProcess.pid !== undefined) {
-                        resume(Effect.succeed(childProcess.pid));
-                    } else if (spawnErrorMsg !== 'Unknown spawn error') {
-                        resume(
-                            Effect.fail(
-                                new SpawnError({
-                                    configId,
-                                    message: `Failed to get PID. Error: ${spawnErrorMsg}`,
-                                }),
-                            ),
-                        );
-                    } else {
-                        resume(
-                            Effect.fail(
-                                new SpawnError({
-                                    configId,
-                                    message:
-                                        'Failed to get PID. Process might have exited immediately.',
-                                }),
-                            ),
-                        );
-                    }
-                }, 50); // 50ms delay - adjust if needed
-
-                // Cleanup function for the async effect
-                return Effect.sync(() => clearTimeout(timeoutId));
-            }),
-        );
-
-        // 5. Create and store initial state
-        const initialState: AppState = {
-            configId: configId,
-            pid: pid,
-            exitResult: null,
-            process: childProcess,
-        };
-        yield* _(Effect.sync(() => launchedApps.set(configId, initialState)));
-        console.log(`Stored initial state for ${configId}, PID: ${pid}`);
-
-        // 6. Setup listeners (as side effects)
-        yield* _(
-            Effect.sync(() => {
-                const handleExit = (
-                    code: number | null,
-                    signal: NodeJS.Signals | null,
-                ) => {
-                    console.log(
-                        `App ${configId} (PID: ${pid}) exited. Code: ${code}, Signal: ${signal}`,
-                    );
-                    let exitInfo: AppExitInfo;
-                    if (signal) {
-                        exitInfo = {
-                            type: AppExitResult.Signal,
-                            signal: signal,
-                        };
-                    } else if (code === 0) {
-                        exitInfo = { type: AppExitResult.Success };
-                    } else if (code !== null) {
-                        exitInfo = { type: AppExitResult.ExitCode, code: code };
-                    } else {
-                        console.warn(
-                            `App ${configId} exited with null code and null signal.`,
-                        );
-                        exitInfo = { type: AppExitResult.Unknown };
-                    }
-
-                    const finalState = launchedApps.get(configId);
-                    if (finalState) {
-                        finalState.exitResult = exitInfo;
-                        // Maybe remove process object: delete finalState.process;
-                        launchedApps.set(configId, finalState);
-                        console.log(
-                            `Updated state for ${configId} with exit info.`,
-                        );
-                        invokeAppUpdateListeners({
-                            configId: finalState.configId,
-                            pid: finalState.pid,
-                            exitResult: finalState.exitResult,
-                        });
-                    } else {
-                        console.warn(
-                            `State for exited app ${configId} not found in map.`,
-                        );
-                    }
-                    childProcess.removeAllListeners(); // Clean up here
-                };
-
-                const handleError = (err: Error) => {
-                    console.error(
-                        `Error in launched app ${configId} (PID: ${pid}):`,
-                        err,
-                    );
-                    const errorState = launchedApps.get(configId);
-                    if (errorState && errorState.exitResult === null) {
-                        errorState.exitResult = { type: AppExitResult.Unknown };
-                        // Maybe remove process object: delete errorState.process;
-                        launchedApps.set(configId, errorState);
-                        console.log(
-                            `Updated state for ${configId} due to error.`,
-                        );
-                        invokeAppUpdateListeners({
-                            configId: errorState.configId,
-                            pid: errorState.pid,
-                            exitResult: errorState.exitResult,
-                        });
-                    }
-                    childProcess.removeAllListeners(); // Clean up here
-                };
-
-                childProcess.on('exit', handleExit);
-                childProcess.on('error', handleError);
-            }),
-        );
-
-        // 7. Emit initial running state
-        yield* _(
-            Effect.sync(() =>
-                invokeAppUpdateListeners({
-                    configId: initialState.configId,
-                    pid: initialState.pid,
-                    exitResult: initialState.exitResult,
-                }),
+        Effect.flatMap((childProcess) =>
+            pipe(
+                checkPid(childProcess),
+                Effect.map((pid) => ({ childProcess, pid })), // Pass both along
             ),
-        );
-        console.log(`Emitting initial running state for ${configId}`);
-
-        // 8. Return AppStateInfo
-        return {
+        ),
+        // 5. Create and store initial state
+        Effect.flatMap(({ childProcess, pid }) => {
+            const initialState: AppState = {
+                configId: configId,
+                pid: pid,
+                exitResult: null,
+                process: childProcess,
+            };
+            return pipe(
+                Effect.sync(() => launchedApps.set(configId, initialState)),
+                Effect.tap(() =>
+                    console.log(
+                        `Stored initial state for ${configId}, PID: ${pid}`,
+                    ),
+                ),
+                // Pass necessary info for next steps
+                Effect.map(() => ({ initialState, childProcess, pid })),
+            );
+        }),
+        // 6. Setup listeners (as side effect)
+        Effect.tap(({ childProcess, pid }) => setupListeners(pid, childProcess)),
+        // 7. Emit initial running state (as side effect)
+        Effect.tap(({ initialState }) => {
+            invokeAppUpdateListeners({
+                configId: initialState.configId,
+                pid: initialState.pid,
+                exitResult: initialState.exitResult,
+            });
+            console.log(`Emitting initial running state for ${configId}`);
+        }),
+        // 8. Map to final AppStateInfo result
+        Effect.map(({ initialState }) => ({
             configId: initialState.configId,
             pid: initialState.pid,
             exitResult: initialState.exitResult,
-        };
-    });
+        })),
+    );
 }
 
 // Exported function remains async and runs the effect
