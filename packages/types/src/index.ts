@@ -17,12 +17,11 @@ export type AppExitInfo =
     | { type: AppExitResult.Signal; signal: NodeJS.Signals }
     | { type: AppExitResult.Unknown };
 
-// Information about a specific running/exited instance
 export interface AppStateInfo {
     configId: AppConfigId;
-    launchInstanceId: LaunchInstanceId; // Added: Unique ID for this instance
+    launchInstanceId: LaunchInstanceId;
     pid: number;
-    exitResult: AppExitInfo | null;
+    exitResult?: AppExitInfo | null;
 }
 
 export const AppConfigSchema = Schema.Struct({
