@@ -24,12 +24,16 @@ const test = base.extend<TestFixtures>({
             const configFilePath = join(tempConfigDir, 'tv-ui.json');
             const configDir = dirname(configFilePath);
 
-            const sampleAppConfig = [
+            // Use a command that stays running for a bit (sleep 5)
+            // Note: 'sleep' might not be available on all Windows systems by default.
+            // Consider 'timeout /t 5 /nobreak > NUL' for Windows or a node script.
+            // Using 'sleep 5' for simplicity, assuming a Unix-like test environment.
+            const sampleAppConfig: AppConfig[] = [
                 {
                     id: 'test-app-1',
                     name: 'Test App',
-                    launchCommand: '/bin/echo',
-                    args: ['hello'],
+                    launchCommand: 'sleep 5', // Changed from /bin/echo
+                    args: [], // Args might not be needed for sleep
                     icon: undefined,
                 },
             ];
@@ -187,7 +191,7 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
 
     // Fill in the form
     const appName = 'My New Test App';
-    const launchCommand = '/bin/true';
+    const launchCommand = '/bin/true'; // Use a command that exits quickly for this test
     await dialog.getByLabel('App Name').fill(appName);
     await dialog.getByLabel('Launch Command').fill(launchCommand);
 
@@ -222,7 +226,7 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
         `Config entry for "${appName}" should have the correct launch command`,
     ).toBe(launchCommand);
 
-    // Verify the new app tile is visible (this part might still fail)
+    // Verify the new app tile is visible
     const newAppTile = page.getByRole('button', { name: appName });
     await expect(
         newAppTile,
@@ -238,6 +242,15 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
         appTileButton,
         `The AppTile for "${appNameToDelete}" should initially be visible`,
     ).toBeVisible();
+
+    // Ensure the app is not running before trying to delete
+    const runningIndicator = appTileButton.locator(
+        '[data-testid="running-indicator"]',
+    );
+    await expect(
+        runningIndicator,
+        'Running indicator should not be visible before delete',
+    ).not.toBeVisible({ timeout: 1000 }); // Short timeout, it shouldn't be there
 
     await appTileButton.click({ button: 'right' });
     const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete app' });
@@ -272,7 +285,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     const initialAppName = 'Test App';
     const initialAppId = 'test-app-1';
     const editedAppName = 'Edited Test App';
-    const editedLaunchCommand = '/bin/false';
+    const editedLaunchCommand = '/bin/false'; // Use a command that exits quickly
 
     const appTileButton = page.getByRole('button', { name: initialAppName });
 
@@ -280,6 +293,16 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
         appTileButton,
         `The AppTile for "${initialAppName}" should initially be visible`,
     ).toBeVisible();
+
+    // Ensure the app is not running before trying to edit
+    const runningIndicator = appTileButton.locator(
+        '[data-testid="running-indicator"]',
+    );
+    await expect(
+        runningIndicator,
+        'Running indicator should not be visible before edit',
+    ).not.toBeVisible({ timeout: 1000 }); // Short timeout
+
     await appTileButton.click({ button: 'right' });
     const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
     await expect(
@@ -296,7 +319,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         dialog.getByLabel('Launch Command'),
         'Dialog "Launch Command" should be pre-filled',
-    ).toHaveValue('/bin/echo');
+    ).toHaveValue('sleep 5'); // Check against the actual initial command
     await dialog.getByLabel('App Name').fill(editedAppName);
     await dialog.getByLabel('Launch Command').fill(editedLaunchCommand);
 
@@ -346,4 +369,77 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
         configWithOldName,
         `Config file should not contain an entry with the old name "${initialAppName}"`,
     ).toBeUndefined();
+});
+
+test('Launch app via UI click', async ({ page }) => {
+    const appName = 'Test App';
+    const appTileButton = page.getByRole('button', { name: appName });
+    const runningIndicator = appTileButton.locator(
+        '[data-testid="running-indicator"]',
+    );
+
+    await expect(
+        appTileButton,
+        `The AppTile for "${appName}" should be visible`,
+    ).toBeVisible();
+    await expect(
+        runningIndicator,
+        'Running indicator should initially not be visible',
+    ).not.toBeVisible();
+
+    // Click to launch
+    await appTileButton.click();
+
+    // Verify the running indicator appears
+    await expect(
+        runningIndicator,
+        'Running indicator should become visible after launch',
+    ).toBeVisible({ timeout: 2000 }); // Allow some time for the process to start and state update
+
+    // Optional: Wait for the app to naturally exit (based on 'sleep 5') and indicator to disappear
+    await expect(
+        runningIndicator,
+        'Running indicator should disappear after app exits naturally',
+    ).not.toBeVisible({ timeout: 6000 }); // Timeout slightly longer than sleep duration
+});
+
+test('Kill running app via context menu', async ({ page }) => {
+    const appName = 'Test App';
+    const appTileButton = page.getByRole('button', { name: appName });
+    const runningIndicator = appTileButton.locator(
+        '[data-testid="running-indicator"]',
+    );
+
+    await expect(
+        appTileButton,
+        `The AppTile for "${appName}" should be visible`,
+    ).toBeVisible();
+    await expect(
+        runningIndicator,
+        'Running indicator should initially not be visible',
+    ).not.toBeVisible();
+
+    // Launch the app first
+    await appTileButton.click();
+    await expect(
+        runningIndicator,
+        'Running indicator should be visible after launch',
+    ).toBeVisible({ timeout: 2000 });
+
+    // Right-click to open context menu
+    await appTileButton.click({ button: 'right' });
+    const killMenuItem = page.getByRole('menuitem', { name: 'Kill' });
+    await expect(
+        killMenuItem,
+        'The "Kill" context menu item should be visible',
+    ).toBeVisible();
+
+    // Click Kill
+    await killMenuItem.click();
+
+    // Verify the running indicator disappears quickly after killing
+    await expect(
+        runningIndicator,
+        'Running indicator should disappear after killing',
+    ).not.toBeVisible({ timeout: 2000 }); // Should be faster than natural exit
 });
