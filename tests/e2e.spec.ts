@@ -6,7 +6,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'; // Import rea
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { globSync } from 'glob';
-import type { AppConfig } from '@app/types'; // Import AppConfig
+import type { AppConfig } from '@app/types';
 import { platform } from 'node:process';
 process.env.PLAYWRIGHT_TEST = 'true';
 
@@ -17,7 +17,8 @@ type TestFixtures = {
 };
 
 const test = base.extend<TestFixtures>({
-    electronApp: [ // This fixture now provides both electronApp and configFilePath
+    electronApp: [
+        // This fixture now provides both electronApp and configFilePath
         async ({}, use) => {
             let executablePattern = 'dist/*/root{,.*}';
             if (platform === 'darwin') {
@@ -90,10 +91,15 @@ const test = base.extend<TestFixtures>({
                 );
             }
         },
-        { scope: 'worker', auto: true, provides: ['electronApp', 'configFilePath'] } as any, // Declare provided fixtures
+        {
+            scope: 'worker',
+            auto: true,
+            provides: ['electronApp', 'configFilePath'],
+        } as any, // Declare provided fixtures
     ],
 
-    page: async ({ electronApp }, use) => { // page fixture remains the same
+    page: async ({ electronApp }, use) => {
+        // page fixture remains the same
         const page = await electronApp.firstWindow();
         page.on('pageerror', (error) => {
             console.error(error);
@@ -204,7 +210,9 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
     const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
 
     // Find the newly added config
-    const addedConfig = updatedConfigs.find((config) => config.name === appName);
+    const addedConfig = updatedConfigs.find(
+        (config) => config.name === appName,
+    );
 
     // Assert that the config was added correctly
     expect(
