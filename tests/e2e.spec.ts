@@ -12,11 +12,12 @@ process.env.PLAYWRIGHT_TEST = 'true';
 
 type TestFixtures = {
     electronApp: ElectronApplication;
+    configFilePath: string; // Add configFilePath here
     electronVersions: NodeJS.ProcessVersions;
 };
 
 const test = base.extend<TestFixtures>({
-    electronApp: [
+    electronApp: [ // This fixture now provides both electronApp and configFilePath
         async ({}, use) => {
             let executablePattern = 'dist/*/root{,.*}';
             if (platform === 'darwin') {
@@ -73,7 +74,8 @@ const test = base.extend<TestFixtures>({
                     console.error(`[electron][${msg.type()}] ${msg.text()}`);
                 }
             });
-            await use(electronApp);
+            // Pass both the app and the path to the test context
+            await use({ electronApp, configFilePath });
 
             await electronApp.close();
 
@@ -88,10 +90,10 @@ const test = base.extend<TestFixtures>({
                 );
             }
         },
-        { scope: 'worker', auto: true } as any,
+        { scope: 'worker', auto: true, provides: ['electronApp', 'configFilePath'] } as any, // Declare provided fixtures
     ],
 
-    page: async ({ electronApp }, use) => {
+    page: async ({ electronApp }, use) => { // page fixture remains the same
         const page = await electronApp.firstWindow();
         page.on('pageerror', (error) => {
             console.error(error);
@@ -190,10 +192,10 @@ test('Add new app config via UI', async ({ page }) => {
     ).not.toBeVisible();
 
     // *** Start: Verify config file update ***
-    const configFilePath = process.env.TV_UI_CONFIG_PATH;
+    // Use configFilePath directly from the fixture context
     expect(
         configFilePath,
-        'TV_UI_CONFIG_PATH environment variable should be set',
+        'configFilePath from fixture should be defined',
     ).toBeDefined();
 
     // Read the updated config file
