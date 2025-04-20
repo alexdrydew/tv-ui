@@ -9,7 +9,7 @@ export interface AppState {
     readonly configId: AppConfigId;
     readonly pid: number;
     exitResult: AppExitInfo | null; // Mutable: Updated when the process exits
-    readonly process: ChildProcess; // The actual NodeJS child process object
+    readonly process?: ChildProcess; // The actual NodeJS child process object (optional to align with @app/types)
 }
 
 /**

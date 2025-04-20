@@ -3,7 +3,6 @@ import { versions } from './versions.js';
 export { versions };
 export {
     getAppConfigs,
-    getAppConfigs,
     upsertAppConfig,
     removeAppConfig,
     launchApp,
