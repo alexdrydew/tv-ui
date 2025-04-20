@@ -27,7 +27,6 @@
     },
     "dependencies": {
         "@app/types": "*",
-        "@zod-plugin/effect": "^0.1.0",
         "effect": "^3.14.11",
         "electron": "35.1.5"
     }

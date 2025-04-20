@@ -12,7 +12,6 @@
     "dependencies": {
         "@app/preload": "*",
         "@app/types": "*",
-        "@hookform/resolvers": "^5.0.1",
         "@radix-ui/react-context-menu": "^2.2.7",
         "@radix-ui/react-dialog": "^1.1.7",
         "@radix-ui/react-label": "^2.1.3",
@@ -29,8 +28,7 @@
         "sonner": "^2.0.3",
         "tailwind-merge": "^3.2.0",
         "tailwindcss": "^4.1.3",
-        "tw-animate-css": "^1.2.5",
-        "zod": "^3.24.2"
+        "tw-animate-css": "^1.2.5"
     },
     "devDependencies": {
         "@eslint/js": "^9.21.0",

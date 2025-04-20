@@ -1,5 +1,5 @@
 import type { ChildProcess } from 'node:child_process';
-import { z } from 'zod';
+import { Schema } from 'effect';
 
 export type AppConfigId = string;
 
@@ -22,16 +22,16 @@ export interface AppStateInfo {
     exitResult: AppExitInfo | null;
 }
 
-export const AppConfigSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    icon: z.optional(z.string()),
-    launchCommand: z.string(),
+export const AppConfigSchema = Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    icon: Schema.optional(Schema.String),
+    launchCommand: Schema.String,
 });
 
-export const AppConfigArraySchema = z.array(AppConfigSchema);
+export const AppConfigArraySchema = Schema.Array(AppConfigSchema);
 
-export type AppConfig = z.infer<typeof AppConfigSchema>;
+export type AppConfig = Schema.Schema.Type<typeof AppConfigSchema>;
 
 export interface AppState extends AppStateInfo {
     process?: ChildProcess;
