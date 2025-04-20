@@ -23,6 +23,8 @@ import {
     insertGlobalStateAndNotify,
     getRunningAppsByConfigId,
 } from './state.js';
+import { killProcessEffect } from '../process/index.js'; // Import the new effect
+import { ProcessNotFoundError } from '../process/errors.js'; // Import specific process error
 
 const createProcessWatcherEffect = (
     appState: AppState,
@@ -226,6 +228,8 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     return Effect.runPromise(effect);
 }
 
+// Removed the local sendSigkill function
+
 const killAppEffect = (
     launchInstanceId: LaunchInstanceId,
 ): Effect.Effect<
@@ -251,48 +255,26 @@ const killAppEffect = (
                   )
                 : Effect.succeed(appState),
         ),
-        // attempt to send SIGKILL
+        // attempt to send SIGKILL using the new effect
         Effect.andThen((appState) =>
-            Effect.try({
-                try: () => {
-                    console.log(
-                        `Attempting to kill process PID ${appState.pid} for instance ${launchInstanceId} with SIGKILL.`,
-                    );
-                    const success = process.kill(appState.pid, 'SIGKILL');
-                    if (!success) {
-                        throw new Error(
-                            `process.kill(${appState.pid}, 'SIGKILL') returned false.`,
-                        );
-                    }
-                    console.log(
-                        `Successfully sent SIGKILL to PID ${appState.pid} for instance ${launchInstanceId}. Waiting for exit event...`,
-                    );
-                },
-                catch: (error) => {
-                    console.error(
-                        `Failed to send SIGKILL to PID ${appState.pid} for instance ${launchInstanceId}:`,
-                        error,
-                    );
-                    // Check for specific errors if needed (e.g., ESRCH, EPERM)
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const code = (error as any)?.code;
-                    let message = `Failed to kill process: ${error instanceof Error ? error.message : String(error)}`;
-                    if (code === 'ESRCH') {
+            pipe(
+                killProcessEffect(appState.pid, 'SIGKILL'),
+                // Map process errors back to KillError for the app layer
+                Effect.mapError((processError) => {
+                    let message = `Failed to kill process: ${processError.message}`;
+                    // Add specific message for ESRCH
+                    if (processError instanceof ProcessNotFoundError) {
                         message = `Process with PID ${appState.pid} not found (ESRCH). It might have already exited.`;
-                        // If process doesn't exist, maybe update state here?
-                        // Or rely on watcher potentially having already updated it.
-                        // Let's rely on the watcher for now.
-                    } else if (code === 'EPERM') {
-                        message = `Permission denied to kill PID ${appState.pid} (EPERM).`;
+                        // Note: We still fail here, relying on the caller or eventual watcher update.
                     }
                     return new KillError({
-                        launchInstanceId,
+                        launchInstanceId: appState.launchInstanceId,
                         pid: appState.pid,
-                        cause: error,
+                        cause: processError, // Keep original process error as cause
                         message,
                     });
-                },
-            }),
+                }),
+            ),
         ),
     );
 };
