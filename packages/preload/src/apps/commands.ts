@@ -23,14 +23,15 @@ function launchAppEffect(
 > {
     const configId = config.id;
 
-    // Effect responsible for updating state and notifying listeners upon natural termination
+    // effect responsible for updating state and notifying listeners upon natural termination
     const updateStateAndNotify = (
-        exitInfo: AppExitInfo,
-        pid: number | undefined, // Pass PID for logging/identification
+        appStateInfo: AppStateInfo,
     ): Effect.Effect<void> =>
         Effect.sync(() => {
             const finalState = launchedApps.get(configId);
             if (finalState) {
+                launchedApps.set(configId, { ...appStateInfo, process });
+
                 // Only update if it hasn't been updated already (e.g., by interruption)
                 if (finalState.lastExitResult === null) {
                     finalState.lastExitResult = exitInfo;
@@ -61,7 +62,7 @@ function launchAppEffect(
         pipe(
             Effect.async<AppExitInfo>(
                 (resume: (effect: Effect.Effect<AppExitInfo>) => void) => {
-                    const pid = childProcess.pid; // Capture PID early
+                    const pid = childProcess.pid;
 
                     const handleExit = (
                         code: number | null,
@@ -90,7 +91,6 @@ function launchAppEffect(
                             exitInfo = { type: AppExitResult.Unknown };
                         }
                         childProcess.removeAllListeners();
-                        // Resume the effect with the exit information
                         resume(Effect.succeed(exitInfo));
                     };
 
@@ -110,14 +110,14 @@ function launchAppEffect(
                     childProcess.on('exit', handleExit);
                     childProcess.on('error', handleError);
 
-                    // Return the interruptor function
-                    // State update on interruption remains here for immediate feedback
+                    // interruptor function
                     return Effect.sync(() => {
-                        const interruptPid = childProcess.pid; // Use PID captured at interruption time
+                        const interruptPid = childProcess.pid;
                         console.log(
                             `Interrupting process lifecycle management for ${configId} (PID: ${interruptPid})`,
                         );
                         childProcess.removeAllListeners();
+
                         if (
                             !childProcess.killed &&
                             childProcess.exitCode === null
@@ -158,7 +158,6 @@ function launchAppEffect(
             Effect.tap((exitInfo) =>
                 updateStateAndNotify(exitInfo, childProcess.pid),
             ),
-            // Ensure the overall effect resolves to void
             Effect.asVoid,
         );
 
