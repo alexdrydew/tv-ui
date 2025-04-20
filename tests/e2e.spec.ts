@@ -33,18 +33,37 @@ const test = base.extend<TestFixtures>({
 
             // Ensure the config file exists before launching the app
             // TODO: Get this path dynamically instead of hardcoding
-            const configFilePath =
-                '/Users/alexdrydew/.config/tv-ui/tv-ui.json';
+            const configFilePath = '/Users/alexdrydew/.config/tv-ui/tv-ui.json';
             const configDir = dirname(configFilePath);
+
+            // Define a sample app config
+            const sampleAppConfig = [
+                {
+                    id: 'test-app-1',
+                    name: 'Test App', // Name used for locating the tile
+                    command: '/bin/echo', // Example command
+                    args: ['hello'],
+                    icon: null,
+                },
+            ];
 
             try {
                 await mkdir(configDir, { recursive: true });
-                await writeFile(configFilePath, '[]', 'utf-8');
-                console.log(`Created dummy config file: ${configFilePath}`);
+                // Write the sample config to the file
+                await writeFile(
+                    configFilePath,
+                    JSON.stringify(sampleAppConfig, null, 2), // Pretty print for readability if needed
+                    'utf-8',
+                );
+                console.log(
+                    `Created config file with sample app: ${configFilePath}`,
+                );
             } catch (err) {
-                console.error(`Failed to create dummy config file: ${err}`);
+                console.error(`Failed to create config file: ${err}`);
                 // Decide if we should throw or proceed cautiously
-                throw new Error(`Setup failed: Could not create config file at ${configFilePath}`);
+                throw new Error(
+                    `Setup failed: Could not create config file at ${configFilePath}`,
+                );
             }
 
             const electronApp = await electron.launch({
@@ -69,9 +88,7 @@ const test = base.extend<TestFixtures>({
                 console.log(`Cleaned up dummy config file: ${configFilePath}`);
             } catch (err) {
                 // Log error but don't fail the test run just for cleanup failure
-                console.error(
-                    `Failed to clean up dummy config file: ${err}`,
-                );
+                console.error(`Failed to clean up dummy config file: ${err}`);
             }
         },
         { scope: 'worker', auto: true } as any,
@@ -142,11 +159,22 @@ test('App layout is rendered', async ({ page }) => {
     const mainElement = page.locator('main.overflow-auto');
 
     // Explicitly wait for the specific element to be visible, with a longer timeout
-    await mainElement.waitFor({ state: 'visible', timeout: 10000 }); // 10 seconds
+    await mainElement.waitFor({ state: 'visible' });
 
     // Now that we know it has appeared, we can assert its visibility (optional, but good practice)
     await expect(
         mainElement,
         'The <main> element from TvAppLayout should be visible',
+    ).toBeVisible();
+});
+
+test('App tile is rendered when config has an app', async ({ page }) => {
+    // Locate the AppTile button using its role and the name defined in the sample config
+    const appTileButton = page.getByRole('button', { name: 'Test App' });
+
+    // Assert that the AppTile button is visible
+    await expect(
+        appTileButton,
+        'The AppTile for "Test App" should be visible',
     ).toBeVisible();
 });
