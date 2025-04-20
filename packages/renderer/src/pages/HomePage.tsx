@@ -45,9 +45,8 @@ export function HomePage() {
         }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const handleEditApp = (_app: App) => {
-        // setEditingApp(app.config);
+    const handleEditApp = (app: App) => { // Rename parameter from _app to app
+        setEditingApp(app.config); // Uncomment this line
         setIsEditAppDialogOpen(true);
     };
 
