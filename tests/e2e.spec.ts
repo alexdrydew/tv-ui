@@ -282,3 +282,101 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
         `Config file should no longer contain an entry for "${appNameToDelete}"`,
     ).toBeUndefined();
 });
+
+test('Edit app config via context menu', async ({ page, configFilePath }) => {
+    const initialAppName = 'Test App';
+    const initialAppId = 'test-app-1'; // ID from the initial config
+    const editedAppName = 'Edited Test App';
+    const editedLaunchCommand = '/bin/false';
+
+    const appTileButton = page.getByRole('button', { name: initialAppName });
+
+    // 1. Ensure the initial app tile is visible
+    await expect(
+        appTileButton,
+        `The AppTile for "${initialAppName}" should initially be visible`,
+    ).toBeVisible();
+
+    // 2. Right-click the app tile and click "Edit"
+    await appTileButton.click({ button: 'right' });
+    const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
+    await expect(
+        editMenuItem,
+        'The "Edit" context menu item should be visible',
+    ).toBeVisible();
+    await editMenuItem.click();
+
+    // 3. Wait for the dialog and verify pre-filled data
+    const dialog = page.getByRole('dialog', { name: 'Edit App' });
+    await expect(dialog, 'The "Edit App" dialog should appear').toBeVisible();
+    await expect(
+        dialog.getByLabel('App Name'),
+        'Dialog "App Name" should be pre-filled',
+    ).toHaveValue(initialAppName);
+    await expect(
+        dialog.getByLabel('Launch Command'),
+        'Dialog "Launch Command" should be pre-filled',
+    ).toHaveValue('/bin/echo'); // Initial command from fixture
+
+    // 4. Modify the form
+    await dialog.getByLabel('App Name').fill(editedAppName);
+    await dialog.getByLabel('Launch Command').fill(editedLaunchCommand);
+
+    // 5. Click the "Save Changes" button
+    await dialog.getByRole('button', { name: 'Save Changes' }).click();
+
+    // 6. Wait for the dialog to close
+    await expect(
+        dialog,
+        'The "Edit App" dialog should close after saving',
+    ).not.toBeVisible();
+
+    // 7. Verify the original app tile is gone
+    await expect(
+        page.getByRole('button', { name: initialAppName }),
+        `The AppTile for "${initialAppName}" should not be visible after editing`,
+    ).not.toBeVisible();
+
+    // 8. Verify the edited app tile is visible
+    const editedAppTile = page.getByRole('button', { name: editedAppName });
+    await expect(
+        editedAppTile,
+        `The AppTile for "${editedAppName}" should be visible after editing`,
+    ).toBeVisible();
+
+    // 9. Verify config file update
+    expect(
+        configFilePath,
+        'configFilePath from fixture should be defined',
+    ).toBeDefined();
+
+    const configFileContent = await readFile(configFilePath!, 'utf-8');
+    const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
+
+    // Find the config by ID (should remain the same)
+    const editedConfig = updatedConfigs.find(
+        (config) => config.id === initialAppId,
+    );
+
+    expect(
+        editedConfig,
+        `Config file should still contain an entry for ID "${initialAppId}"`,
+    ).toBeDefined();
+    expect(
+        editedConfig?.name,
+        `Config entry for ID "${initialAppId}" should have the edited name`,
+    ).toBe(editedAppName);
+    expect(
+        editedConfig?.launchCommand,
+        `Config entry for ID "${initialAppId}" should have the edited launch command`,
+    ).toBe(editedLaunchCommand);
+
+    // Ensure no config with the old name exists
+    const configWithOldName = updatedConfigs.find(
+        (config) => config.name === initialAppName,
+    );
+    expect(
+        configWithOldName,
+        `Config file should not contain an entry with the old name "${initialAppName}"`,
+    ).toBeUndefined();
+});
