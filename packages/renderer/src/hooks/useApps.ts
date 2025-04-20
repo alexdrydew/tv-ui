@@ -3,9 +3,10 @@ import { error, debug } from '@/api/logging';
 import {
     App,
     AppConfig,
+    AppConfigId, // Import AppConfigId
     AppState,
     AppStateInfo,
-    initAppsFromConfigs,
+    // initAppsFromConfigs, // Remove unused import
 } from '@app/types';
 import { getAppConfigs, getEnv, onConfigUpdate } from '@app/preload'; // Import onConfigUpdate
 
