@@ -3,12 +3,10 @@ import {
     AppConfigId,
     AppExitInfo,
     AppExitResult,
-    AppState,
-    AppState,
     AppStateInfo,
 } from '@app/types';
-import { ChildProcess, spawn } from 'node:child_process';
-import { Data, Effect, pipe } from 'effect';
+import { spawn } from 'node:child_process';
+import { Effect } from 'effect';
 import { invokeAppUpdateListeners } from '../events.js';
 import {
     AppAlreadyRunningError,
