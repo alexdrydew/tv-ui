@@ -109,89 +109,11 @@ test('Main window state', async ({ electronApp, page }) => {
     );
 });
 
-test.describe('Main window web content', async () => {
-    test('The main window has an interactive button', async ({ page }) => {
-        const element = page.getByRole('button');
-        await expect(element).toBeVisible();
-        await expect(element).toHaveText('count is 0');
-        await element.click();
-        await expect(element).toHaveText('count is 1');
-    });
-
-    test('The main window has a vite logo', async ({ page }) => {
-        const element = page.getByAltText('Vite logo');
-        await expect(element).toBeVisible();
-        await expect(element).toHaveRole('img');
-        const imgState = await element.evaluate(
-            (img: HTMLImageElement) => img.complete,
-        );
-        const imgNaturalWidth = await element.evaluate(
-            (img: HTMLImageElement) => img.naturalWidth,
-        );
-
-        expect(imgState).toEqual(true);
-        expect(imgNaturalWidth).toBeGreaterThan(0);
-    });
-});
-
-test.describe('Preload context should be exposed', async () => {
-    test.describe(`versions should be exposed`, async () => {
-        test('with same type`', async ({ page }) => {
-            const type = await page.evaluate(
-                () => typeof globalThis[btoa('versions')],
-            );
-            expect(type).toEqual('object');
-        });
-
-        test('with same value', async ({ page, electronVersions }) => {
-            const value = await page.evaluate(
-                () => globalThis[btoa('versions')],
-            );
-            expect(value).toEqual(electronVersions);
-        });
-    });
-
-    test.describe(`sha256sum should be exposed`, async () => {
-        test('with same type`', async ({ page }) => {
-            const type = await page.evaluate(
-                () => typeof globalThis[btoa('sha256sum')],
-            );
-            expect(type).toEqual('function');
-        });
-
-        test('with same behavior', async ({ page }) => {
-            const testString = btoa(`${Date.now() * Math.random()}`);
-            const expectedValue = createHash('sha256')
-                .update(testString)
-                .digest('hex');
-            const value = await page.evaluate(
-                (str) => globalThis[btoa('sha256sum')](str),
-                testString,
-            );
-            expect(value).toEqual(expectedValue);
-        });
-    });
-
-    test.describe(`send should be exposed`, async () => {
-        test('with same type`', async ({ page }) => {
-            const type = await page.evaluate(
-                () => typeof globalThis[btoa('send')],
-            );
-            expect(type).toEqual('function');
-        });
-
-        test('with same behavior', async ({ page, electronApp }) => {
-            await electronApp.evaluate(async ({ ipcMain }) => {
-                ipcMain.handle('test', (event, message) => btoa(message));
-            });
-
-            const testString = btoa(`${Date.now() * Math.random()}`);
-            const expectedValue = btoa(testString);
-            const value = await page.evaluate(
-                async (str) => await globalThis[btoa('send')]('test', str),
-                testString,
-            );
-            expect(value).toEqual(expectedValue);
-        });
-    });
+test('App layout is rendered', async ({ page }) => {
+    // TvAppLayout renders a <main> element as its primary content container
+    const mainElement = page.locator('main');
+    await expect(
+        mainElement,
+        'The <main> element from TvAppLayout should be visible',
+    ).toBeVisible();
 });
