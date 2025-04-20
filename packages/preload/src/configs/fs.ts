@@ -1,7 +1,7 @@
 import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
-import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
 import { Data, Effect, pipe, Schema } from 'effect';
-import { ParseError, UnknownException } from 'effect/Cause';
+import { ParseError } from '@effect/schema/ParseResult';
+import { UnknownException } from 'effect/Cause';
 import { FsError } from '#src/fs/errors.js';
 import { readFileEffect, writeFileEffect } from '#src/fs/index.js';
 export class JsonParseError extends Data.TaggedError('JsonParseError')<{
