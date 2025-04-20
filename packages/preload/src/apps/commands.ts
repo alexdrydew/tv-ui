@@ -13,9 +13,8 @@ import {
     InvalidCommandError,
     SpawnError,
 } from './errors.js';
-import { launchedApps, AppState } from './state.js';
+import { launchedApps } from './state.js';
 
-// Internal Effect-based implementation
 function launchAppEffect(
     config: AppConfig,
 ): Effect.Effect<
@@ -23,9 +22,7 @@ function launchAppEffect(
     AppAlreadyRunningError | InvalidCommandError | SpawnError
 > {
     const configId = config.id;
-    const command = config.launchCommand;
 
-    // Helper function to setup listeners
     const setupListeners = (
         pid: number,
         childProcess: ChildProcess,
@@ -54,13 +51,15 @@ function launchAppEffect(
 
                 const finalState = launchedApps.get(configId);
                 if (finalState) {
-                    finalState.exitResult = exitInfo;
+                    finalState.lastExitResult = exitInfo;
                     launchedApps.set(configId, finalState);
-                    console.log(`Updated state for ${configId} with exit info.`);
+                    console.log(
+                        `Updated state for ${configId} with exit info.`,
+                    );
                     invokeAppUpdateListeners({
                         configId: finalState.configId,
                         pid: finalState.pid,
-                        exitResult: finalState.exitResult,
+                        exitResult: finalState.lastExitResult,
                     });
                 } else {
                     console.warn(
@@ -76,14 +75,14 @@ function launchAppEffect(
                     err,
                 );
                 const errorState = launchedApps.get(configId);
-                if (errorState && errorState.exitResult === null) {
-                    errorState.exitResult = { type: AppExitResult.Unknown };
+                if (errorState && errorState.lastExitResult === null) {
+                    errorState.lastExitResult = { type: AppExitResult.Unknown };
                     launchedApps.set(configId, errorState);
                     console.log(`Updated state for ${configId} due to error.`);
                     invokeAppUpdateListeners({
                         configId: errorState.configId,
                         pid: errorState.pid,
-                        exitResult: errorState.exitResult,
+                        exitResult: errorState.lastExitResult,
                     });
                 }
                 childProcess.removeAllListeners();
@@ -129,28 +128,29 @@ function launchAppEffect(
         });
 
     return pipe(
-        // 1. Check if already running
+        // validate that app is not already running
         Effect.sync(() => launchedApps.get(configId)),
         Effect.flatMap((existingState) =>
-            existingState && existingState.exitResult === null
+            existingState && existingState.lastExitResult === null
                 ? Effect.fail(new AppAlreadyRunningError({ configId }))
-                : Effect.succeed(config), // Pass config if not running
+                : Effect.succeed(config),
         ),
-        // 2. Parse command
+        // parse command
         Effect.flatMap((currentConfig) => {
-            const parts = currentConfig.launchCommand.match(
-                /(?:[^\s"]+|"[^"]*")+/g,
-            );
+            const parts =
+                currentConfig.launchCommand.match(/(?:[^\s"]+|"[^"]*")+/g);
             if (!parts || parts.length === 0) {
                 return Effect.fail(
-                    new InvalidCommandError({ command: currentConfig.launchCommand }),
+                    new InvalidCommandError({
+                        command: currentConfig.launchCommand,
+                    }),
                 );
             }
             const cmd = parts[0].replace(/"/g, '');
             const args = parts.slice(1).map((arg) => arg.replace(/"/g, ''));
             return Effect.succeed({ cmd, args });
         }),
-        // 3. Spawn process
+        // spawn process
         Effect.flatMap(({ cmd, args }) =>
             Effect.try({
                 try: () =>
@@ -163,48 +163,38 @@ function launchAppEffect(
                     }),
             }),
         ),
-        // 4. Check PID asynchronously
+        // check PID asynchronously
         Effect.flatMap((childProcess) =>
             pipe(
                 checkPid(childProcess),
-                Effect.map((pid) => ({ childProcess, pid })), // Pass both along
+                Effect.map((pid) => ({ childProcess, pid })),
             ),
         ),
-        // 5. Create and store initial state
-        Effect.flatMap(({ childProcess, pid }) => {
-            const initialState: AppState = {
+        // create initial state
+        Effect.map(({ childProcess, pid }) => {
+            return {
                 configId: configId,
                 pid: pid,
-                exitResult: null,
+                lastExitResult: null,
                 process: childProcess,
             };
-            return pipe(
-                Effect.sync(() => launchedApps.set(configId, initialState)),
-                Effect.tap(() =>
-                    console.log(
-                        `Stored initial state for ${configId}, PID: ${pid}`,
-                    ),
-                ),
-                // Pass necessary info for next steps
-                Effect.map(() => ({ initialState, childProcess, pid })),
-            );
         }),
-        // 6. Setup listeners (as side effect)
-        Effect.tap(({ childProcess, pid }) => setupListeners(pid, childProcess)),
-        // 7. Emit initial running state (as side effect)
-        Effect.tap(({ initialState }) => {
+        // setup listeners (side effect)
+        Effect.tap(({ pid, process }) => setupListeners(pid, process)),
+        // emit initial running state (side effect)
+        Effect.tap((initialState) => {
             invokeAppUpdateListeners({
                 configId: initialState.configId,
                 pid: initialState.pid,
-                exitResult: initialState.exitResult,
+                exitResult: initialState.lastExitResult,
             });
             console.log(`Emitting initial running state for ${configId}`);
         }),
-        // 8. Map to final AppStateInfo result
-        Effect.map(({ initialState }) => ({
+        // map to final AppStateInfo result
+        Effect.map((initialState) => ({
             configId: initialState.configId,
             pid: initialState.pid,
-            exitResult: initialState.exitResult,
+            exitResult: initialState.lastExitResult,
         })),
     );
 }
@@ -224,7 +214,7 @@ export async function killApp(configId: AppConfigId): Promise<void> {
         throw new Error(`App ${configId} not found in managed processes.`);
     }
 
-    if (appState.exitResult !== null) {
+    if (appState.lastExitResult !== null) {
         // Renamed lastExitResult
         // App is already exited
         console.warn(
@@ -238,14 +228,14 @@ export async function killApp(configId: AppConfigId): Promise<void> {
             `Process for app ${configId} (PID: ${appState.pid}) is missing or already killed.`,
         );
         // Consider updating state if process is missing but exitResult is null
-        if (!appState.exitResult) {
+        if (!appState.lastExitResult) {
             // Renamed lastExitResult
-            appState.exitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult, Mutate state
+            appState.lastExitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult, Mutate state
             launchedApps.set(configId, appState); // Update map
             invokeAppUpdateListeners({
                 configId: appState.configId,
                 pid: appState.pid,
-                exitResult: appState.exitResult, // Renamed lastExitResult
+                exitResult: appState.lastExitResult, // Renamed lastExitResult
             });
         }
         return; // Nothing more to do
@@ -284,14 +274,14 @@ export async function killApp(configId: AppConfigId): Promise<void> {
             error,
         );
         // Update state to Unknown if kill fails unexpectedly?
-        if (appState.exitResult === null) {
+        if (appState.lastExitResult === null) {
             // Renamed lastExitResult
-            appState.exitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult, Mutate state
+            appState.lastExitResult = { type: AppExitResult.Unknown }; // Renamed lastExitResult, Mutate state
             launchedApps.set(configId, appState); // Update map
             invokeAppUpdateListeners({
                 configId: appState.configId,
                 pid: appState.pid,
-                exitResult: appState.exitResult, // Renamed lastExitResult
+                exitResult: appState.lastExitResult, // Renamed lastExitResult
             });
         }
         throw new Error(`Failed to kill process: ${error.message}`);
