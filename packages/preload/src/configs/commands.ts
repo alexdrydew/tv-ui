@@ -1,16 +1,8 @@
-import { AppConfig, AppConfigId, CONFIG_UPDATE_EVENT } from '@app/types';
+import { AppConfig, AppConfigId } from '@app/types'; // Removed CONFIG_UPDATE_EVENT
 import { Effect, pipe } from 'effect';
-import { ipcMain, ipcRenderer } from 'electron'; // Import ipcRenderer
 import { ConfigNotFoundError } from './errors.js';
 import { readConfigsFromFile, writeConfigsToFileEffect } from './fs.js';
-
-// Helper function to send config update event
-function sendConfigUpdateEvent(updatedConfigs: Record<AppConfigId, AppConfig>) {
-    const configArray = Object.values(updatedConfigs);
-    ipcMain.send(CONFIG_UPDATE_EVENT, configArray);
-}
-
-// const launchedApps: Record<AppConfigId, AppState> = {};
+import { invokeConfigUpdateListeners } from '../events.js'; // Import the direct invocation function
 
 export async function getAppConfigs(configPath: string): Promise<AppConfig[]> {
     const effect = readConfigsFromFile(configPath);
@@ -28,11 +20,11 @@ export async function upsertAppConfig(
             return configsRecord;
         }),
         Effect.flatMap((updatedConfigsRecord) =>
-            // Write the file first
             pipe(
                 writeConfigsToFileEffect(configPath, updatedConfigsRecord),
-                // Then send the event on success
-                Effect.tap(() => sendConfigUpdateEvent(updatedConfigsRecord)),
+                Effect.tap(() =>
+                    invokeConfigUpdateListeners(updatedConfigsRecord),
+                ),
             ),
         ),
     );
@@ -63,11 +55,11 @@ export async function removeAppConfig(
             return Effect.succeed(configsRecord);
         }),
         Effect.flatMap((updatedConfigsRecord) =>
-            // Write the file first
             pipe(
                 writeConfigsToFileEffect(configPath, updatedConfigsRecord),
-                // Then send the event on success
-                Effect.tap(() => sendConfigUpdateEvent(updatedConfigsRecord)),
+                Effect.tap(() =>
+                    invokeConfigUpdateListeners(updatedConfigsRecord),
+                ),
             ),
         ),
     );
