@@ -24,16 +24,16 @@ const test = base.extend<TestFixtures>({
             const configFilePath = join(tempConfigDir, 'tv-ui.json');
             const configDir = dirname(configFilePath);
 
-            // Use a command that stays running for a bit (sleep 5)
+            // Use a command that stays running for a short time (sleep 1)
             // Note: 'sleep' might not be available on all Windows systems by default.
-            // Consider 'timeout /t 5 /nobreak > NUL' for Windows or a node script.
-            // Using 'sleep 5' for simplicity, assuming a Unix-like test environment.
+            // Consider 'timeout /t 1 /nobreak > NUL' for Windows or a node script.
+            // Using 'sleep 1' for simplicity, assuming a Unix-like test environment.
             const sampleAppConfig: AppConfig[] = [
                 {
                     id: 'test-app-1',
                     name: 'Test App',
-                    launchCommand: 'sleep 5', // Changed from /bin/echo
-                    args: [], // Args might not be needed for sleep
+                    launchCommand: 'sleep 1', // Changed from sleep 5 to sleep 1
+                    args: [],
                     icon: undefined,
                 },
             ];
@@ -319,7 +319,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         dialog.getByLabel('Launch Command'),
         'Dialog "Launch Command" should be pre-filled',
-    ).toHaveValue('sleep 5'); // Check against the actual initial command
+    ).toHaveValue('sleep 1'); // Check against the actual initial command (now sleep 1)
     await dialog.getByLabel('App Name').fill(editedAppName);
     await dialog.getByLabel('Launch Command').fill(editedLaunchCommand);
 
@@ -396,11 +396,11 @@ test('Launch app via UI click', async ({ page }) => {
         'Running indicator should become visible after launch',
     ).toBeVisible({ timeout: 2000 }); // Allow some time for the process to start and state update
 
-    // Optional: Wait for the app to naturally exit (based on 'sleep 5') and indicator to disappear
+    // Wait for the app to naturally exit (based on 'sleep 1') and indicator to disappear
     await expect(
         runningIndicator,
         'Running indicator should disappear after app exits naturally',
-    ).not.toBeVisible({ timeout: 6000 }); // Timeout slightly longer than sleep duration
+    ).not.toBeVisible({ timeout: 2000 }); // Adjusted timeout: slightly longer than sleep 1 duration
 });
 
 test('Kill running app via context menu', async ({ page }) => {
