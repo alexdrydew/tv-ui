@@ -1,4 +1,3 @@
-import {
 import { AppConfig, AppConfigId } from '@app/types';
 import { Effect, pipe } from 'effect';
 import { invokeConfigUpdateListeners } from '../events.js';
