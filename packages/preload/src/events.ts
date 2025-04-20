@@ -1,5 +1,4 @@
-import { ipcRenderer } from 'electron';
-import { AppConfig, CONFIG_UPDATE_EVENT } from '@app/types';
+import { AppConfig, AppConfigId } from '@app/types'; // Removed CONFIG_UPDATE_EVENT, added AppConfigId
 
 export type ConfigUpdateListener = (updatedConfigs: AppConfig[]) => void;
 
@@ -30,15 +29,23 @@ export function onConfigUpdate(listener: ConfigUpdateListener): () => void {
     };
 }
 
-ipcRenderer.on(CONFIG_UPDATE_EVENT, (_event, updatedConfigs: AppConfig[]) => {
+/**
+ * Invokes all registered configuration update listeners with the provided configs.
+ * @param updatedConfigsRecord A record containing the latest application configurations.
+ */
+export function invokeConfigUpdateListeners(
+    updatedConfigsRecord: Record<AppConfigId, AppConfig>,
+): void {
+    const updatedConfigsArray = Object.values(updatedConfigsRecord);
     console.debug(
-        `IPC Event Received [${CONFIG_UPDATE_EVENT}]: ${updatedConfigs.length} configs`,
+        `Invoking ${configUpdateListeners.length} config update listeners with ${updatedConfigsArray.length} configs.`,
     );
+    // Iterate over a copy in case a listener unsubscribes itself
     [...configUpdateListeners].forEach((listener) => {
         try {
-            listener(updatedConfigs);
+            listener(updatedConfigsArray);
         } catch (error) {
             console.error('Error executing config update listener:', error);
         }
     });
-});
+}
