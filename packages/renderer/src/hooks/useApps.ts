@@ -129,11 +129,45 @@ export function useApps(): {
             setApps(undefined);
             return;
         }
+
         debug(
-            `Initializing apps from ${appConfigs.length} configs: ${JSON.stringify(appConfigs.map((c) => c.id))}`,
+            `Processing config update. New config count: ${appConfigs.length}`,
         );
-        setApps(initAppsFromConfigs(appConfigs));
-    }, [appConfigs]);
+
+        // Update apps state based on new configs, preserving existing state where possible
+        setApps((prevApps) => {
+            const prevAppsMap = new Map<AppConfigId, App>();
+            if (prevApps) {
+                for (const app of prevApps) {
+                    prevAppsMap.set(app.config.id, app);
+                }
+            }
+
+            const newApps = appConfigs.map((config) => {
+                const existingApp = prevAppsMap.get(config.id);
+                if (existingApp) {
+                    // Preserve existing app state, update config
+                    debug(`Updating existing app config for ID: ${config.id}`);
+                    return {
+                        ...existingApp,
+                        config: config, // Update the config part
+                    };
+                } else {
+                    // New app config
+                    debug(`Creating new app state for ID: ${config.id}`);
+                    return {
+                        config: config,
+                        instances: [], // Initialize instances for new app
+                    };
+                }
+            });
+
+            debug(
+                `Updated apps state based on configs. New app count: ${newApps.length}`,
+            );
+            return newApps;
+        });
+    }, [appConfigs]); // Dependency remains appConfigs
 
     const updateApps = useCallback(
         (stateInfo: AppStateInfo) => {
