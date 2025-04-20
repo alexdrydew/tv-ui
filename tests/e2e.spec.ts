@@ -161,3 +161,37 @@ test('App tile is rendered when config has an app', async ({ page }) => {
         'The AppTile for "Test App" should be visible',
     ).toBeVisible();
 });
+
+test('Add new app config via UI', async ({ page }) => {
+    // Click the "Add App" button
+    await page.getByRole('button', { name: 'Add App' }).click();
+
+    // Wait for the dialog to appear and locate it
+    const dialog = page.getByRole('dialog', { name: 'Add New App' });
+    await expect(
+        dialog,
+        'The "Add New App" dialog should appear',
+    ).toBeVisible();
+
+    // Fill in the form
+    const appName = 'My New Test App';
+    const launchCommand = '/bin/true';
+    await dialog.getByLabel('App Name').fill(appName);
+    await dialog.getByLabel('Launch Command').fill(launchCommand);
+
+    // Click the "Save App" button
+    await dialog.getByRole('button', { name: 'Save App' }).click();
+
+    // Wait for the dialog to close
+    await expect(
+        dialog,
+        'The "Add New App" dialog should close after saving',
+    ).not.toBeVisible();
+
+    // Verify the new app tile is visible
+    const newAppTile = page.getByRole('button', { name: appName });
+    await expect(
+        newAppTile,
+        `The AppTile for "${appName}" should be visible after adding`,
+    ).toBeVisible();
+});
