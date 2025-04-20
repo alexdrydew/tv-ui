@@ -1,15 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { error } from '@/api/logging';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '../ui/dialog';
 import {
     Form,
     FormControl,
@@ -20,20 +10,33 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { nanoid } from 'nanoid';
-import { useEffect } from 'react';
-import { error } from '@/api/logging';
 import { upsertAppConfig } from '@app/preload';
 import { AppConfig } from '@app/types';
+import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { Schema } from 'effect';
+import { nanoid } from 'nanoid';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '../ui/dialog';
 
-const formSchema = z.object({
-    name: z.string().min(1, 'App name cannot be empty'),
-    icon: z.string().optional(),
-    launchCommand: z.string().min(1, 'Launch command cannot be empty'),
+const AppConfigFormSchema = Schema.Struct({
+    name: Schema.NonEmptyString.annotations({
+        message: () => 'App name cannot be empty',
+    }),
+    icon: Schema.optional(Schema.String),
+    launchCommand: Schema.NonEmptyString.annotations({
+        message: () => 'Launch command cannot be empty',
+    }),
 });
-
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = Schema.Schema.Type<typeof AppConfigFormSchema>;
 
 interface AddAppDialogProps {
     isOpen: boolean;
@@ -51,10 +54,10 @@ export function AppConfigDialog({
     const isEditing = appToEdit !== null;
 
     const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema),
+        resolver: effectTsResolver(AppConfigFormSchema),
         defaultValues: {
             name: '',
-            icon: '',
+            icon: undefined,
             launchCommand: '',
         },
     });
