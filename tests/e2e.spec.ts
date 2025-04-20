@@ -331,20 +331,26 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
         'The "Edit App" dialog should close after saving',
     ).not.toBeVisible();
 
-    // 7. Verify the edited app tile is visible FIRST (wait for UI update)
-    const editedAppTile = page.getByRole('button', { name: editedAppName });
+    // 7. Wait for the specific tile's text content to update using data-testid
+    const specificAppTile = page.getByTestId(`app-tile-${initialAppId}`);
     await expect(
-        editedAppTile,
+        specificAppTile,
+        `App tile with ID ${initialAppId} should contain the new name "${editedAppName}"`,
+    ).toContainText(editedAppName);
+
+    // 8. Verify the tile with the new name is generally visible (safer check)
+    await expect(
+        page.getByRole('button', { name: editedAppName }),
         `The AppTile for "${editedAppName}" should be visible after editing`,
     ).toBeVisible();
 
-    // 8. THEN Verify the original app tile is gone
+    // 9. THEN Verify no tile exists with the original name
     await expect(
         page.getByRole('button', { name: initialAppName }),
         `The AppTile for "${initialAppName}" should not be visible after editing`,
     ).not.toBeVisible();
 
-    // 9. Verify config file update
+    // 10. Verify config file update
     expect(
         configFilePath,
         'configFilePath from fixture should be defined',
