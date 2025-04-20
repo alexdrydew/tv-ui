@@ -260,7 +260,6 @@ const killAppEffect = (
                     );
                     const success = process.kill(appState.pid, 'SIGKILL');
                     if (!success) {
-                        // This case might be rare, often throws error instead
                         throw new Error(
                             `process.kill(${appState.pid}, 'SIGKILL') returned false.`,
                         );
