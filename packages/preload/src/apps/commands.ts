@@ -2,21 +2,18 @@ import {
     AppConfig,
     AppConfigId,
     AppExitInfo,
-    AppConfig,
-    AppConfigId,
-    AppExitInfo,
     AppExitResult,
     AppStateInfo,
 } from '@app/types';
 import { spawn, ChildProcess } from 'node:child_process';
-import { Effect, Fiber, pipe } from 'effect';
+import { Effect, Fiber, pipe, asyncInterrupt, unit } from 'effect';
 import { invokeAppUpdateListeners } from '../events.js';
 import {
     AppAlreadyRunningError,
     InvalidCommandError,
     SpawnError,
 } from './errors.js';
-import { launchedApps } from './state.js';
+import { launchedApps, AppState } from './state.js';
 
 function launchAppEffect(
     config: AppConfig,
@@ -31,7 +28,7 @@ function launchAppEffect(
         pid: number,
         childProcess: ChildProcess,
     ): Effect.Effect<void> =>
-        Effect.asyncInterrupt<void>((resume) => {
+        asyncInterrupt<void>((resume: (effect: Effect.Effect<void>) => void) => {
             const handleExit = (
                 code: number | null,
                 signal: NodeJS.Signals | null,
@@ -71,7 +68,7 @@ function launchAppEffect(
                     );
                 }
                 childProcess.removeAllListeners();
-                resume(Effect.unit); // Signal completion of the effect
+                resume(unit); // Signal completion of the effect
             };
 
             const handleError = (err: Error) => {
@@ -91,7 +88,7 @@ function launchAppEffect(
                 }
                 childProcess.removeAllListeners();
                 // Signal completion even on error, as the process lifecycle has ended
-                resume(Effect.unit);
+                resume(unit);
             };
 
             childProcess.on('exit', handleExit);
@@ -220,11 +217,12 @@ function launchAppEffect(
         ),
         // Create and store initial state
         Effect.map(({ pid, fiber }) => {
-            const initialState = {
+            // Explicitly type initialState to match AppState
+            const initialState: AppState = {
                 configId: configId,
                 pid: pid,
                 lastExitResult: null,
-                fiber: fiber,
+                fiber: fiber, // fiber is Fiber.RuntimeFiber<void, never>
             };
             launchedApps.set(configId, initialState); // Store the state with the fiber
             return initialState;
