@@ -31,7 +31,9 @@ function launchAppEffect(
             Effect.sync(() => launchedApps.get(configId)),
         );
         if (existingState && existingState.exitResult === null) {
-            return yield* _(Effect.fail(new AppAlreadyRunningError({ configId })));
+            return yield* _(
+                Effect.fail(new AppAlreadyRunningError({ configId })),
+            );
         }
 
         // 2. Parse command
@@ -45,7 +47,8 @@ function launchAppEffect(
         // 3. Spawn process
         const childProcess = yield* _(
             Effect.try({
-                try: () => spawn(cmd, args, { stdio: 'ignore', detached: false }),
+                try: () =>
+                    spawn(cmd, args, { stdio: 'ignore', detached: false }),
                 catch: (error) =>
                     new SpawnError({
                         configId,
@@ -124,7 +127,10 @@ function launchAppEffect(
                     );
                     let exitInfo: AppExitInfo;
                     if (signal) {
-                        exitInfo = { type: AppExitResult.Signal, signal: signal };
+                        exitInfo = {
+                            type: AppExitResult.Signal,
+                            signal: signal,
+                        };
                     } else if (code === 0) {
                         exitInfo = { type: AppExitResult.Success };
                     } else if (code !== null) {
@@ -215,7 +221,6 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
 
 export async function killApp(configId: AppConfigId): Promise<void> {
     const appState = launchedApps.get(configId);
-
 
     if (!appState) {
         throw new Error(`App ${configId} not found in managed processes.`);
