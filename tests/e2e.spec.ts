@@ -177,12 +177,8 @@ test('App tile is rendered when config has an app', async ({ page }) => {
     ).toBeVisible();
 });
 
-// Destructure configFilePath from the fixture context
 test('Add new app config via UI', async ({ page, configFilePath }) => {
-    // Click the "Add App" button
     await page.getByRole('button', { name: 'Add App' }).click();
-
-    // Wait for the dialog to appear and locate it
     const dialog = page.getByRole('dialog', { name: 'Add New App' });
     await expect(
         dialog,

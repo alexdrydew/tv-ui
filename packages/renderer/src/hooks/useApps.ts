@@ -128,7 +128,6 @@ export function useApps(): {
             `Processing config update. New config count: ${appConfigs.length}`,
         );
 
-        // Update apps state based on new configs, preserving existing state where possible
         setApps((prevApps) => {
             const prevAppsMap = new Map<AppConfigId, App>();
             if (prevApps) {
