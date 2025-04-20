@@ -234,5 +234,51 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
     await expect(
         newAppTile,
         `The AppTile for "${appName}" should be visible after adding`,
-    ).toBeVisible(); // This is expected to fail until UI updates are fixed
+    ).toBeVisible();
+});
+
+test('Delete app config via context menu', async ({ page, configFilePath }) => {
+    const appNameToDelete = 'Test App';
+    const appTileButton = page.getByRole('button', { name: appNameToDelete });
+
+    // Ensure the initial app tile is visible
+    await expect(
+        appTileButton,
+        `The AppTile for "${appNameToDelete}" should initially be visible`,
+    ).toBeVisible();
+
+    // Right-click the app tile to open the context menu
+    await appTileButton.click({ button: 'right' });
+
+    // Locate and click the "Delete app" menu item
+    const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete app' });
+    await expect(
+        deleteMenuItem,
+        'The "Delete app" context menu item should be visible',
+    ).toBeVisible();
+    await deleteMenuItem.click();
+
+    // Verify the app tile is no longer visible
+    await expect(
+        appTileButton,
+        `The AppTile for "${appNameToDelete}" should not be visible after deletion`,
+    ).not.toBeVisible();
+
+    // Verify config file update
+    expect(
+        configFilePath,
+        'configFilePath from fixture should be defined',
+    ).toBeDefined();
+
+    const configFileContent = await readFile(configFilePath!, 'utf-8');
+    const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
+
+    const deletedConfig = updatedConfigs.find(
+        (config) => config.name === appNameToDelete,
+    );
+
+    expect(
+        deletedConfig,
+        `Config file should no longer contain an entry for "${appNameToDelete}"`,
+    ).toBeUndefined();
 });
