@@ -1,9 +1,9 @@
 import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
-import { Data, Effect, pipe } from 'effect';
-import { UnknownException } from 'effect/Cause';
+import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
+import { Data, Effect, pipe, Schema } from 'effect';
+import { ParseError, UnknownException } from 'effect/Cause';
 import { FsError } from '#src/fs/errors.js';
 import { readFileEffect, writeFileEffect } from '#src/fs/index.js';
-import * as z from 'zod';
 export class JsonParseError extends Data.TaggedError('JsonParseError')<{
     readonly cause?: unknown;
     readonly message?: string;
@@ -13,19 +13,6 @@ export class JsonStringifyError extends Data.TaggedError('JsonStringifyError')<{
     readonly cause?: unknown;
     readonly message?: string;
 }> {}
-
-const wrapZodError = <T extends object>(
-    error: T,
-): T extends z.ZodError ? JsonParseError : T => {
-    if (error instanceof z.ZodError) {
-        return new JsonParseError({
-            message: error.message,
-            cause: error,
-        }) as T extends z.ZodError ? JsonParseError : T;
-    } else {
-        return error as T extends z.ZodError ? JsonParseError : T;
-    }
-};
 
 export function readConfigsFromFile(
     configPath: string,
@@ -45,8 +32,14 @@ export function readConfigsFromFile(
                 return new UnknownException(error);
             },
         }),
-        Effect.flatMap(AppConfigArraySchema.effect.parse),
-        Effect.mapError(wrapZodError),
+        Effect.flatMap(Schema.decodeUnknown(AppConfigArraySchema)),
+        Effect.mapError((error) => {
+            if (error instanceof ParseError) {
+                // You might want to format the ParseError message here
+                return new JsonParseError({ cause: error, message: String(error) });
+            }
+            return error; // Keep FsError or UnknownException as is
+        }),
         Effect.map((configs) => {
             const configsMap: Record<AppConfigId, AppConfig> = {};
             for (const config of configs) {
