@@ -25,3 +25,5 @@ frontend/src/stories/
 .eslintcache
 
 test-results/
+
+tests/*.spec.js
