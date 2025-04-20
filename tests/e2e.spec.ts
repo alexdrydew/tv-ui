@@ -2,9 +2,10 @@ import type { ElectronApplication, JSHandle } from 'playwright';
 import { _electron as electron } from 'playwright';
 import { expect, test as base } from '@playwright/test';
 import type { BrowserWindow } from 'electron';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { globSync } from 'glob';
 import { platform } from 'node:process';
-import { createHash } from 'node:crypto';
 
 process.env.PLAYWRIGHT_TEST = 'true';
 
@@ -30,6 +31,22 @@ const test = base.extend<TestFixtures>({
                 throw new Error('App Executable path not found');
             }
 
+            // Ensure the config file exists before launching the app
+            // TODO: Get this path dynamically instead of hardcoding
+            const configFilePath =
+                '/Users/alexdrydew/.config/tv-ui/tv-ui.json';
+            const configDir = dirname(configFilePath);
+
+            try {
+                await mkdir(configDir, { recursive: true });
+                await writeFile(configFilePath, '[]', 'utf-8');
+                console.log(`Created dummy config file: ${configFilePath}`);
+            } catch (err) {
+                console.error(`Failed to create dummy config file: ${err}`);
+                // Decide if we should throw or proceed cautiously
+                throw new Error(`Setup failed: Could not create config file at ${configFilePath}`);
+            }
+
             const electronApp = await electron.launch({
                 executablePath: executablePath,
                 args: ['--no-sandbox'],
@@ -45,6 +62,17 @@ const test = base.extend<TestFixtures>({
 
             // This code runs after all the tests in the worker process.
             await electronApp.close();
+
+            // Clean up the dummy config file using the path defined earlier
+            try {
+                await rm(configFilePath, { force: true }); // force: true prevents error if file doesn't exist
+                console.log(`Cleaned up dummy config file: ${configFilePath}`);
+            } catch (err) {
+                // Log error but don't fail the test run just for cleanup failure
+                console.error(
+                    `Failed to clean up dummy config file: ${err}`,
+                );
+            }
         },
         { scope: 'worker', auto: true } as any,
     ],
@@ -110,8 +138,13 @@ test('Main window state', async ({ electronApp, page }) => {
 });
 
 test('App layout is rendered', async ({ page }) => {
-    // TvAppLayout renders a <main> element as its primary content container
-    const mainElement = page.locator('main');
+    // TvAppLayout renders a <main> element with class "overflow-auto"
+    const mainElement = page.locator('main.overflow-auto');
+
+    // Explicitly wait for the specific element to be visible, with a longer timeout
+    await mainElement.waitFor({ state: 'visible', timeout: 10000 }); // 10 seconds
+
+    // Now that we know it has appeared, we can assert its visibility (optional, but good practice)
     await expect(
         mainElement,
         'The <main> element from TvAppLayout should be visible',
