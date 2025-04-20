@@ -1,10 +1,10 @@
 import type { AppConfigId, AppExitInfo } from '@app/types';
-import type { ChildProcess } from 'node:child_process';
+import type { Fiber } from 'effect';
 
 export interface AppState {
     readonly configId: AppConfigId;
     readonly pid: number;
-    readonly process?: ChildProcess;
+    readonly fiber?: Fiber.RuntimeFiber<void, never>;
     lastExitResult: AppExitInfo | null;
 }
 
