@@ -2,7 +2,7 @@ import type { ElectronApplication, JSHandle } from 'playwright';
 import { _electron as electron } from 'playwright';
 import { expect, test as base } from '@playwright/test';
 import type { BrowserWindow } from 'electron';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'; // Import readFile
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { globSync } from 'glob';
@@ -65,10 +65,8 @@ const test = base.extend<TestFixtures>({
                 );
             }
         },
-        { scope: 'test', auto: true }, // Changed scope from 'worker' to 'test'
+        { scope: 'test', auto: true },
     ],
-
-    // electronApp fixture now depends on configFilePath
     electronApp: [
         async ({ configFilePath }, use) => {
             // Depend on configFilePath
@@ -99,12 +97,11 @@ const test = base.extend<TestFixtures>({
                 }
             });
 
-            await use(electronApp); // Only yield the electronApp
+            await use(electronApp);
 
             await electronApp.close();
-            // Config file cleanup is handled by the configFilePath fixture
         },
-        { scope: 'test', auto: true }, // Changed scope from 'worker' to 'test'
+        { scope: 'test', auto: true },
     ],
 
     page: async ({ electronApp }, use) => {
@@ -241,30 +238,22 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
     const appNameToDelete = 'Test App';
     const appTileButton = page.getByRole('button', { name: appNameToDelete });
 
-    // Ensure the initial app tile is visible
     await expect(
         appTileButton,
         `The AppTile for "${appNameToDelete}" should initially be visible`,
     ).toBeVisible();
 
-    // Right-click the app tile to open the context menu
     await appTileButton.click({ button: 'right' });
-
-    // Locate and click the "Delete app" menu item
     const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete app' });
     await expect(
         deleteMenuItem,
         'The "Delete app" context menu item should be visible',
     ).toBeVisible();
     await deleteMenuItem.click();
-
-    // Verify the app tile is no longer visible
     await expect(
         appTileButton,
         `The AppTile for "${appNameToDelete}" should not be visible after deletion`,
     ).not.toBeVisible();
-
-    // Verify config file update
     expect(
         configFilePath,
         'configFilePath from fixture should be defined',
@@ -285,19 +274,16 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
 
 test('Edit app config via context menu', async ({ page, configFilePath }) => {
     const initialAppName = 'Test App';
-    const initialAppId = 'test-app-1'; // ID from the initial config
+    const initialAppId = 'test-app-1';
     const editedAppName = 'Edited Test App';
     const editedLaunchCommand = '/bin/false';
 
     const appTileButton = page.getByRole('button', { name: initialAppName });
 
-    // 1. Ensure the initial app tile is visible
     await expect(
         appTileButton,
         `The AppTile for "${initialAppName}" should initially be visible`,
     ).toBeVisible();
-
-    // 2. Right-click the app tile and click "Edit"
     await appTileButton.click({ button: 'right' });
     const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
     await expect(
@@ -305,8 +291,6 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
         'The "Edit" context menu item should be visible',
     ).toBeVisible();
     await editMenuItem.click();
-
-    // 3. Wait for the dialog and verify pre-filled data
     const dialog = page.getByRole('dialog', { name: 'Edit App' });
     await expect(dialog, 'The "Edit App" dialog should appear').toBeVisible();
     await expect(
@@ -316,35 +300,24 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         dialog.getByLabel('Launch Command'),
         'Dialog "Launch Command" should be pre-filled',
-    ).toHaveValue('/bin/echo'); // Initial command from fixture
-
-    // 4. Modify the form
+    ).toHaveValue('/bin/echo');
     await dialog.getByLabel('App Name').fill(editedAppName);
     await dialog.getByLabel('Launch Command').fill(editedLaunchCommand);
 
-    // 5. Click the "Save Changes" button
     await dialog.getByRole('button', { name: 'Save Changes' }).click();
-
-    // 6. Wait for the dialog to close
     await expect(
         dialog,
         'The "Edit App" dialog should close after saving',
     ).not.toBeVisible();
-
-    // 7. Wait for the specific tile's text content to update using data-testid
     const specificAppTile = page.getByTestId(`app-tile-${initialAppId}`);
     await expect(
         specificAppTile,
         `App tile with ID ${initialAppId} should contain the new name "${editedAppName}"`,
     ).toContainText(editedAppName);
-
-    // 8. Verify the tile with the new name is generally visible (safer check)
     await expect(
         page.getByRole('button', { name: editedAppName }),
         `The AppTile for "${editedAppName}" should be visible after editing`,
     ).toBeVisible();
-
-    // 9. Verify config file update (Removed check for absence of old name)
     expect(
         configFilePath,
         'configFilePath from fixture should be defined',
@@ -352,8 +325,6 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
 
     const configFileContent = await readFile(configFilePath!, 'utf-8');
     const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
-
-    // Find the config by ID (should remain the same)
     const editedConfig = updatedConfigs.find(
         (config) => config.id === initialAppId,
     );

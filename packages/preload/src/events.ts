@@ -40,7 +40,6 @@ export function invokeConfigUpdateListeners(
     console.debug(
         `Invoking ${configUpdateListeners.length} config update listeners with ${updatedConfigsArray.length} configs.`,
     );
-    // Iterate over a copy in case a listener unsubscribes itself
     [...configUpdateListeners].forEach((listener) => {
         try {
             listener(updatedConfigsArray);

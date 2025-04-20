@@ -5,7 +5,7 @@ import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
 import { useApps } from '@/hooks/useApps';
-import { removeAppConfig } from '@app/preload'; // Import removeAppConfig
+import { removeAppConfig } from '@app/preload';
 import { App, AppConfig, isLaunched } from '@app/types';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -14,7 +14,7 @@ import { toast, Toaster } from 'sonner';
 export function HomePage() {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
     const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
-    const [editingApp, setEditingApp] = useState<AppConfig | null>(null); // Correctly destructure useState
+    const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
     const handleLaunchApp = (app: App) => {
         info(`Launching app: ${app.config.name}`);
         // instantiateApp(app)
@@ -45,8 +45,8 @@ export function HomePage() {
         }
     };
 
-    const handleEditApp = (app: App) => { // Rename parameter from _app to app
-        setEditingApp(app.config); // Uncomment this line
+    const handleEditApp = (app: App) => {
+        setEditingApp(app.config);
         setIsEditAppDialogOpen(true);
     };
 
@@ -59,7 +59,7 @@ export function HomePage() {
             return;
         }
         try {
-            await removeAppConfig(app.config.id, configFilePath); // Uncomment this line
+            await removeAppConfig(app.config.id, configFilePath);
             toast.success(`${app.config.name} configuration removed`);
         } catch (e) {
             error(`Failed to remove app config: ${e}`);
@@ -101,7 +101,7 @@ export function HomePage() {
                     }) => (
                         <AppTile
                             key={app.config.id}
-                            id={app.config.id} // Pass the id
+                            id={app.config.id}
                             name={app.config.name}
                             icon={app.config.icon}
                             isFocused={isFocused}
