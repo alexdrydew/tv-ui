@@ -101,6 +101,7 @@ export function HomePage() {
                     }) => (
                         <AppTile
                             key={app.config.id}
+                            id={app.config.id} // Pass the id
                             name={app.config.name}
                             icon={app.config.icon}
                             isFocused={isFocused}

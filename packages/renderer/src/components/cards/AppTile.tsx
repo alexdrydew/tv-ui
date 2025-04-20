@@ -2,6 +2,7 @@ import { AppWindow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/appButton';
 import { useRef, useLayoutEffect } from 'react';
+import { AppConfigId } from '@app/types'; // Import AppConfigId
 import {
     ContextMenu,
     ContextMenuContent,
@@ -19,9 +20,11 @@ interface AppTileProps {
     onKill: () => void;
     onRemove: () => void;
     onEdit: () => void;
+    id: AppConfigId; // Add id prop
 }
 
 export function AppTile({
+    id, // Use id prop
     name,
     icon,
     isFocused,
@@ -52,6 +55,7 @@ export function AppTile({
             <ContextMenuTrigger>
                 <Button
                     ref={buttonRef}
+                    data-testid={`app-tile-${id}`} // Add data-testid using the id
                     className={cn(
                         'flex flex-col items-center w-64 h-64 relative',
                     )}
