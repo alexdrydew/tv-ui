@@ -3,12 +3,11 @@ import { error, debug } from '@/api/logging';
 import {
     App,
     AppConfig,
-    AppConfigId, // Import AppConfigId
+    AppConfigId,
     AppState,
     AppStateInfo,
-    // initAppsFromConfigs, // Remove unused import
 } from '@app/types';
-import { getAppConfigs, getEnv, onConfigUpdate } from '@app/preload'; // Import onConfigUpdate
+import { getAppConfigs, getEnv, onConfigUpdate } from '@app/preload';
 
 export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
@@ -34,7 +33,6 @@ export function useAppConfigs(configFileName: string): {
         getAppConfigs(configFilePath).then(setConfig).catch(error);
     }, [configFilePath]);
 
-    // Listen for config updates from the preload script
     useEffect(() => {
         debug('Setting up config update listener');
         const unsubscribe = onConfigUpdate((updatedConfigs: AppConfig[]) => {
@@ -44,16 +42,11 @@ export function useAppConfigs(configFileName: string): {
             setConfig(updatedConfigs);
         });
 
-        // Cleanup function
         return () => {
             debug('Removing config update listener');
             unsubscribe();
         };
-    }, []); // Run only once on mount
-
-    // // Listen for config updates from the main process via IPC (OLD CODE)
-    // useEffect(() => {
-    //     const configUpdateListener = (
+    }, []);
     //         _event: unknown,
     //         updatedConfigs: AppConfig[],
     //     ) => {
@@ -147,18 +140,16 @@ export function useApps(): {
             const newApps = appConfigs.map((config) => {
                 const existingApp = prevAppsMap.get(config.id);
                 if (existingApp) {
-                    // Preserve existing app state, update config
                     debug(`Updating existing app config for ID: ${config.id}`);
                     return {
                         ...existingApp,
-                        config: config, // Update the config part
+                        config: config,
                     };
                 } else {
-                    // New app config
                     debug(`Creating new app state for ID: ${config.id}`);
                     return {
                         config: config,
-                        instances: [], // Initialize instances for new app
+                        instances: [],
                     };
                 }
             });
@@ -168,7 +159,7 @@ export function useApps(): {
             );
             return newApps;
         });
-    }, [appConfigs]); // Dependency remains appConfigs
+    }, [appConfigs]);
 
     const updateApps = useCallback(
         (stateInfo: AppStateInfo) => {
@@ -177,7 +168,7 @@ export function useApps(): {
                     error(
                         `Received app update for ${stateInfo.configId} but current apps state is undefined.`,
                     );
-                    return undefined; // Or handle appropriately
+                    return undefined;
                 }
 
                 const targetAppIndex = currentApps.findIndex(
@@ -188,12 +179,10 @@ export function useApps(): {
                     error(
                         `Received app update for unknown configId: ${stateInfo.configId}`,
                     );
-                    return currentApps; // No change if config ID doesn't match
+                    return currentApps;
                 }
 
-                // Create a new array for immutability
                 const newApps = [...currentApps];
-                // Clone the target app and its instances
                 const targetApp = {
                     ...newApps[targetAppIndex],
                     instances: [...newApps[targetAppIndex].instances],
@@ -202,8 +191,6 @@ export function useApps(): {
                 const instanceIndex = targetApp.instances.findIndex(
                     (instance) => instance.pid === stateInfo.pid,
                 );
-
-                // Map AppStateInfo from main process to the AppState used in renderer/entities
                 const updatedInstanceState: AppState = {
                     configId: stateInfo.configId,
                     pid: stateInfo.pid,
@@ -211,20 +198,17 @@ export function useApps(): {
                 };
 
                 if (instanceIndex === -1) {
-                    // New instance launched
                     debug(
                         `Adding new instance (PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
                     );
                     targetApp.instances.push(updatedInstanceState);
                 } else {
-                    // Update existing instance state (e.g., exitResult changed)
                     debug(
                         `Updating instance (PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
                     );
                     targetApp.instances[instanceIndex] = updatedInstanceState;
                 }
 
-                // Update the app in the new array
                 newApps[targetAppIndex] = targetApp;
 
                 debug(
@@ -233,10 +217,8 @@ export function useApps(): {
                 return newApps;
             });
         },
-        [], // No dependencies needed for the callback itself
+        [],
     );
-
-    // Subscribe to app state updates
     useAppStateUpdateEventsSubscription(updateApps);
 
     return { apps, configFilePath };

@@ -10,5 +10,4 @@ for (const exportsKey in exports) {
     }
 }
 console.debug('preload finish');
-// Re-export for tests
 export * from './index.js';
