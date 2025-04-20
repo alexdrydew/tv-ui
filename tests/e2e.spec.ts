@@ -2,10 +2,11 @@ import type { ElectronApplication, JSHandle } from 'playwright';
 import { _electron as electron } from 'playwright';
 import { expect, test as base } from '@playwright/test';
 import type { BrowserWindow } from 'electron';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'; // Import readFile
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { globSync } from 'glob';
+import type { AppConfig } from '@app/types'; // Import AppConfig
 import { platform } from 'node:process';
 process.env.PLAYWRIGHT_TEST = 'true';
 
@@ -188,10 +189,35 @@ test('Add new app config via UI', async ({ page }) => {
         'The "Add New App" dialog should close after saving',
     ).not.toBeVisible();
 
-    // Verify the new app tile is visible
+    // *** Start: Verify config file update ***
+    const configFilePath = process.env.TV_UI_CONFIG_PATH;
+    expect(
+        configFilePath,
+        'TV_UI_CONFIG_PATH environment variable should be set',
+    ).toBeDefined();
+
+    // Read the updated config file
+    const configFileContent = await readFile(configFilePath!, 'utf-8');
+    const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
+
+    // Find the newly added config
+    const addedConfig = updatedConfigs.find((config) => config.name === appName);
+
+    // Assert that the config was added correctly
+    expect(
+        addedConfig,
+        `Config file should contain an entry for "${appName}"`,
+    ).toBeDefined();
+    expect(
+        addedConfig?.launchCommand,
+        `Config entry for "${appName}" should have the correct launch command`,
+    ).toBe(launchCommand);
+    // *** End: Verify config file update ***
+
+    // Verify the new app tile is visible (this part might still fail)
     const newAppTile = page.getByRole('button', { name: appName });
     await expect(
         newAppTile,
         `The AppTile for "${appName}" should be visible after adding`,
-    ).toBeVisible();
+    ).toBeVisible(); // This is expected to fail until UI updates are fixed
 });
