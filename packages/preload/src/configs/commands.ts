@@ -5,7 +5,6 @@ import {
     AppExitResult,
     AppState,
     AppStateInfo,
-    APP_UPDATE_EVENT,
 } from '@app/types';
 import { ChildProcess, spawn } from 'node:child_process';
 import { Effect, pipe } from 'effect';
@@ -87,11 +86,11 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     }
 
     // Basic command parsing (split by space, handle potential quotes later if needed)
-    const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [];
-    if (parts.length === 0) {
+    const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g);
+    if (!parts || parts.length === 0) {
         throw new Error('Empty or invalid command provided.');
     }
-    // parts[0] is guaranteed to exist here due to the check above
+    // parts[0] is now guaranteed to exist and TypeScript should infer it correctly
     const cmd = parts[0].replace(/"/g, ''); // Remove quotes from command itself
     const args = parts.slice(1).map((arg) => arg.replace(/"/g, '')); // Remove quotes from args
 
