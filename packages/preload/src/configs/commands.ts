@@ -1,7 +1,15 @@
-import { AppConfig, AppConfigId } from '@app/types';
+import { AppConfig, AppConfigId, CONFIG_UPDATE_EVENT } from '@app/types';
 import { Effect, pipe } from 'effect';
+import { ipcRenderer } from 'electron'; // Import ipcRenderer
 import { ConfigNotFoundError } from './errors.js';
 import { readConfigsFromFile, writeConfigsToFileEffect } from './fs.js';
+
+// Helper function to send config update event
+function sendConfigUpdateEvent(updatedConfigs: Record<AppConfigId, AppConfig>) {
+    const configArray = Object.values(updatedConfigs);
+    console.debug(`Sending ${CONFIG_UPDATE_EVENT} with ${configArray.length} configs`);
+    ipcRenderer.send(CONFIG_UPDATE_EVENT, configArray);
+}
 
 // const launchedApps: Record<AppConfigId, AppState> = {};
 
@@ -21,7 +29,12 @@ export async function upsertAppConfig(
             return configsRecord;
         }),
         Effect.flatMap((updatedConfigsRecord) =>
-            writeConfigsToFileEffect(configPath, updatedConfigsRecord),
+            // Write the file first
+            pipe(
+                writeConfigsToFileEffect(configPath, updatedConfigsRecord),
+                // Then send the event on success
+                Effect.tap(() => sendConfigUpdateEvent(updatedConfigsRecord)),
+            ),
         ),
     );
 
@@ -51,7 +64,12 @@ export async function removeAppConfig(
             return Effect.succeed(configsRecord);
         }),
         Effect.flatMap((updatedConfigsRecord) =>
-            writeConfigsToFileEffect(configPath, updatedConfigsRecord),
+            // Write the file first
+            pipe(
+                writeConfigsToFileEffect(configPath, updatedConfigsRecord),
+                // Then send the event on success
+                Effect.tap(() => sendConfigUpdateEvent(updatedConfigsRecord)),
+            ),
         ),
     );
     return Effect.runPromise(effect);
