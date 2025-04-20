@@ -6,7 +6,7 @@ import {
     AppStateInfo,
 } from '@app/types';
 import { spawn, ChildProcess } from 'node:child_process';
-import { Effect, pipe, Fiber, Exit } from 'effect'; // Added Fiber, Exit
+import { Effect, pipe } from 'effect';
 import { invokeAppUpdateListeners } from '../events.js';
 import {
     AppAlreadyRunningError,
