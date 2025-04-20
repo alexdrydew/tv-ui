@@ -93,6 +93,8 @@ const test = base.extend<TestFixtures>({
                 // Use the tempConfigDir path generated earlier
                 await rm(tempConfigDir, { recursive: true, force: true });
                 console.log(`Cleaned up temporary config dir: ${tempConfigDir}`);
+            } catch (err) {
+                // Log error but don't fail the test run just for cleanup failure
                 console.error(
                     `Failed to clean up temporary config dir: ${err}`,
                 );
