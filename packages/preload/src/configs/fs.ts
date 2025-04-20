@@ -1,9 +1,9 @@
 import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
 import { Data, Effect, pipe, Schema } from 'effect';
-import { ParseError } from '@effect/schema/ParseResult';
 import { UnknownException } from 'effect/Cause';
 import { FsError } from '#src/fs/errors.js';
 import { readFileEffect, writeFileEffect } from '#src/fs/index.js';
+import { ParseError } from 'effect/ParseResult';
 export class JsonParseError extends Data.TaggedError('JsonParseError')<{
     readonly cause?: unknown;
     readonly message?: string;
@@ -35,10 +35,12 @@ export function readConfigsFromFile(
         Effect.flatMap(Schema.decodeUnknown(AppConfigArraySchema)),
         Effect.mapError((error) => {
             if (error instanceof ParseError) {
-                // You might want to format the ParseError message here
-                return new JsonParseError({ cause: error, message: String(error) });
+                return new JsonParseError({
+                    cause: error,
+                    message: String(error),
+                });
             }
-            return error; // Keep FsError or UnknownException as is
+            return error;
         }),
         Effect.map((configs) => {
             const configsMap: Record<AppConfigId, AppConfig> = {};
