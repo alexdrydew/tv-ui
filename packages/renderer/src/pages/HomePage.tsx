@@ -2,10 +2,14 @@ import { error, info } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
 import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
 import { AppGrid } from '@/components/layout/AppGrid';
+import { error, info } from '@/api/logging';
+import { AppTile } from '@/components/cards/AppTile';
+import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
+import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
 import { useApps } from '@/hooks/useApps';
-import { launchApp, removeAppConfig } from '@app/preload';
+import { killApp, launchApp, removeAppConfig } from '@app/preload';
 import { App, AppConfig, isLaunched } from '@app/types';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -36,15 +40,23 @@ export function HomePage() {
     };
 
     const handleKillApp = async (app: App) => {
+        info(`Attempting to kill app: ${app.config.name} (ID: ${app.config.id})`);
         try {
-            // await killApp(app.config.id);
-            toast.success(`${app.config.name} terminated`, {
-                description: 'Application was successfully stopped',
+            await killApp(app.config.id);
+            // The success/failure is primarily indicated by the app state update event.
+            // We might show a "Kill signal sent" toast, but success depends on the process actually exiting.
+            toast.info(`Kill signal sent to ${app.config.name}`, {
+                description: 'Waiting for application to terminate.',
             });
-        } catch (error) {
-            toast.error(`Failed to kill ${app.config.name}`, {
-                description: `${error}`,
+            // The useApps hook will update the state based on the event emitted by killApp/handleExit
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            toast.error(`Failed to send kill signal to ${app.config.name}`, {
+                description: errorMessage,
             });
+            error(
+                `Failed to send kill signal to ${app.config.name}: ${errorMessage}`,
+            );
         }
     };
 

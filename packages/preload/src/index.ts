@@ -6,6 +6,7 @@ export {
     upsertAppConfig,
     removeAppConfig,
     launchApp,
+    killApp,
 } from './configs/commands.js';
 export { onConfigUpdate, onAppUpdate } from './events.js';
 

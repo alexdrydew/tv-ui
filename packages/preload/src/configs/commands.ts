@@ -224,93 +224,81 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
         exitResult: initialState.exitResult,
     };
 }
-//
-// async function killAppImpl(configId: AppConfigId): Promise<void> {
-//     const appState = launchedApps.get(configId);
-//
-//     if (!appState) {
-//         throw new Error(`App ${configId} not found in managed processes.`);
-//     }
-//
-//     if (appState.exitResult !== null) {
-//         // App is already exited
-//         console.warn(
-//             `Attempted to kill app ${configId} which has already exited.`,
-//         );
-//         return;
-//     }
-//
-//     if (!appState.process || appState.process.killed) {
-//         console.warn(
-//             `Process for app ${configId} is missing or already killed.`,
-//         );
-//         // Consider updating state if process is missing but exitResult is null
-//         if (!appState.exitResult) {
-//             appState.exitResult = { type: AppExitResult.Unknown }; // Mutate state
-//             sendToRenderer(APP_UPDATE_EVENT, {
-//                 ...appState, // Send a copy
-//                 process: undefined,
-//             });
-//         }
-//         return;
-//     }
-//
-//     try {
-//         // kill() sends SIGTERM by default. Can specify other signals.
-//         // Returns true if signal was sent, false otherwise.
-//         const killed = appState.process.kill();
-//         if (!killed) {
-//             console.warn(
-//                 `Failed to send kill signal to process for app ${configId} (PID: ${appState.pid}). It might have already exited.`,
-//             );
-//             // Check if it exited between the check and the kill attempt
-//             if (
-//                 appState.process.exitCode !== null ||
-//                 appState.process.signalCode !== null
-//             ) {
-//                 // Manually trigger exit handling if the listener didn't catch it
-//                 const code = appState.process.exitCode;
-//                 const signal = appState.process.signalCode;
-//                 console.log(
-//                     `Manually handling exit for ${configId}. Code: ${code}, Signal: ${signal}`,
-//                 );
-//
-//                 let exitInfo: AppExitInfo;
-//                 if (signal)
-//                     exitInfo = {
-//                         type: AppExitResult.Signal,
-//                         signal: signal,
-//                     };
-//                 else if (code === 0) exitInfo = { type: AppExitResult.Success };
-//                 else if (code !== null)
-//                     exitInfo = { type: AppExitResult.ExitCode, code: code };
-//                 else exitInfo = { type: AppExitResult.Unknown };
-//
-//                 appState.exitResult = exitInfo; // Mutate state
-//                 sendToRenderer(APP_UPDATE_EVENT, {
-//                     ...appState, // Send a copy
-//                     process: undefined,
-//                 });
-//             }
-//         } else {
-//             console.log(
-//                 `Sent kill signal to app ${configId} (PID: ${appState.pid})`,
-//             );
-//         }
-//         // The 'exit' listener attached in launchApp will handle the state update and event emission.
-//     } catch (error: any) {
-//         console.error(
-//             `Error killing process for app ${configId} (PID: ${appState.pid}):`,
-//             error,
-//         );
-//         // Update state to Unknown if kill fails unexpectedly?
-//         if (appState.exitResult === null) {
-//             appState.exitResult = { type: AppExitResult.Unknown }; // Mutate state
-//             sendToRenderer(APP_UPDATE_EVENT, {
-//                 ...appState, // Send a copy
-//                 process: undefined,
-//             });
-//         }
-//         throw new Error(`Failed to kill process: ${error.message}`);
-//     }
-// }
+
+export async function killApp(configId: AppConfigId): Promise<void> {
+    const appState = launchedApps.get(configId);
+
+    if (!appState) {
+        throw new Error(`App ${configId} not found in managed processes.`);
+    }
+
+    if (appState.exitResult !== null) {
+        // App is already exited
+        console.warn(
+            `Attempted to kill app ${configId} which has already exited.`,
+        );
+        return; // Nothing to do
+    }
+
+    if (!appState.process || appState.process.killed) {
+        console.warn(
+            `Process for app ${configId} (PID: ${appState.pid}) is missing or already killed.`,
+        );
+        // Consider updating state if process is missing but exitResult is null
+        if (!appState.exitResult) {
+            appState.exitResult = { type: AppExitResult.Unknown }; // Mutate state
+            launchedApps.set(configId, appState); // Update map
+            invokeAppUpdateListeners({
+                configId: appState.configId,
+                pid: appState.pid,
+                exitResult: appState.exitResult,
+            });
+        }
+        return; // Nothing more to do
+    }
+
+    try {
+        // kill() sends SIGTERM by default. Can specify other signals.
+        // Returns true if signal was sent, false otherwise.
+        const killed = appState.process.kill(); // Sends SIGTERM
+        if (!killed) {
+            console.warn(
+                `Failed to send kill signal to process for app ${configId} (PID: ${appState.pid}). It might have already exited.`,
+            );
+            // Check if it exited between the check and the kill attempt
+            // This check might be redundant if the 'exit' listener is reliable
+            if (
+                appState.process.exitCode !== null ||
+                appState.process.signalCode !== null
+            ) {
+                console.log(
+                    `Process ${appState.pid} seems to have exited just before kill signal was confirmed. State should be updated by 'exit' listener.`,
+                );
+                // The 'exit' listener should handle this case.
+                // If the listener somehow missed it, the state might remain 'running' incorrectly.
+            }
+        } else {
+            console.log(
+                `Sent kill signal (SIGTERM) to app ${configId} (PID: ${appState.pid})`,
+            );
+            // The 'exit' listener attached in launchApp will handle the state update and event emission.
+            // No need to manually update state here unless the listener fails.
+        }
+    } catch (error: any) {
+        console.error(
+            `Error killing process for app ${configId} (PID: ${appState.pid}):`,
+            error,
+        );
+        // Update state to Unknown if kill fails unexpectedly?
+        if (appState.exitResult === null) {
+            appState.exitResult = { type: AppExitResult.Unknown }; // Mutate state
+            launchedApps.set(configId, appState); // Update map
+            invokeAppUpdateListeners({
+                configId: appState.configId,
+                pid: appState.pid,
+                exitResult: appState.exitResult,
+            });
+        }
+        throw new Error(`Failed to kill process: ${error.message}`);
+    }
+}
