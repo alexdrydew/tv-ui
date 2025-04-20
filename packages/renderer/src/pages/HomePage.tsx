@@ -5,6 +5,7 @@ import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
 import { useApps } from '@/hooks/useApps';
+import { removeAppConfig } from '@app/preload'; // Import removeAppConfig
 import { App, AppConfig, isLaunched } from '@app/types';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -59,7 +60,7 @@ export function HomePage() {
             return;
         }
         try {
-            // await removeAppConfig(app.config.id, configFilePath);
+            await removeAppConfig(app.config.id, configFilePath); // Uncomment this line
             toast.success(`${app.config.name} configuration removed`);
         } catch (e) {
             error(`Failed to remove app config: ${e}`);
