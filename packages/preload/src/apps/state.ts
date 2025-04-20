@@ -5,7 +5,7 @@ export interface AppState {
     readonly configId: AppConfigId;
     readonly pid: number;
     readonly process?: ChildProcess;
-    lastExitResult: AppExitInfo | null;
+    exitResult: AppExitInfo | null; // Renamed from lastExitResult
 }
 
 export const launchedApps = new Map<AppConfigId, AppState>();
