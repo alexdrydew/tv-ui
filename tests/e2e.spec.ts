@@ -65,7 +65,7 @@ const test = base.extend<TestFixtures>({
                 );
             }
         },
-        { scope: 'worker', auto: true },
+        { scope: 'test', auto: true }, // Changed scope from 'worker' to 'test'
     ],
 
     // electronApp fixture now depends on configFilePath
@@ -104,7 +104,7 @@ const test = base.extend<TestFixtures>({
             await electronApp.close();
             // Config file cleanup is handled by the configFilePath fixture
         },
-        { scope: 'worker', auto: true }, // Remove provides option
+        { scope: 'test', auto: true }, // Changed scope from 'worker' to 'test'
     ],
 
     page: async ({ electronApp }, use) => {
