@@ -165,7 +165,8 @@ test('App tile is rendered when config has an app', async ({ page }) => {
     ).toBeVisible();
 });
 
-test('Add new app config via UI', async ({ page }) => {
+// Destructure configFilePath from the fixture context
+test('Add new app config via UI', async ({ page, configFilePath }) => {
     // Click the "Add App" button
     await page.getByRole('button', { name: 'Add App' }).click();
 
