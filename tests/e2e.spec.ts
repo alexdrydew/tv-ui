@@ -158,9 +158,6 @@ test('App layout is rendered', async ({ page }) => {
     // TvAppLayout renders a <main> element with class "overflow-auto"
     const mainElement = page.locator('main.overflow-auto');
 
-    // Explicitly wait for the specific element to be visible, with a longer timeout
-    await mainElement.waitFor({ state: 'visible' });
-
     // Now that we know it has appeared, we can assert its visibility (optional, but good practice)
     await expect(
         mainElement,
