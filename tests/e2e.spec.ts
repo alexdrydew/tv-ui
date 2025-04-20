@@ -12,27 +12,17 @@ process.env.PLAYWRIGHT_TEST = 'true';
 
 type TestFixtures = {
     electronApp: ElectronApplication;
-    configFilePath: string; // Add configFilePath here
+    configFilePath: string;
     electronVersions: NodeJS.ProcessVersions;
 };
 
 const test = base.extend<TestFixtures>({
-    electronApp: [
-        // This fixture now provides both electronApp and configFilePath
+    // New fixture for config file path setup and teardown
+    configFilePath: [
         async ({}, use) => {
-            let executablePattern = 'dist/*/root{,.*}';
-            if (platform === 'darwin') {
-                executablePattern += '/Contents/*/root';
-            }
-
-            const [executablePath] = globSync(executablePattern);
-            if (!executablePath) {
-                throw new Error('App Executable path not found');
-            }
-
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
             const configFilePath = join(tempConfigDir, 'tv-ui.json');
-            const configDir = dirname(configFilePath); // Should be tempConfigDir
+            const configDir = dirname(configFilePath);
 
             const sampleAppConfig = [
                 {
@@ -61,6 +51,38 @@ const test = base.extend<TestFixtures>({
                 );
             }
 
+            await use(configFilePath); // Yield the path
+
+            // Cleanup
+            try {
+                await rm(tempConfigDir, { recursive: true, force: true });
+                console.log(
+                    `Cleaned up temporary config dir: ${tempConfigDir}`,
+                );
+            } catch (err) {
+                console.error(
+                    `Failed to clean up temporary config dir: ${err}`,
+                );
+            }
+        },
+        { scope: 'worker', auto: true },
+    ],
+
+    // electronApp fixture now depends on configFilePath
+    electronApp: [
+        async ({ configFilePath }, use) => { // Depend on configFilePath
+            let executablePattern = 'dist/*/root{,.*}';
+            if (platform === 'darwin') {
+                executablePattern += '/Contents/*/root';
+            }
+
+            const [executablePath] = globSync(executablePattern);
+            if (!executablePath) {
+                throw new Error('App Executable path not found');
+            }
+
+            // Config file setup is now handled by the configFilePath fixture
+
             const electronApp = await electron.launch({
                 executablePath: executablePath,
                 args: ['--no-sandbox'],
@@ -75,27 +97,13 @@ const test = base.extend<TestFixtures>({
                     console.error(`[electron][${msg.type()}] ${msg.text()}`);
                 }
             });
-            // Pass both the app and the path to the test context
-            await use({ electronApp, configFilePath });
+
+            await use(electronApp); // Only yield the electronApp
 
             await electronApp.close();
-
-            try {
-                await rm(tempConfigDir, { recursive: true, force: true });
-                console.log(
-                    `Cleaned up temporary config dir: ${tempConfigDir}`,
-                );
-            } catch (err) {
-                console.error(
-                    `Failed to clean up temporary config dir: ${err}`,
-                );
-            }
+            // Config file cleanup is handled by the configFilePath fixture
         },
-        {
-            scope: 'worker',
-            auto: true,
-            provides: ['electronApp', 'configFilePath'],
-        } as any, // Declare provided fixtures
+        { scope: 'worker', auto: true }, // Remove provides option
     ],
 
     page: async ({ electronApp }, use) => {
