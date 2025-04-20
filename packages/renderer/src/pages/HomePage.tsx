@@ -14,7 +14,7 @@ import { toast, Toaster } from 'sonner';
 export function HomePage() {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
     const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
-    const [editingApp] = useState<AppConfig | null>(null);
+    const [editingApp, setEditingApp] = useState<AppConfig | null>(null); // Correctly destructure useState
     const handleLaunchApp = (app: App) => {
         info(`Launching app: ${app.config.name}`);
         // instantiateApp(app)
