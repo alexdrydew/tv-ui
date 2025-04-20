@@ -27,22 +27,9 @@ import {
 const createProcessWatcherEffect = (
     appState: AppState,
     childProcess: ChildProcess,
+    pid: number,
 ) => {
-    // This effect resolves when the process exits or errors *naturally*.
-    // It's responsible for the final state update via updateGlobalStateAndNotify.
     return Effect.async<AppExitInfo>((resume) => {
-        const pid = childProcess.pid;
-
-        // Ensure PID exists before attaching listeners
-        if (pid === undefined) {
-            console.error(
-                `Cannot watch process for ${appState.configId} (Instance: ${appState.launchInstanceId}) - PID is undefined.`,
-            );
-            // Immediately resolve with Unknown error if PID is missing
-            resume(Effect.succeed({ type: AppExitResult.Unknown }));
-            return; // Don't attach listeners
-        }
-
         const handleExit = (
             code: number | null,
             signal: NodeJS.Signals | null,
@@ -132,7 +119,10 @@ const checkPid = (
 
 const launchAppEffect = (
     config: AppConfig,
-): Effect.Effect<AppStateInfo, InvalidCommandError | SpawnError | AppAlreadyRunningError> => {
+): Effect.Effect<
+    AppStateInfo,
+    InvalidCommandError | SpawnError | AppAlreadyRunningError
+> => {
     const configId = config.id;
     const launchInstanceId = randomUUID();
 
@@ -140,21 +130,20 @@ const launchAppEffect = (
     const manageProcessLifecycle = (
         appState: AppState,
         childProcess: ChildProcess,
+        pid: number,
     ): Effect.Effect<void> =>
         pipe(
-            createProcessWatcherEffect(appState, childProcess),
-            // When the watcher resolves (process exited), update the global state
-            Effect.flatMap((exitInfo) =>
-                Effect.sync(() =>
-                    updateGlobalStateAndNotify(launchInstanceId, exitInfo),
-                ),
+            createProcessWatcherEffect(appState, childProcess, pid),
+            Effect.map((exitInfo) =>
+                updateGlobalStateAndNotify(launchInstanceId, exitInfo),
             ),
-            // Ensure state update happens even if the watcher effect is interrupted (though less likely now)
             Effect.ensuring(
                 Effect.sync(() => {
                     const currentState = launchedApps.get(launchInstanceId);
-                    // If the process watcher didn't update the state (e.g., interrupted before exit), mark as Unknown
-                    if (currentState && currentState.lastExitResult === undefined) {
+                    if (
+                        currentState &&
+                        currentState.lastExitResult === undefined
+                    ) {
                         console.warn(
                             `Process watcher for ${launchInstanceId} finished without exit info. Marking as Unknown.`,
                         );
@@ -171,7 +160,6 @@ const launchAppEffect = (
         Effect.sync(() => {
             const runningApps = getRunningAppsByConfigId(configId);
             if (runningApps.length > 0) {
-                // Fail the effect if already running
                 return Effect.fail(
                     new AppAlreadyRunningError({
                         configId,
@@ -179,12 +167,9 @@ const launchAppEffect = (
                     }),
                 );
             }
-            // Succeed with void if not running
             return Effect.void;
         }),
-        // Use Effect.andThen to proceed only if the previous check succeeded
         Effect.andThen(() => {
-            // parse command
             const parts = config.launchCommand.match(/(?:[^\s"]+|"[^"]*")+/g);
             if (!parts || parts.length === 0) {
                 return Effect.fail(
@@ -198,7 +183,7 @@ const launchAppEffect = (
             return Effect.succeed({ cmd, args });
         }),
         // spawn process
-        Effect.flatMap(({ cmd, args }) =>
+        Effect.andThen(({ cmd, args }) =>
             Effect.try({
                 try: () =>
                     spawn(cmd, args, { stdio: 'ignore', detached: false }),
@@ -211,47 +196,35 @@ const launchAppEffect = (
             }),
         ),
         // try to get PID or spawn error
-        Effect.flatMap((childProcess) =>
+        Effect.andThen((childProcess) =>
             pipe(
                 checkPid(config, childProcess),
                 Effect.map((pid) => ({ childProcess, pid })),
             ),
         ),
         // fork the process lifecycle management effect
-        Effect.flatMap(({ childProcess, pid }) => {
+        Effect.andThen(({ childProcess, pid }) => {
             const appState: AppState = {
                 launchInstanceId,
                 configId: config.id,
                 pid,
-                // lastExitResult is initially undefined
             };
-            // Fork the watcher effect. We don't need the fiber itself anymore.
             return pipe(
-                Effect.forkDaemon(manageProcessLifecycle(appState, childProcess)),
-                Effect.map(() => appState), // Return the initial state after forking
+                Effect.forkDaemon(
+                    manageProcessLifecycle(appState, childProcess, pid),
+                ),
+                Effect.map(() => appState),
             );
         }),
         // create and store initial state, then notify listeners
-        Effect.map((appState) => insertGlobalStateAndNotify(appState)),
-        // Map the internal AppState back to AppStateInfo for the caller
-        Effect.map(
-            (appState): AppStateInfo => ({
-                configId: appState.configId,
-                launchInstanceId: appState.launchInstanceId,
-                pid: appState.pid,
-                exitResult: null, // Indicate running state to caller
-            }),
-        ),
+        Effect.andThen((appState) => insertGlobalStateAndNotify(appState)),
     );
 };
 
 export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     const effect = launchAppEffect(config);
-    // Run the effect and handle potential errors
     return Effect.runPromise(effect);
 }
-
-// --- killApp Implementation ---
 
 const killAppEffect = (
     launchInstanceId: LaunchInstanceId,
@@ -260,16 +233,16 @@ const killAppEffect = (
     AppNotFoundError | AppAlreadyExitedError | KillError
 > => {
     return pipe(
-        // 1. Find the AppState
+        // TODO: technically we can kill other app with this due to a race condition if pid is reused before our watcher sees that app has exited
         Effect.sync(() => launchedApps.get(launchInstanceId)),
-        Effect.flatMap((appState) =>
+        Effect.andThen((appState) =>
             appState
                 ? Effect.succeed(appState)
                 : Effect.fail(new AppNotFoundError({ launchInstanceId })),
         ),
-        // 2. Check if already exited
-        Effect.flatMap((appState) =>
-            appState.lastExitResult !== undefined // Check if undefined (meaning running)
+        // check if already exited
+        Effect.andThen((appState) =>
+            appState.lastExitResult !== undefined
                 ? Effect.fail(
                       new AppAlreadyExitedError({
                           launchInstanceId,
@@ -278,14 +251,13 @@ const killAppEffect = (
                   )
                 : Effect.succeed(appState),
         ),
-        // 3. Attempt to send SIGKILL
-        Effect.flatMap((appState) =>
+        // attempt to send SIGKILL
+        Effect.andThen((appState) =>
             Effect.try({
                 try: () => {
                     console.log(
                         `Attempting to kill process PID ${appState.pid} for instance ${launchInstanceId} with SIGKILL.`,
                     );
-                    // process.kill returns true if successful, throws error otherwise
                     const success = process.kill(appState.pid, 'SIGKILL');
                     if (!success) {
                         // This case might be rare, often throws error instead
@@ -323,8 +295,6 @@ const killAppEffect = (
                 },
             }),
         ),
-        // Ensure the effect returns void on success
-        Effect.asVoid,
     );
 };
 
