@@ -1,7 +1,11 @@
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { Effect } from 'effect';
 import { UnknownException } from 'effect/Cause';
-import { mapFsError, type FsError } from './errors.js';
+import {
+    mapFsError,
+    type FsError,
+    FsNoSuchFileOrDirError,
+} from './errors.js';
 import constants from 'node:constants';
 
 export function readFileEffect(
@@ -40,14 +44,16 @@ export function writeFileEffect(
     });
 }
 
-export const fileExists = (filePath: string): Effect.Effect<boolean> =>
-    Effect.async((resume) => {
-        access(filePath, constants.F_OK);
-    });
-
-Effect.promise(() =>
-    fs
-        .access(filePath, fs.constants.F_OK)
-        .then(() => true)
-        .catch(() => false),
-);
+export const fileExists = (
+    filePath: string,
+): Effect.Effect<
+    boolean,
+    Exclude<FsError, FsNoSuchFileOrDirError> | UnknownException
+> =>
+    Effect.tryPromise({
+        try: () => access(filePath, constants.F_OK),
+        catch: mapFsError,
+    }).pipe(
+        Effect.map(() => true),
+        Effect.catchTag('FsNoSuchFileOrDirError', () => Effect.succeed(false)),
+    );
