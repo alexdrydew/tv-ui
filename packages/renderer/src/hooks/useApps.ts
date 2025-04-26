@@ -13,6 +13,7 @@ import {
     getEnv,
     onAppUpdate,
     onConfigUpdate,
+    watchConfigFile, // Import the new function
 } from '@app/preload';
 
 export function useAppConfigs(configFileName: string): {
@@ -45,7 +46,23 @@ export function useAppConfigs(configFileName: string): {
             debug('Removing config update listener');
             unsubscribe();
         };
-    }, []);
+    }, []); // Empty dependency array means this runs once on mount
+
+    // Effect to watch the config file
+    useEffect(() => {
+        if (!configFilePath) {
+            return;
+        }
+
+        debug(`Initiating config file watcher for: ${configFilePath}`);
+        const stopWatching = watchConfigFile(configFilePath);
+
+        // Cleanup function to stop watching when component unmounts or path changes
+        return () => {
+            debug(`Stopping config file watcher for: ${configFilePath}`);
+            stopWatching();
+        };
+    }, [configFilePath]); // Re-run if configFilePath changes
 
     return { configs, configFilePath };
 }
