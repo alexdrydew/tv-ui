@@ -449,7 +449,7 @@ test('Config file watcher updates UI on external change', async ({
     configFilePath,
 }) => {
     const initialAppName = 'Test App';
-    const newAppName = 'Watcher Test App';
+    const newAppName = 'Watcher App';
     const newAppId = 'watcher-test-app';
     const newAppCommand = '/bin/echo Watcher Test';
 

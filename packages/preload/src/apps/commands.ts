@@ -23,8 +23,8 @@ import {
     insertGlobalStateAndNotify,
     getRunningAppsByConfigId,
 } from './state.js';
-import { killProcessEffect } from '../process/index.js'; // Import the new effect
-import { ProcessNotFoundError } from '../process/errors.js'; // Import specific process error
+import { killProcessEffect } from '../process/index.js';
+import { ProcessNotFoundError } from '../process/errors.js';
 
 const createProcessWatcherEffect = (
     appState: AppState,
@@ -77,12 +77,9 @@ const createProcessWatcherEffect = (
 
         childProcess.on('exit', handleExit);
         childProcess.on('error', handleError);
-
-        // No explicit cleanup needed here as removeAllListeners is called on exit/error
     });
 };
 
-// helper function to check PID and get error if it is missing
 const checkPid = (
     config: AppConfig,
     childProcess: ChildProcess,
@@ -114,8 +111,7 @@ const checkPid = (
                     ),
                 );
             }
-        }, 50); // Reduced timeout for faster feedback
-        // Cleanup timeout on effect disposal (though less critical here)
+        }, 50);
         return Effect.sync(() => clearTimeout(timeoutId));
     });
 
@@ -128,7 +124,6 @@ const launchAppEffect = (
     const configId = config.id;
     const launchInstanceId = randomUUID();
 
-    // effect responsible for managing the lifecycle of a single process and updating global state
     const manageProcessLifecycle = (
         appState: AppState,
         childProcess: ChildProcess,
@@ -228,8 +223,6 @@ export async function launchApp(config: AppConfig): Promise<AppStateInfo> {
     return Effect.runPromise(effect);
 }
 
-// Removed the local sendSigkill function
-
 const killAppEffect = (
     launchInstanceId: LaunchInstanceId,
 ): Effect.Effect<
@@ -259,18 +252,15 @@ const killAppEffect = (
         Effect.andThen((appState) =>
             pipe(
                 killProcessEffect(appState.pid, 'SIGKILL'),
-                // Map process errors back to KillError for the app layer
                 Effect.mapError((processError) => {
                     let message = `Failed to kill process: ${processError.message}`;
-                    // Add specific message for ESRCH
                     if (processError instanceof ProcessNotFoundError) {
                         message = `Process with PID ${appState.pid} not found (ESRCH). It might have already exited.`;
-                        // Note: We still fail here, relying on the caller or eventual watcher update.
                     }
                     return new KillError({
                         launchInstanceId: appState.launchInstanceId,
                         pid: appState.pid,
-                        cause: processError, // Keep original process error as cause
+                        cause: processError,
                         message,
                     });
                 }),
@@ -282,16 +272,10 @@ const killAppEffect = (
 export async function killApp(
     launchInstanceId: LaunchInstanceId,
 ): Promise<void> {
-    // Run the kill effect
     const effect = killAppEffect(launchInstanceId);
     try {
         await Effect.runPromise(effect);
     } catch (error) {
-        // Log errors from killAppEffect, but don't necessarily rethrow unless needed by caller
         console.error(`Error killing app instance ${launchInstanceId}:`, error);
-        // Rethrow if the caller needs to handle specific kill errors
-        // throw error;
     }
-    // Note: State update (setting lastExitResult) happens asynchronously
-    // when the process watcher detects the 'exit' event triggered by SIGKILL.
 }
