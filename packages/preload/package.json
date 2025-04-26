@@ -3,7 +3,9 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "exports": {
         ".": {
@@ -21,10 +23,12 @@
     "devDependencies": {
         "@app/electron-versions": "*",
         "@types/ini": "^4.1.1",
+        "memfs": "^4.17.0",
         "mlly": "1.7.4",
         "typescript": "5.8.3",
         "vite": "6.2.6",
-        "vite-tsconfig-paths": "^5.1.4"
+        "vite-tsconfig-paths": "^5.1.4",
+        "vitest": "^2.0.4"
     },
     "dependencies": {
         "@app/types": "*",

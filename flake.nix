@@ -13,7 +13,6 @@
       system: let
         pkgs = import inputs.nixpkgs {
           inherit system;
-          # overlays = [inputs.rust-overlay.overlays.default];
           overlays = [
             (self: super: {
               nodejs_23 = super.nodejs_23.overrideAttrs (old: {
@@ -26,55 +25,93 @@
             (self: super: {nodejs = super.nodejs_23;})
           ];
         };
-        inherit (pkgs) lib;
-      in {
-        shellHook = ''
-          $SHELL
-        '';
-        devShell = pkgs.mkShell rec {
-          env = {
-            # this somehow fixes https://github.com/rust-lang/rust-analyzer/issues/19135
-            RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
-          };
+        inherit (pkgs) lib stdenv;
 
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            gobject-introspection
-            cargo
-            cargo-tauri
-            nodejs_23
-          ];
+        # Common packages for both Linux and Darwin
+        commonPackages = with pkgs; [
+          pkg-config
+          gobject-introspection
+          cargo
+          cargo-tauri
+          nodejs_23 # nodejs alias is set via overlay
 
-          buildInputs = with pkgs;
-            [
-              at-spi2-atk
-              atkmm
-              cairo
-              gdk-pixbuf
-              glib
-              gtk3
-              harfbuzz
-              librsvg
-              libsoup_3
-              pango
-              openssl
+          rustup
+          lld
 
-              rustup
-              lld
-              # (pkgs.rust-bin.stable.latest.default.override {extensions = ["rust-src" "rust-analyzer"];})
+          nodePackages.pnpm
+          nodePackages.typescript
+          nodePackages.typescript-language-server
+        ];
 
-              nodePackages.pnpm
-              nodePackages.typescript
-              nodePackages.typescript-language-server
-            ]
-            ++ (lib.optionals stdenv.isLinux [webkitgtk_4_1 patchelf]);
+        # Linux specific packages
+        linuxPackages = with pkgs; [
+          at-spi2-atk
+          atkmm
+          cairo
+          gdk-pixbuf
+          glib
+          gtk3
+          harfbuzz
+          librsvg
+          libsoup_3
+          pango
+          openssl # Needed by gtk3 etc. on Linux
 
-          LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}";
+          webkitgtk_4_1
+          patchelf
+          nss
+          nspr
+          dbus
+          cups
+          xorg.libX11
+          xorg.libXcomposite
+          xorg.libXdamage
+          xorg.libXext
+          xorg.libXfixes
+          xorg.libXrandr
+          xorg.libxcb
+          mesa
+          expat
+          libxkbcommon
+          alsa-lib
+          systemd
+          libxcrypt
+          libxcrypt-legacy
+          binutils
+        ];
 
-          shellHook = ''
-            export PATH="${pkgs.nodejs_23}/bin:$PATH"
-          '';
+        # Darwin specific packages
+        darwinPackages = with pkgs; [
+        ];
+
+        # Common environment variables
+        commonEnv = {
+          # Fixes https://github.com/rust-lang/rust-analyzer/issues/19135
+          RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
         };
+      in {
+        devShells =
+          lib.optionalAttrs stdenv.isLinux {
+            default =
+              (pkgs.buildFHSUserEnv {
+                name = "tv-ui-electron-linux";
+                targetPkgs = pkgs: commonPackages ++ linuxPackages;
+                runScript = "zsh"; # Or bash, depending on preference
+              })
+              .env;
+          }
+          // lib.optionalAttrs stdenv.isDarwin {
+            default = pkgs.mkShell {
+              name = "tv-ui-electron-darwin";
+              nativeBuildInputs = commonPackages ++ darwinPackages;
+              # LD_LIBRARY_PATH is generally not needed/used on Darwin like on Linux
+              shellHook = ''
+                export PATH="${pkgs.nodejs_23}/bin:$PATH"
+                # Any other Darwin-specific shell setup
+              '';
+              env = commonEnv; # Pass common environment variables
+            };
+          };
       }
     );
 }
