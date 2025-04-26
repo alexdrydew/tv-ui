@@ -13,11 +13,6 @@ export { onConfigUpdate, onAppUpdate } from './events.js';
 
 export { killApp } from './apps/commands.js';
 export type { LaunchInstanceId };
-// FIX: Remove incorrect export that caused TS error
-// export { getDesktopEntries } from './linux/desktopEntries.js';
-
-// FIX: Export the main suggestion function from its correct location.
-// Assuming the build process handles the .js extension, otherwise use './configs/suggestions/index.ts'
 export { suggestAppConfigs } from './configs/suggestions/index.js';
 
 /**
