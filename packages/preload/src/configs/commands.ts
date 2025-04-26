@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { invokeConfigUpdateListeners } from '../events.js';
 import { ConfigNotFoundError } from './errors.js';
 import { readConfigsFromFile, writeConfigsToFileEffect } from './fs.js';
+import { suggestAppConfigs } from './suggestions/index.js'; // Import the effect
 
 let configWatcher: fs.FSWatcher | null = null;
 let debounceTimeout: NodeJS.Timeout | null = null;
@@ -97,7 +98,10 @@ export function watchConfigFile(configPath: string): () => void {
             }
         });
     } catch (error) {
-        console.error(`Failed to start config watcher for ${configPath}:`, error);
+        console.error(
+            `Failed to start config watcher for ${configPath}:`,
+            error,
+        );
         return () => {};
     }
 
@@ -135,5 +139,10 @@ export async function removeAppConfig(
             ),
         ),
     );
+    return Effect.runPromise(effect);
+}
+
+export async function getSuggestedAppConfigs(): Promise<AppConfig[]> {
+    const effect = suggestAppConfigs();
     return Effect.runPromise(effect);
 }

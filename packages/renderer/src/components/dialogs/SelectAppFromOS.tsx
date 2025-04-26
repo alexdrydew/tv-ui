@@ -1,9 +1,9 @@
 import { AppConfig } from '@app/types';
 import { Button } from '../ui/button';
 import { useEffect, useState } from 'react';
-import { Effect } from 'effect';
 import { cn } from '@/lib/utils';
 import { Loader2Icon, PackageIcon } from 'lucide-react'; // Using PackageIcon as a placeholder
+import { getSuggestedAppConfigs } from '@app/preload';
 
 interface SelectAppFromOSProps {
     onSelect: (config: AppConfig) => Promise<void>; // Callback when an app is selected
@@ -22,9 +22,7 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
             setIsLoading(true);
             setError(null);
             try {
-                const result = await Effect.runPromise(
-                    window.appApi.suggestAppConfigs(),
-                );
+                const result = await getSuggestedAppConfigs();
                 setSuggestions(result);
             } catch (err) {
                 console.error('Failed to fetch app suggestions:', err);
@@ -93,9 +91,10 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                 </div>
             )}
             {suggestions.length > MAX_SUGGESTIONS_TO_SHOW && (
-                 <p className="text-sm text-muted-foreground mb-4 text-center">
-                    Showing first {MAX_SUGGESTIONS_TO_SHOW} of {suggestions.length} apps found. Pagination coming soon.
-                 </p>
+                <p className="text-sm text-muted-foreground mb-4 text-center">
+                    Showing first {MAX_SUGGESTIONS_TO_SHOW} of{' '}
+                    {suggestions.length} apps found. Pagination coming soon.
+                </p>
             )}
 
             <div className="flex justify-end gap-2">
