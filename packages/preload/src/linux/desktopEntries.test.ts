@@ -1,31 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Effect } from 'effect';
-import { vol, fs as memfs } from 'memfs'; // Import memfs and its fs export
+import { vol, fs } from 'memfs'; // Import memfs and its fs export
 import path from 'node:path';
+import { getDesktopEntries } from './desktopEntries';
 
-// Mock node:fs and node:fs/promises BEFORE importing the module under test
 vi.mock('node:fs', async () => {
     const memfs = await vi.importActual<typeof import('memfs')>('memfs');
-    return { ...memfs.fs, default: memfs.fs };
+    return { ...fs, default: memfs.fs };
 });
 vi.mock('node:fs/promises', async () => {
     const memfs = await vi.importActual<typeof import('memfs')>('memfs');
     return { ...memfs.fs.promises, default: memfs.fs.promises };
 });
-vi.mock('node:os', async () => {
-    const os = await vi.importActual<typeof import('node:os')>('node:os');
-    return {
-        ...os,
-        homedir: () => MOCK_HOME, // Ensure homedir is mocked correctly
-        default: {
-            ...os,
-            homedir: () => MOCK_HOME,
-        },
-    };
-});
-
-// Now import the module under test
-import { getDesktopEntries } from './desktopEntries';
 
 const MOCK_HOME = '/home/testuser';
 const USR_SHARE_APPS = '/usr/share/applications';
@@ -56,8 +42,8 @@ const MOCK_DESKTOP_FILE_INVALID_INI = `[Desktop Entry\nName=Invalid`;
 
 describe('getDesktopEntries', () => {
     beforeEach(() => {
-        vol.reset(); // Clear the virtual file system
-        vi.clearAllMocks(); // Clear any Vitest mocks/spies
+        vol.reset();
+        vi.clearAllMocks();
         // Reset environment variables for each test
         vi.stubEnv('HOME', MOCK_HOME); // Already mocked via os.homedir, but good practice
         vi.stubEnv('XDG_DATA_DIRS', '');
@@ -114,10 +100,7 @@ describe('getDesktopEntries', () => {
                     id: 'app1',
                     name: 'Valid App',
                     icon: 'valid-icon',
-                    filePath: path.resolve(
-                        USR_SHARE_APPS,
-                        'app1.desktop',
-                    ),
+                    filePath: path.resolve(USR_SHARE_APPS, 'app1.desktop'),
                 }),
                 expect.objectContaining({
                     id: 'app2',
@@ -178,10 +161,7 @@ describe('getDesktopEntries', () => {
                 expect.objectContaining({
                     id: 'app4',
                     name: 'Valid App 4',
-                    filePath: path.resolve(
-                        customDataHomeApps,
-                        'app4.desktop',
-                    ),
+                    filePath: path.resolve(customDataHomeApps, 'app4.desktop'),
                 }),
                 expect.objectContaining({
                     id: 'app5',
@@ -211,10 +191,7 @@ describe('getDesktopEntries', () => {
             expect.objectContaining({
                 id: 'visible',
                 name: 'Valid App',
-                filePath: path.resolve(
-                    USR_SHARE_APPS,
-                    'visible.desktop',
-                ),
+                filePath: path.resolve(USR_SHARE_APPS, 'visible.desktop'),
             }),
         );
     });
