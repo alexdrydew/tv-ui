@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Effect } from 'effect';
-import { vol, fs } from 'memfs'; // Import memfs and its fs export
+import { vol, fs } from 'memfs';
 import path from 'node:path';
 import { getDesktopEntries } from './desktopEntries';
 
@@ -44,28 +44,25 @@ describe('getDesktopEntries', () => {
     beforeEach(() => {
         vol.reset();
         vi.clearAllMocks();
-        // Reset environment variables for each test
-        vi.stubEnv('HOME', MOCK_HOME); // Already mocked via os.homedir, but good practice
+        vi.stubEnv('HOME', MOCK_HOME);
         vi.stubEnv('XDG_DATA_DIRS', '');
         vi.stubEnv('XDG_DATA_HOME', '');
-        // Restore any console mocks if needed
-        vi.restoreAllMocks(); // Ensures console spies are reset
+        vi.restoreAllMocks();
     });
 
     afterEach(() => {
         vol.reset();
-        vi.unstubAllEnvs(); // Unstub environment variables
+        vi.unstubAllEnvs();
     });
 
     it('should return an empty array if no standard directories exist', async () => {
-        // No directories created in vol
         const result = await Effect.runPromise(getDesktopEntries());
         expect(result).toEqual([]);
     });
 
     it('should return an empty array if standard directories exist but are empty', async () => {
         vol.fromJSON({
-            [USR_SHARE_APPS]: null, // Create empty directory
+            [USR_SHARE_APPS]: null,
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
@@ -80,11 +77,10 @@ describe('getDesktopEntries', () => {
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'app1.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
-            [path.join(USR_SHARE_APPS, 'otherfile.txt')]: 'some text', // Should be ignored
-            [USR_LOCAL_SHARE_APPS]: null, // Ensure dir exists even if empty
+            [path.join(USR_SHARE_APPS, 'otherfile.txt')]: 'some text',
+            [USR_LOCAL_SHARE_APPS]: null,
             [path.join(HOME_LOCAL_SHARE_APPS, 'app2.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Valid App 2'),
-            // Add a subdirectory with a file - should now be found
             [subDirFilePath]: MOCK_DESKTOP_FILE_VALID.replace(
                 'Valid App',
                 'Valid App 3',
@@ -93,7 +89,7 @@ describe('getDesktopEntries', () => {
 
         const result = await Effect.runPromise(getDesktopEntries());
 
-        expect(result).toHaveLength(3); // Now expects 3 entries
+        expect(result).toHaveLength(3);
         expect(result).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
@@ -115,7 +111,7 @@ describe('getDesktopEntries', () => {
                     id: 'app3',
                     name: 'Valid App 3',
                     icon: 'valid-icon',
-                    filePath: path.resolve(subDirFilePath), // Check the path from the subdirectory
+                    filePath: path.resolve(subDirFilePath),
                 }),
             ]),
         );
@@ -124,33 +120,29 @@ describe('getDesktopEntries', () => {
     it('should use XDG_DATA_DIRS and XDG_DATA_HOME if set', async () => {
         const customDataHome = path.join(MOCK_HOME, 'custom-data');
         const optShare = '/opt/share';
-        const usrShare = '/usr/share'; // Base directory
+        const usrShare = '/usr/share';
 
-        // Set XDG env vars
-        vi.stubEnv('XDG_DATA_DIRS', `${optShare}:${usrShare}`); // Colon-separated base dirs
+        vi.stubEnv('XDG_DATA_DIRS', `${optShare}:${usrShare}`);
         vi.stubEnv('XDG_DATA_HOME', customDataHome);
 
-        // Expected paths where 'applications' will be appended
         const optShareApps = path.join(optShare, 'applications');
         const customDataHomeApps = path.join(customDataHome, 'applications');
-        const usrShareApps = path.join(usrShare, 'applications'); // Correct standard path
+        const usrShareApps = path.join(usrShare, 'applications');
 
         vol.fromJSON({
             [path.join(optShareApps, 'app3.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Valid App 3'),
             [path.join(customDataHomeApps, 'app4.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Valid App 4'),
-            // File in the standard /usr/share/applications (picked up via XDG_DATA_DIRS)
             [path.join(usrShareApps, 'app5.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Valid App 5'),
-            // Ensure default non-XDG dirs don't interfere if they exist but are empty
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
 
         const result = await Effect.runPromise(getDesktopEntries());
 
-        expect(result).toHaveLength(3); // Expect entries from all 3 XDG locations
+        expect(result).toHaveLength(3);
         expect(result).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
@@ -177,16 +169,16 @@ describe('getDesktopEntries', () => {
             [path.join(USR_SHARE_APPS, 'visible.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
             [path.join(USR_SHARE_APPS, 'hidden.desktop')]:
-                MOCK_DESKTOP_FILE_NODISPLAY, // Contains NoDisplay=true
+                MOCK_DESKTOP_FILE_NODISPLAY,
             [path.join(USR_SHARE_APPS, 'link.desktop')]:
-                MOCK_DESKTOP_FILE_NOT_APP, // Type=Link
+                MOCK_DESKTOP_FILE_NOT_APP,
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
 
         const result = await Effect.runPromise(getDesktopEntries());
 
-        expect(result).toHaveLength(1); // Should only contain 'visible.desktop'
+        expect(result).toHaveLength(1);
         expect(result[0]).toEqual(
             expect.objectContaining({
                 id: 'visible',
@@ -205,57 +197,34 @@ describe('getDesktopEntries', () => {
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
-        // Spy on console.debug to ensure the error was logged during parsing
-        // const debugSpy = vi
-        //     .spyOn(console, 'debug')
-        //     .mockImplementation(() => {});
 
         const result = await Effect.runPromise(getDesktopEntries());
 
-        // Should only return the valid entry
         expect(result).toHaveLength(1);
         expect(result[0]).toEqual(
             expect.objectContaining({ id: 'good', name: 'Valid App' }),
         );
-
-        // Removed checks for specific debug logs as they were brittle
-        // The fact that the result is correct implies error handling worked.
-
-        // debugSpy.mockRestore(); // No longer needed
     });
 
     it('should handle inaccessible directories gracefully', async () => {
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'app1.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
-            // Do not create USR_LOCAL_SHARE_APPS or HOME_LOCAL_SHARE_APPS
-            // memfs readdir will throw ENOENT, which findDesktopFiles should catch.
         });
-        // Spy on console.debug, which findDesktopFiles uses for skipping dirs
-        // const debugSpy = vi
-        //     .spyOn(console, 'debug')
-        //     .mockImplementation(() => {});
-        // Spy on console.warn for unexpected errors (shouldn't be called)
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         const result = await Effect.runPromise(getDesktopEntries());
 
-        expect(result).toHaveLength(1); // Only app1.desktop should be found
+        expect(result).toHaveLength(1);
         expect(result[0].id).toBe('app1');
 
-        // Removed checks for specific debug logs as they were brittle
-        // The fact that the result is correct implies error handling worked.
-
-        // Check that the warning for unexpected errors was NOT called
         expect(warnSpy).not.toHaveBeenCalled();
 
-        // debugSpy.mockRestore(); // No longer needed
         warnSpy.mockRestore();
     });
 
-    // Test remains useful to verify memfs mock behavior
     it('should correctly handle readdir with withFileTypes via mock', async () => {
-        const fsPromises = await import('node:fs/promises'); // Import the mocked version
+        const fsPromises = await import('node:fs/promises');
         const testDir = '/readdir-test';
         vol.fromJSON({
             [path.join(testDir, 'file.txt')]: 'hello',
