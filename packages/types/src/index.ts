@@ -64,9 +64,10 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
 }
 
 // Represents view information parsed from a Linux .desktop file for display
-export interface DesktopEntryView {
-    id: string; // Typically the file name without .desktop
-    name: string;
-    icon?: string; // Optional icon name or path
-    filePath: string; // Full path to the .desktop file
-}
+// This type is removed as requested.
+// export interface DesktopEntryView {
+//     id: string; // Typically the file name without .desktop
+//     name: string;
+//     icon?: string; // Optional icon name or path
+//     filePath: string; // Full path to the .desktop file
+// }

@@ -1,4 +1,3 @@
-import { DesktopEntryView } from '@app/types';
 import { Effect, pipe } from 'effect';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -10,7 +9,14 @@ import { AppConfigSchema } from '@app/types/src'; // Import AppConfigSchema for 
 import { Schema } from '@effect/schema';
 
 // Define an extended type locally for parsing, including the exec command
-type DesktopEntryInternal = DesktopEntryView & { exec?: string };
+// This replaces the need for DesktopEntryView from @app/types
+type DesktopEntryInternal = {
+    id: string; // Typically the file name without .desktop
+    name: string;
+    icon?: string; // Optional icon name or path
+    filePath: string; // Full path to the .desktop file
+    exec?: string; // The command from the Exec field
+};
 
 function parseDesktopFile(
     filePath: string,
