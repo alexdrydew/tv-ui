@@ -13,6 +13,7 @@ export { onConfigUpdate, onAppUpdate } from './events.js';
 
 export { killApp } from './apps/commands.js';
 export type { LaunchInstanceId };
+export { getDesktopEntries } from './linux/desktopEntries.js';
 
 /**
  * Retrieves the value of an environment variable.
