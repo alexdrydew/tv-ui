@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Effect } from 'effect';
 import { vol, fs } from 'memfs';
 import path from 'node:path';
-import { getDesktopEntries } from './desktopEntries';
+import { getDesktopEntries } from './linux.js'; // Changed import path
 
 vi.mock('node:fs', async () => {
     const memfs = await vi.importActual<typeof import('memfs')>('memfs');
