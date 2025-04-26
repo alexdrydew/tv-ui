@@ -67,7 +67,25 @@
               nodePackages.typescript
               nodePackages.typescript-language-server
             ]
-            ++ (lib.optionals stdenv.isLinux [webkitgtk_4_1 patchelf]);
+            ++ (lib.optionals stdenv.isLinux [
+              webkitgtk_4_1
+              patchelf
+              nss
+              nspr
+              dbus
+              cups
+              xorg.libX11
+              xorg.libXcomposite
+              xorg.libXdamage
+              xorg.libXext
+              xorg.libXfixes
+              xorg.libXrandr
+              xorg.libxcb
+              mesa
+              expat
+              libxkbcommon
+              alsa-lib
+            ]);
 
           LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}";
 
