@@ -1,5 +1,5 @@
 import { versions } from './versions.js';
-import type { LaunchInstanceId } from '@app/types'; // Import LaunchInstanceId type
+import type { LaunchInstanceId } from '@app/types';
 
 export { versions };
 export {
@@ -8,12 +8,11 @@ export {
     removeAppConfig,
     watchConfigFile,
 } from './configs/commands.js';
-export { launchApp } from './apps/commands.js'; // killApp signature changed
+export { launchApp } from './apps/commands.js';
 export { onConfigUpdate, onAppUpdate } from './events.js';
 
-// Explicitly export killApp with the correct signature
 export { killApp } from './apps/commands.js';
-export type { LaunchInstanceId }; // Export type if needed elsewhere
+export type { LaunchInstanceId };
 
 /**
  * Retrieves the value of an environment variable.

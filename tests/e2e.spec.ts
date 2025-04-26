@@ -24,15 +24,11 @@ const test = base.extend<TestFixtures>({
             const configFilePath = join(tempConfigDir, 'tv-ui.json');
             const configDir = dirname(configFilePath);
 
-            // Use a command that stays running for a short time (sleep 1)
-            // Note: 'sleep' might not be available on all Windows systems by default.
-            // Consider 'timeout /t 1 /nobreak > NUL' for Windows or a node script.
-            // Using 'sleep 1' for simplicity, assuming a Unix-like test environment.
             const sampleAppConfig: AppConfig[] = [
                 {
                     id: 'test-app-1',
                     name: 'Test App',
-                    launchCommand: 'sleep 1', // Changed from sleep 5 to sleep 1
+                    launchCommand: 'sleep 1',
                     args: [],
                     icon: undefined,
                 },
@@ -54,10 +50,8 @@ const test = base.extend<TestFixtures>({
                     `Setup failed: Could not create config file at ${configFilePath}`,
                 );
             }
-
             await use(configFilePath);
 
-            // Cleanup
             try {
                 await rm(tempConfigDir, { recursive: true, force: true });
                 console.log(
@@ -73,7 +67,6 @@ const test = base.extend<TestFixtures>({
     ],
     electronApp: [
         async ({ configFilePath }, use) => {
-            // Depend on configFilePath
             let executablePattern = 'dist/*/root{,.*}';
             if (platform === 'darwin') {
                 executablePattern += '/Contents/*/root';
@@ -83,8 +76,6 @@ const test = base.extend<TestFixtures>({
             if (!executablePath) {
                 throw new Error('App Executable path not found');
             }
-
-            // Config file setup is now handled by the configFilePath fixture
 
             const electronApp = await electron.launch({
                 executablePath: executablePath,
@@ -109,7 +100,6 @@ const test = base.extend<TestFixtures>({
     ],
 
     page: async ({ electronApp }, use) => {
-        // page fixture remains the same
         const page = await electronApp.firstWindow();
         page.on('pageerror', (error) => {
             console.error(error);
@@ -250,7 +240,7 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         runningIndicator,
         'Running indicator should not be visible before delete',
-    ).not.toBeVisible({ timeout: 1000 }); // Short timeout, it shouldn't be there
+    ).not.toBeVisible({ timeout: 1000 });
 
     await appTileButton.click({ button: 'right' });
     const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete app' });
@@ -301,7 +291,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         runningIndicator,
         'Running indicator should not be visible before edit',
-    ).not.toBeVisible({ timeout: 1000 }); // Short timeout
+    ).not.toBeVisible({ timeout: 1000 });
 
     await appTileButton.click({ button: 'right' });
     const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
@@ -319,7 +309,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         dialog.getByLabel('Launch Command'),
         'Dialog "Launch Command" should be pre-filled',
-    ).toHaveValue('sleep 1'); // Check against the actual initial command (now sleep 1)
+    ).toHaveValue('sleep 1');
     await dialog.getByLabel('App Name').fill(editedAppName);
     await dialog.getByLabel('Launch Command').fill(editedLaunchCommand);
 
@@ -394,13 +384,12 @@ test('Launch app via UI click', async ({ page }) => {
     await expect(
         runningIndicator,
         'Running indicator should become visible after launch',
-    ).toBeVisible({ timeout: 2000 }); // Allow some time for the process to start and state update
+    ).toBeVisible({ timeout: 2000 });
 
-    // Wait for the app to naturally exit (based on 'sleep 1') and indicator to disappear
     await expect(
         runningIndicator,
         'Running indicator should disappear after app exits naturally',
-    ).not.toBeVisible({ timeout: 2000 }); // Adjusted timeout: slightly longer than sleep 1 duration
+    ).not.toBeVisible({ timeout: 2000 });
 });
 
 test('Kill running app via context menu', async ({ page }) => {
@@ -426,7 +415,6 @@ test('Kill running app via context menu', async ({ page }) => {
         'Running indicator should be visible after launch',
     ).toBeVisible({ timeout: 2000 });
 
-    // Right-click to open context menu
     await appTileButton.click({ button: 'right' });
     const killMenuItem = page.getByRole('menuitem', { name: 'Kill' });
     await expect(
@@ -441,7 +429,7 @@ test('Kill running app via context menu', async ({ page }) => {
     await expect(
         runningIndicator,
         'Running indicator should disappear after killing',
-    ).not.toBeVisible({ timeout: 2000 }); // Should be faster than natural exit
+    ).not.toBeVisible({ timeout: 2000 });
 });
 
 test('Config file watcher updates UI on external change', async ({
@@ -453,7 +441,6 @@ test('Config file watcher updates UI on external change', async ({
     const newAppId = 'watcher-test-app';
     const newAppCommand = '/bin/echo Watcher Test';
 
-    // 1. Verify initial state
     const initialAppTile = page.getByRole('button', { name: initialAppName });
     const newAppTile = page.getByRole('button', { name: newAppName });
 
@@ -466,7 +453,6 @@ test('Config file watcher updates UI on external change', async ({
         `New app "${newAppName}" should not be visible initially`,
     ).not.toBeVisible();
 
-    // 2. Modify the config file externally
     expect(
         configFilePath,
         'configFilePath from fixture should be defined',
@@ -482,7 +468,6 @@ test('Config file watcher updates UI on external change', async ({
     };
     const updatedConfigs = [...currentConfigs, newConfig];
 
-    // Add a small delay before writing to ensure the watcher is ready
     await page.waitForTimeout(500);
 
     await writeFile(
@@ -492,17 +477,15 @@ test('Config file watcher updates UI on external change', async ({
     );
     console.log(`Updated config file externally: ${configFilePath}`);
 
-    // 3. Verify UI update (new app tile appears)
     await expect(
         newAppTile,
         `New app "${newAppName}" should become visible after config file change`,
-    ).toBeVisible({ timeout: 5000 }); // Allow time for watcher debounce and UI update
+    ).toBeVisible({ timeout: 5000 });
 
-    // 4. (Optional) Modify again to remove the initial app
     const configsWithoutInitial = updatedConfigs.filter(
         (config) => config.name !== initialAppName,
     );
-    await page.waitForTimeout(500); // Delay before next write
+    await page.waitForTimeout(500);
     await writeFile(
         configFilePath!,
         JSON.stringify(configsWithoutInitial, null, 2),
@@ -510,16 +493,13 @@ test('Config file watcher updates UI on external change', async ({
     );
     console.log(`Removed initial app from config file: ${configFilePath}`);
 
-    // 5. Verify UI update (initial app tile disappears)
-    // Check that the locator for the initial app name now finds zero elements
     await expect(
-        initialAppTile, // This is page.getByRole('button', { name: initialAppName })
+        initialAppTile,
         `Locator for initial app "${initialAppName}" should find 0 elements after removal`,
     ).toHaveCount(0, { timeout: 5000 });
 
-    // Verify the new app tile is still present and visible
     await expect(
-        newAppTile, // This is page.getByRole('button', { name: newAppName })
+        newAppTile,
         `New app "${newAppName}" should still be visible after initial app removal`,
     ).toBeVisible();
 });

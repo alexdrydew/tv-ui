@@ -86,12 +86,11 @@ export function watchConfigFile(configPath: string): () => void {
 
         configWatcher.on('error', (error) => {
             console.error(`Config watcher error for ${configPath}:`, error);
-            // Optionally try to restart the watcher or handle specific errors
         });
 
         configWatcher.on('close', () => {
             console.log(`Config watcher closed for: ${configPath}`);
-            configWatcher = null; // Ensure watcher state is reset
+            configWatcher = null;
             if (debounceTimeout) {
                 clearTimeout(debounceTimeout);
                 debounceTimeout = null;
@@ -99,15 +98,13 @@ export function watchConfigFile(configPath: string): () => void {
         });
     } catch (error) {
         console.error(`Failed to start config watcher for ${configPath}:`, error);
-        // Rethrow or handle as appropriate, maybe return a no-op cleanup
-        return () => {}; // Return a no-op cleanup function on error
+        return () => {};
     }
 
     const stopWatching = () => {
         if (configWatcher) {
             console.log(`Stopping config file watcher for: ${configPath}`);
             configWatcher.close();
-            // configWatcher is set to null in the 'close' event handler
         }
     };
 
@@ -118,13 +115,6 @@ export async function removeAppConfig(
     configIdToRemove: AppConfigId,
     configPath: string,
 ): Promise<void> {
-    // const runningState = launchedApps.get(configIdToRemove);
-    // if (runningState && runningState.exitResult === null) {
-    //     throw new Error(
-    //         `Cannot remove config for running app: ${configIdToRemove}`,
-    //     );
-    // }
-
     const effect = pipe(
         readConfigsFromFile(configPath),
         Effect.flatMap((configsRecord) => {
