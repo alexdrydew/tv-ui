@@ -127,11 +127,7 @@ function getXdgDataHome(): string {
     return result;
 }
 
-// This function now effectively returns DesktopEntryInternal[]
-export function getDesktopEntries(): Effect.Effect<
-    DesktopEntryInternal[], // Return internal type
-    never
-> {
+export function getDesktopEntries(): DesktopEntryInternal[] {
     const xdgDataDirs = getXdgDataDirs();
     const xdgDataHome = getXdgDataHome();
 
@@ -144,7 +140,7 @@ export function getDesktopEntries(): Effect.Effect<
         ...new Set(searchDirs.map((dir) => path.resolve(dir))),
     ];
 
-    return pipe(
+    const effect = pipe(
         Effect.forEach(
             uniqueSearchDirs,
             (dir) =>
@@ -182,4 +178,5 @@ export function getDesktopEntries(): Effect.Effect<
             return Effect.succeed([]);
         }),
     );
+    return Effect.runSync(effect);
 }

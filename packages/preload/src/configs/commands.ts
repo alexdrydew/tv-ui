@@ -143,6 +143,5 @@ export async function removeAppConfig(
 }
 
 export async function getSuggestedAppConfigs(): Promise<AppConfig[]> {
-    const effect = suggestAppConfigs();
-    return Effect.runPromise(effect);
+    return await suggestAppConfigs();
 }
