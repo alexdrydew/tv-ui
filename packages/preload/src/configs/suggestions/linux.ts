@@ -62,7 +62,10 @@ function parseDesktopFile(
             return result;
         }),
         Effect.catchAll((_error) => {
-            // console.debug(`Skipping desktop entry due to error reading/parsing ${filePath}:`, _error);
+            console.info(
+                `Skipping desktop entry due to error reading/parsing ${filePath}:`,
+                _error,
+            );
             return Effect.succeed(null);
         }),
     );
