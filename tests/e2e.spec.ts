@@ -17,7 +17,6 @@ type TestFixtures = {
 };
 
 const test = base.extend<TestFixtures>({
-    // New fixture for config file path setup and teardown
     configFilePath: [
         async ({}, use) => {
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
