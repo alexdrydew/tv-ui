@@ -6,7 +6,7 @@ export {
     getAppConfigs,
     upsertAppConfig,
     removeAppConfig,
-    watchConfigFile, // Add watchConfigFile
+    watchConfigFile,
 } from './configs/commands.js';
 export { launchApp } from './apps/commands.js'; // killApp signature changed
 export { onConfigUpdate, onAppUpdate } from './events.js';
