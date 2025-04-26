@@ -1,7 +1,8 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { Effect } from 'effect';
 import { UnknownException } from 'effect/Cause';
 import { mapFsError, type FsError } from './errors.js';
+import constants from 'node:constants';
 
 export function readFileEffect(
     ...args: Parameters<typeof readFile>
@@ -38,3 +39,15 @@ export function writeFileEffect(
         catch: mapFsError,
     });
 }
+
+export const fileExists = (filePath: string): Effect.Effect<boolean> =>
+    Effect.async((resume) => {
+        access(filePath, constants.F_OK);
+    });
+
+Effect.promise(() =>
+    fs
+        .access(filePath, fs.constants.F_OK)
+        .then(() => true)
+        .catch(() => false),
+);
