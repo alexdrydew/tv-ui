@@ -511,12 +511,15 @@ test('Config file watcher updates UI on external change', async ({
     console.log(`Removed initial app from config file: ${configFilePath}`);
 
     // 5. Verify UI update (initial app tile disappears)
+    // Check that the locator for the initial app name now finds zero elements
     await expect(
-        initialAppTile,
-        `Initial app "${initialAppName}" should disappear after being removed from config`,
-    ).not.toBeVisible({ timeout: 5000 });
+        initialAppTile, // This is page.getByRole('button', { name: initialAppName })
+        `Locator for initial app "${initialAppName}" should find 0 elements after removal`,
+    ).toHaveCount(0, { timeout: 5000 });
+
+    // Verify the new app tile is still present and visible
     await expect(
-        newAppTile,
-        `New app "${newAppName}" should still be visible`,
+        newAppTile, // This is page.getByRole('button', { name: newAppName })
+        `New app "${newAppName}" should still be visible after initial app removal`,
     ).toBeVisible();
 });
