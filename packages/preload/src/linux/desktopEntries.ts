@@ -86,7 +86,7 @@
         ];
 
         // Remove duplicates and ensure paths are absolute (though they should be)
-        const uniqueSearchDirs = [...new Set(searchDirs.map(path.resolve))];
+        const uniqueSearchDirs = [...new Set(searchDirs.map((dir) => path.resolve(dir)))];
 
         console.debug('Searching for .desktop files in:', uniqueSearchDirs);
 
