@@ -443,3 +443,80 @@ test('Kill running app via context menu', async ({ page }) => {
         'Running indicator should disappear after killing',
     ).not.toBeVisible({ timeout: 2000 }); // Should be faster than natural exit
 });
+
+test('Config file watcher updates UI on external change', async ({
+    page,
+    configFilePath,
+}) => {
+    const initialAppName = 'Test App';
+    const newAppName = 'Watcher Test App';
+    const newAppId = 'watcher-test-app';
+    const newAppCommand = '/bin/echo Watcher Test';
+
+    // 1. Verify initial state
+    const initialAppTile = page.getByRole('button', { name: initialAppName });
+    const newAppTile = page.getByRole('button', { name: newAppName });
+
+    await expect(
+        initialAppTile,
+        `Initial app "${initialAppName}" should be visible`,
+    ).toBeVisible();
+    await expect(
+        newAppTile,
+        `New app "${newAppName}" should not be visible initially`,
+    ).not.toBeVisible();
+
+    // 2. Modify the config file externally
+    expect(
+        configFilePath,
+        'configFilePath from fixture should be defined',
+    ).toBeDefined();
+    const currentContent = await readFile(configFilePath!, 'utf-8');
+    const currentConfigs: AppConfig[] = JSON.parse(currentContent);
+
+    const newConfig: AppConfig = {
+        id: newAppId,
+        name: newAppName,
+        launchCommand: newAppCommand,
+        args: [],
+    };
+    const updatedConfigs = [...currentConfigs, newConfig];
+
+    // Add a small delay before writing to ensure the watcher is ready
+    await page.waitForTimeout(500);
+
+    await writeFile(
+        configFilePath!,
+        JSON.stringify(updatedConfigs, null, 2),
+        'utf-8',
+    );
+    console.log(`Updated config file externally: ${configFilePath}`);
+
+    // 3. Verify UI update (new app tile appears)
+    await expect(
+        newAppTile,
+        `New app "${newAppName}" should become visible after config file change`,
+    ).toBeVisible({ timeout: 5000 }); // Allow time for watcher debounce and UI update
+
+    // 4. (Optional) Modify again to remove the initial app
+    const configsWithoutInitial = updatedConfigs.filter(
+        (config) => config.name !== initialAppName,
+    );
+    await page.waitForTimeout(500); // Delay before next write
+    await writeFile(
+        configFilePath!,
+        JSON.stringify(configsWithoutInitial, null, 2),
+        'utf-8',
+    );
+    console.log(`Removed initial app from config file: ${configFilePath}`);
+
+    // 5. Verify UI update (initial app tile disappears)
+    await expect(
+        initialAppTile,
+        `Initial app "${initialAppName}" should disappear after being removed from config`,
+    ).not.toBeVisible({ timeout: 5000 });
+    await expect(
+        newAppTile,
+        `New app "${newAppName}" should still be visible`,
+    ).toBeVisible();
+});
