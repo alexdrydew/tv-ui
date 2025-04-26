@@ -169,14 +169,12 @@ export function HomePage() {
             <AppConfigDialog
                 isOpen={isAddAppDialogOpen}
                 onOpenChange={setIsAddAppDialogOpen}
-                configFilePath={configFilePath}
                 onSave={handleSaveAppConfig}
                 mode="add"
             />
             <AppConfigDialog
                 isOpen={isEditAppDialogOpen}
                 onOpenChange={setIsEditAppDialogOpen}
-                configFilePath={configFilePath}
                 appToEdit={editingApp}
                 onSave={handleSaveAppConfig}
                 mode="edit"
