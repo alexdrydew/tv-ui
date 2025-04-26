@@ -28,7 +28,7 @@ const test = base.extend<TestFixtures>({
                     id: 'test-app-1',
                     name: 'Test App',
                     launchCommand: 'sleep 1',
-                    args: [],
+                    // Removed 'args' as it's not part of AppConfig anymore
                     icon: undefined,
                 },
             ];
@@ -153,7 +153,8 @@ test('Main window state', async ({ electronApp, page }) => {
 });
 
 test('App layout is rendered', async ({ page }) => {
-    const mainElement = page.locator('main.overflow-auto');
+    // Updated selector to match TvAppLayout structure
+    const mainElement = page.locator('main.py-8');
 
     await expect(
         mainElement,
@@ -162,35 +163,47 @@ test('App layout is rendered', async ({ page }) => {
 });
 
 test('App tile is rendered when config has an app', async ({ page }) => {
-    const appTileButton = page.getByRole('button', { name: 'Test App' });
+    // Using data-testid for more robust selection
+    const appTile = page.getByTestId('app-tile-test-app-1');
 
     await expect(
-        appTileButton,
-        'The AppTile for "Test App" should be visible',
+        appTile,
+        'The AppTile for "Test App" (ID: test-app-1) should be visible',
     ).toBeVisible();
+    await expect(appTile).toContainText('Test App');
 });
 
 test('Add new app config via UI', async ({ page, configFilePath }) => {
     await page.getByRole('button', { name: 'Add App' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add New App' });
+    const initialDialog = page.getByRole('dialog', { name: 'Add New App' });
     await expect(
-        dialog,
-        'The "Add New App" dialog should appear',
+        initialDialog,
+        'The "Add New App" initial choice dialog should appear',
+    ).toBeVisible();
+
+    // Click the "Create Manually" button
+    await initialDialog.getByRole('button', { name: 'Create Manually' }).click();
+
+    // Now expect the manual form dialog
+    const manualDialog = page.getByRole('dialog', { name: 'Add App Manually' });
+    await expect(
+        manualDialog,
+        'The "Add App Manually" dialog should appear',
     ).toBeVisible();
 
     // Fill in the form
     const appName = 'My New Test App';
     const launchCommand = '/bin/true'; // Use a command that exits quickly for this test
-    await dialog.getByLabel('App Name').fill(appName);
-    await dialog.getByLabel('Launch Command').fill(launchCommand);
+    await manualDialog.getByLabel('App Name').fill(appName);
+    await manualDialog.getByLabel('Launch Command').fill(launchCommand);
 
     // Click the "Save App" button
-    await dialog.getByRole('button', { name: 'Save App' }).click();
+    await manualDialog.getByRole('button', { name: 'Save App' }).click();
 
     // Wait for the dialog to close
     await expect(
-        dialog,
-        'The "Add New App" dialog should close after saving',
+        manualDialog,
+        'The "Add App Manually" dialog should close after saving',
     ).not.toBeVisible();
 
     // Verify config file update
@@ -214,26 +227,32 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
         addedConfig?.launchCommand,
         `Config entry for "${appName}" should have the correct launch command`,
     ).toBe(launchCommand);
+    expect(
+        addedConfig?.id,
+        `Config entry for "${appName}" should have an ID`,
+    ).toBeDefined();
 
-    // Verify the new app tile is visible
-    const newAppTile = page.getByRole('button', { name: appName });
+    // Verify the new app tile is visible using its generated ID
+    const newAppTile = page.getByTestId(`app-tile-${addedConfig!.id}`);
     await expect(
         newAppTile,
-        `The AppTile for "${appName}" should be visible after adding`,
+        `The AppTile for "${appName}" (ID: ${addedConfig!.id}) should be visible after adding`,
     ).toBeVisible();
+    await expect(newAppTile).toContainText(appName);
 });
 
 test('Delete app config via context menu', async ({ page, configFilePath }) => {
     const appNameToDelete = 'Test App';
-    const appTileButton = page.getByRole('button', { name: appNameToDelete });
+    const appIdToDelete = 'test-app-1';
+    const appTile = page.getByTestId(`app-tile-${appIdToDelete}`);
 
     await expect(
-        appTileButton,
+        appTile,
         `The AppTile for "${appNameToDelete}" should initially be visible`,
     ).toBeVisible();
 
     // Ensure the app is not running before trying to delete
-    const runningIndicator = appTileButton.locator(
+    const runningIndicator = appTile.locator(
         '[data-testid="running-indicator"]',
     );
     await expect(
@@ -241,7 +260,7 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
         'Running indicator should not be visible before delete',
     ).not.toBeVisible({ timeout: 1000 });
 
-    await appTileButton.click({ button: 'right' });
+    await appTile.click({ button: 'right' });
     const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete app' });
     await expect(
         deleteMenuItem,
@@ -249,7 +268,7 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
     ).toBeVisible();
     await deleteMenuItem.click();
     await expect(
-        appTileButton,
+        appTile,
         `The AppTile for "${appNameToDelete}" should not be visible after deletion`,
     ).not.toBeVisible();
     expect(
@@ -261,30 +280,31 @@ test('Delete app config via context menu', async ({ page, configFilePath }) => {
     const updatedConfigs: AppConfig[] = JSON.parse(configFileContent);
 
     const deletedConfig = updatedConfigs.find(
-        (config) => config.name === appNameToDelete,
+        (config) => config.id === appIdToDelete,
     );
 
     expect(
         deletedConfig,
-        `Config file should no longer contain an entry for "${appNameToDelete}"`,
+        `Config file should no longer contain an entry for ID "${appIdToDelete}"`,
     ).toBeUndefined();
 });
 
 test('Edit app config via context menu', async ({ page, configFilePath }) => {
     const initialAppName = 'Test App';
     const initialAppId = 'test-app-1';
+    const initialLaunchCommand = 'sleep 1';
     const editedAppName = 'Edited Test App';
     const editedLaunchCommand = '/bin/false'; // Use a command that exits quickly
 
-    const appTileButton = page.getByRole('button', { name: initialAppName });
+    const appTile = page.getByTestId(`app-tile-${initialAppId}`);
 
     await expect(
-        appTileButton,
+        appTile,
         `The AppTile for "${initialAppName}" should initially be visible`,
     ).toBeVisible();
 
     // Ensure the app is not running before trying to edit
-    const runningIndicator = appTileButton.locator(
+    const runningIndicator = appTile.locator(
         '[data-testid="running-indicator"]',
     );
     await expect(
@@ -292,7 +312,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
         'Running indicator should not be visible before edit',
     ).not.toBeVisible({ timeout: 1000 });
 
-    await appTileButton.click({ button: 'right' });
+    await appTile.click({ button: 'right' });
     const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
     await expect(
         editMenuItem,
@@ -308,7 +328,7 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
     await expect(
         dialog.getByLabel('Launch Command'),
         'Dialog "Launch Command" should be pre-filled',
-    ).toHaveValue('sleep 1');
+    ).toHaveValue(initialLaunchCommand);
     await dialog.getByLabel('App Name').fill(editedAppName);
     await dialog.getByLabel('Launch Command').fill(editedLaunchCommand);
 
@@ -350,25 +370,26 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
         `Config entry for ID "${initialAppId}" should have the edited launch command`,
     ).toBe(editedLaunchCommand);
 
-    // Ensure no config with the old name exists
-    const configWithOldName = updatedConfigs.find(
-        (config) => config.name === initialAppName,
+    // Ensure no config with the old name exists if ID is the primary key
+    const configWithOldNameButSameId = updatedConfigs.find(
+        (config) => config.name === initialAppName && config.id === initialAppId,
     );
     expect(
-        configWithOldName,
-        `Config file should not contain an entry with the old name "${initialAppName}"`,
+        configWithOldNameButSameId,
+        `Config file should not contain an entry with the old name "${initialAppName}" for the same ID "${initialAppId}"`,
     ).toBeUndefined();
 });
 
 test('Launch app via UI click', async ({ page }) => {
     const appName = 'Test App';
-    const appTileButton = page.getByRole('button', { name: appName });
-    const runningIndicator = appTileButton.locator(
+    const appId = 'test-app-1';
+    const appTile = page.getByTestId(`app-tile-${appId}`);
+    const runningIndicator = appTile.locator(
         '[data-testid="running-indicator"]',
     );
 
     await expect(
-        appTileButton,
+        appTile,
         `The AppTile for "${appName}" should be visible`,
     ).toBeVisible();
     await expect(
@@ -377,7 +398,7 @@ test('Launch app via UI click', async ({ page }) => {
     ).not.toBeVisible();
 
     // Click to launch
-    await appTileButton.click();
+    await appTile.click();
 
     // Verify the running indicator appears
     await expect(
@@ -393,13 +414,14 @@ test('Launch app via UI click', async ({ page }) => {
 
 test('Kill running app via context menu', async ({ page }) => {
     const appName = 'Test App';
-    const appTileButton = page.getByRole('button', { name: appName });
-    const runningIndicator = appTileButton.locator(
+    const appId = 'test-app-1';
+    const appTile = page.getByTestId(`app-tile-${appId}`);
+    const runningIndicator = appTile.locator(
         '[data-testid="running-indicator"]',
     );
 
     await expect(
-        appTileButton,
+        appTile,
         `The AppTile for "${appName}" should be visible`,
     ).toBeVisible();
     await expect(
@@ -408,13 +430,15 @@ test('Kill running app via context menu', async ({ page }) => {
     ).not.toBeVisible();
 
     // Launch the app first
-    await appTileButton.click();
+    await appTile.click();
     await expect(
         runningIndicator,
         'Running indicator should be visible after launch',
     ).toBeVisible({ timeout: 2000 });
 
-    await appTileButton.click({ button: 'right' });
+    await appTile.click({ button: 'right' });
+    // The Kill menu item might be within a submenu if multiple instances can run
+    // Assuming single instance kill for now
     const killMenuItem = page.getByRole('menuitem', { name: 'Kill' });
     await expect(
         killMenuItem,
@@ -436,12 +460,13 @@ test('Config file watcher updates UI on external change', async ({
     configFilePath,
 }) => {
     const initialAppName = 'Test App';
+    const initialAppId = 'test-app-1';
     const newAppName = 'Watcher App';
     const newAppId = 'watcher-test-app';
     const newAppCommand = '/bin/echo Watcher Test';
 
-    const initialAppTile = page.getByRole('button', { name: initialAppName });
-    const newAppTile = page.getByRole('button', { name: newAppName });
+    const initialAppTile = page.getByTestId(`app-tile-${initialAppId}`);
+    const newAppTile = page.getByTestId(`app-tile-${newAppId}`);
 
     await expect(
         initialAppTile,
@@ -463,7 +488,7 @@ test('Config file watcher updates UI on external change', async ({
         id: newAppId,
         name: newAppName,
         launchCommand: newAppCommand,
-        args: [],
+        // Removed 'args'
     };
     const updatedConfigs = [...currentConfigs, newConfig];
 
@@ -482,7 +507,7 @@ test('Config file watcher updates UI on external change', async ({
     ).toBeVisible({ timeout: 5000 });
 
     const configsWithoutInitial = updatedConfigs.filter(
-        (config) => config.name !== initialAppName,
+        (config) => config.id !== initialAppId,
     );
     await page.waitForTimeout(500);
     await writeFile(
