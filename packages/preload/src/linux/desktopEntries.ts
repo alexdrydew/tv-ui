@@ -8,13 +8,6 @@
     import { readFileEffect } from '#src/fs/index.js';
     import { UnknownException } from 'effect/Cause';
 
-    // Standard locations for .desktop files on Linux
-    const DESKTOP_ENTRY_DIRS = [
-        '/usr/share/applications',
-        '/usr/local/share/applications',
-        path.join(os.homedir(), '.local/share/applications'),
-    ];
-
     // Function to safely read and parse a .desktop file
     function parseDesktopFile(
         filePath: string,
@@ -79,12 +72,30 @@
         DesktopEntryView[],
         never // Errors are handled internally or logged
     > {
+        // Determine search directories based on XDG standards
+        const xdgDataDirs = process.env['XDG_DATA_DIRS']
+            ? process.env['XDG_DATA_DIRS'].split(':')
+            : ['/usr/local/share', '/usr/share']; // Default XDG_DATA_DIRS
+
+        const xdgDataHome =
+            process.env['XDG_DATA_HOME'] ?? path.join(os.homedir(), '.local/share'); // Default XDG_DATA_HOME
+
+        const searchDirs = [
+            ...xdgDataDirs.map((dir) => path.join(dir, 'applications')),
+            path.join(xdgDataHome, 'applications'), // Add user-specific directory
+        ];
+
+        // Remove duplicates and ensure paths are absolute (though they should be)
+        const uniqueSearchDirs = [...new Set(searchDirs.map(path.resolve))];
+
+        console.debug('Searching for .desktop files in:', uniqueSearchDirs);
+
         return pipe(
             Effect.forEach(
-                DESKTOP_ENTRY_DIRS,
+                uniqueSearchDirs,
                 (dir) =>
                     Effect.tryPromise({
-                        try: () => findDesktopFiles(dir),
+                        try: () => findDesktopFiles(dir), // findDesktopFiles handles non-existent dirs gracefully
                         catch: (error) => new UnknownException(error), // Should be caught by findDesktopFiles, but belt-and-suspenders
                     }),
                 { concurrency: 'inherit' }, // Process directories concurrently
