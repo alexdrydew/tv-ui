@@ -5,11 +5,7 @@ import path from 'node:path';
 import ini from 'ini';
 import { readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
-import { AppConfigSchema } from '@app/types/src'; // Import AppConfigSchema for validation if needed, or just AppConfig type
-import { Schema } from '@effect/schema';
 
-// Define an extended type locally for parsing, including the exec command
-// This replaces the need for DesktopEntryView from @app/types
 type DesktopEntryInternal = {
     id: string; // Typically the file name without .desktop
     name: string;
@@ -20,11 +16,13 @@ type DesktopEntryInternal = {
 
 function parseDesktopFile(
     filePath: string,
-): Effect.Effect<DesktopEntryInternal | null, never> { // Return internal type
+): Effect.Effect<DesktopEntryInternal | null, never> {
+    // Return internal type
     return pipe(
         readFileEffect(filePath), // Can fail with Fs*Error
         Effect.map((buffer) => buffer.toString('utf-8')),
-        Effect.tryMap({ // Can fail with UnknownException (parsing)
+        Effect.tryMap({
+            // Can fail with UnknownException (parsing)
             try: (content) => ini.parse(content),
             catch: (error) => {
                 return new UnknownException({
