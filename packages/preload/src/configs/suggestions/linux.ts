@@ -6,18 +6,21 @@ import path from 'node:path';
 import ini from 'ini';
 import { readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
+import { AppConfigSchema } from '@app/types/src'; // Import AppConfigSchema for validation if needed, or just AppConfig type
+import { Schema } from '@effect/schema';
+
+// Define an extended type locally for parsing, including the exec command
+type DesktopEntryInternal = DesktopEntryView & { exec?: string };
 
 function parseDesktopFile(
     filePath: string,
-): Effect.Effect<DesktopEntryView | null, never> { // Changed error type to never
+): Effect.Effect<DesktopEntryInternal | null, never> { // Return internal type
     return pipe(
         readFileEffect(filePath), // Can fail with Fs*Error
         Effect.map((buffer) => buffer.toString('utf-8')),
         Effect.tryMap({ // Can fail with UnknownException (parsing)
             try: (content) => ini.parse(content),
             catch: (error) => {
-                // console.debug(`INI parsing failed for ${filePath}:`, error); // Optional: Log for debugging
-                // Wrap parsing errors but they will be caught by catchAll below
                 return new UnknownException({
                     message: `INI parsing failed for ${filePath}`,
                     cause: error,
@@ -31,25 +34,30 @@ function parseDesktopFile(
                 !entry ||
                 typeof entry !== 'object' ||
                 !entry.Name ||
-                entry.NoDisplay === true || // NoDisplay can be string 'true' or boolean true
+                !entry.Exec || // Ensure Exec exists
+                entry.NoDisplay === true ||
                 String(entry.NoDisplay).toLowerCase() === 'true' ||
                 entry.Type !== 'Application'
             ) {
-                return null; // Not a valid/visible application entry
+                return null; // Not a valid/visible application entry or missing Exec
             }
 
             const id = path.basename(filePath, '.desktop');
-            const result: DesktopEntryView = {
+            // Basic parsing of Exec: take the part before the first space, if any,
+            // or the whole string. This is a simplification.
+            // A more robust parser would handle quotes and placeholders like %f, %U etc.
+            // const command = String(entry.Exec).split(' ')[0]; // Simplistic command extraction
+
+            const result: DesktopEntryInternal = {
                 id: id,
                 name: String(entry.Name),
                 icon: entry.Icon ? String(entry.Icon) : undefined,
                 filePath: path.resolve(filePath), // Ensure filePath is absolute
+                exec: String(entry.Exec), // Store the raw Exec string for now
             };
             return result;
         }),
-        // Catch ALL errors (Fs*Error, UnknownException from parsing, etc.) and return null
         Effect.catchAll((_error) => {
-            // Optional: Log the suppressed error for debugging
             // console.debug(`Skipping desktop entry due to error reading/parsing ${filePath}:`, _error);
             return Effect.succeed(null);
         }),
@@ -69,9 +77,14 @@ async function findDesktopFiles(dirPath: string): Promise<string[]> {
                 entries.push(fullPath);
             }
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-        if (error.code === 'ENOENT' || error.code === 'EACCES') {
+    } catch (error: unknown) {
+        // Check if error is an object with a 'code' property
+        if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            (error.code === 'ENOENT' || error.code === 'EACCES')
+        ) {
             // Skip silently for not found or permission denied
         } else {
             console.warn(
@@ -92,7 +105,6 @@ function getXdgDataDirs(): string[] {
     } else {
         result = defaultDirs.map((dir) => path.resolve(dir));
     }
-    // Filter out empty strings that might result from splitting "::" or trailing ":"
     return result.filter(Boolean);
 }
 
@@ -108,9 +120,10 @@ function getXdgDataHome(): string {
     return result;
 }
 
+// This function now effectively returns DesktopEntryInternal[]
 export function getDesktopEntries(): Effect.Effect<
-    DesktopEntryView[],
-    never // Errors during find/parse are handled and result in empty/partial lists
+    DesktopEntryInternal[], // Return internal type
+    never
 > {
     const xdgDataDirs = getXdgDataDirs();
     const xdgDataHome = getXdgDataHome();
@@ -130,12 +143,14 @@ export function getDesktopEntries(): Effect.Effect<
             (dir) =>
                 Effect.tryPromise({
                     try: () => findDesktopFiles(dir),
-                    catch: (error) => {
+                    // Provide a specific type for the caught error
+                    catch: (error: unknown) => {
                         console.error(
                             `Unexpected error calling findDesktopFiles for ${dir}:`,
                             error,
                         );
-                        return [] as string[]; // Treat as empty list for this directory
+                        // Ensure the catch returns the expected type (string[])
+                        return [] as string[];
                     },
                 }),
             { concurrency: 5 },
@@ -147,17 +162,17 @@ export function getDesktopEntries(): Effect.Effect<
             }),
         ),
         Effect.map((parsedEntries) =>
+            // Filter out nulls and ensure type correctness
             parsedEntries.filter(
-                (entry): entry is DesktopEntryView => entry !== null,
+                (entry): entry is DesktopEntryInternal => entry !== null,
             ),
         ),
         Effect.catchAll((error) => {
-            // This catchAll is a safeguard, but errors should ideally be handled earlier
             console.error(
                 'Caught unexpected error during desktop entry processing pipeline:',
                 error,
             );
-            return Effect.succeed([]); // Return empty array on unexpected failure
+            return Effect.succeed([]);
         }),
     );
 }
