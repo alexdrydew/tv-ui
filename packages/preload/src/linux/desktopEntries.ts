@@ -9,14 +9,15 @@ import { UnknownException } from 'effect/Cause';
 
 function parseDesktopFile(
     filePath: string,
-): Effect.Effect<DesktopEntryView | null, UnknownException> {
+): Effect.Effect<DesktopEntryView | null, never> { // Changed error type to never
     return pipe(
-        readFileEffect(filePath),
+        readFileEffect(filePath), // Can fail with Fs*Error
         Effect.map((buffer) => buffer.toString('utf-8')),
-        Effect.tryMap({
+        Effect.tryMap({ // Can fail with UnknownException (parsing)
             try: (content) => ini.parse(content),
             catch: (error) => {
-                // Wrap parsing errors in UnknownException
+                // console.debug(`INI parsing failed for ${filePath}:`, error); // Optional: Log for debugging
+                // Wrap parsing errors but they will be caught by catchAll below
                 return new UnknownException({
                     message: `INI parsing failed for ${filePath}`,
                     cause: error,
@@ -24,15 +25,15 @@ function parseDesktopFile(
             },
         }),
         Effect.map((parsed) => {
-            // Revert to accessing properties from the nested 'Desktop Entry' object
-            const entry = parsed?.['Desktop Entry']; // Use optional chaining just in case
+            const entry = parsed?.['Desktop Entry'];
 
             if (
-                !entry || // Check if entry exists
-                typeof entry !== 'object' || // Check if entry is an object
-                !entry.Name || // Check Name within entry
-                entry.NoDisplay === true || // Check NoDisplay (boolean) within entry
-                entry.Type !== 'Application' // Check Type within entry
+                !entry ||
+                typeof entry !== 'object' ||
+                !entry.Name ||
+                entry.NoDisplay === true || // NoDisplay can be string 'true' or boolean true
+                String(entry.NoDisplay).toLowerCase() === 'true' ||
+                entry.Type !== 'Application'
             ) {
                 return null; // Not a valid/visible application entry
             }
@@ -40,19 +41,17 @@ function parseDesktopFile(
             const id = path.basename(filePath, '.desktop');
             const result: DesktopEntryView = {
                 id: id,
-                name: String(entry.Name), // Use entry.Name
-                icon: entry.Icon ? String(entry.Icon) : undefined, // Use entry.Icon
-                filePath: filePath,
+                name: String(entry.Name),
+                icon: entry.Icon ? String(entry.Icon) : undefined,
+                filePath: path.resolve(filePath), // Ensure filePath is absolute
             };
             return result;
         }),
-        // If the file doesn't exist, treat it as null rather than an error for this context
-        Effect.catchTag('FsNoSuchFileOrDirError', () => {
+        // Catch ALL errors (Fs*Error, UnknownException from parsing, etc.) and return null
+        Effect.catchAll((_error) => {
+            // Optional: Log the suppressed error for debugging
+            // console.debug(`Skipping desktop entry due to error reading/parsing ${filePath}:`, _error);
             return Effect.succeed(null);
-        }),
-        // Catch INI parsing errors specifically and return null
-        Effect.catchTag('UnknownException', () => {
-            return Effect.succeed(null); // Treat parse errors as skippable entries
         }),
     );
 }
@@ -60,12 +59,10 @@ function parseDesktopFile(
 async function findDesktopFiles(dirPath: string): Promise<string[]> {
     let entries: string[] = [];
     try {
-        // Ensure fs.readdir is awaited correctly
         const dirents = await fs.readdir(dirPath, { withFileTypes: true });
         for (const dirent of dirents) {
             const fullPath = path.join(dirPath, dirent.name);
             if (dirent.isDirectory()) {
-                // Recurse into subdirectories and await the result
                 const subEntries = await findDesktopFiles(fullPath);
                 entries = entries.concat(subEntries);
             } else if (dirent.isFile() && dirent.name.endsWith('.desktop')) {
@@ -74,13 +71,9 @@ async function findDesktopFiles(dirPath: string): Promise<string[]> {
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-        // Ignore errors like permission denied or non-existent directories
-        if (error.code === 'ENOENT') {
-            // Directory not found, skip silently
-        } else if (error.code === 'EACCES') {
-            // Permission denied, skip silently
+        if (error.code === 'ENOENT' || error.code === 'EACCES') {
+            // Skip silently for not found or permission denied
         } else {
-            // Log other errors as warnings
             console.warn(
                 `Unexpected error reading directory ${dirPath}:`,
                 error,
@@ -95,12 +88,12 @@ function getXdgDataDirs(): string[] {
     const defaultDirs = ['/usr/local/share/', '/usr/share/'];
     let result: string[];
     if (envDirs) {
-        // Ensure paths are resolved correctly
         result = envDirs.split(':').map((dir) => path.resolve(dir));
     } else {
-        result = defaultDirs.map((dir) => path.resolve(dir)); // Resolve default paths too
+        result = defaultDirs.map((dir) => path.resolve(dir));
     }
-    return result;
+    // Filter out empty strings that might result from splitting "::" or trailing ":"
+    return result.filter(Boolean);
 }
 
 function getXdgDataHome(): string {
@@ -110,7 +103,7 @@ function getXdgDataHome(): string {
     if (envHome) {
         result = path.resolve(envHome);
     } else {
-        result = path.resolve(defaultHome); // Resolve default path too
+        result = path.resolve(defaultHome);
     }
     return result;
 }
@@ -124,10 +117,9 @@ export function getDesktopEntries(): Effect.Effect<
 
     const searchDirs = [
         ...xdgDataDirs.map((dir) => path.join(dir, 'applications')),
-        path.join(xdgDataHome, 'applications'), // Add user-specific directory
+        path.join(xdgDataHome, 'applications'),
     ];
 
-    // Ensure paths are absolute and unique
     const uniqueSearchDirs = [
         ...new Set(searchDirs.map((dir) => path.resolve(dir))),
     ];
@@ -137,40 +129,35 @@ export function getDesktopEntries(): Effect.Effect<
             uniqueSearchDirs,
             (dir) =>
                 Effect.tryPromise({
-                    try: () => findDesktopFiles(dir), // findDesktopFiles handles ENOENT/EACCES internally
+                    try: () => findDesktopFiles(dir),
                     catch: (error) => {
-                        // Catch unexpected errors from findDesktopFiles (e.g., if fs.readdir throws something else)
                         console.error(
                             `Unexpected error calling findDesktopFiles for ${dir}:`,
                             error,
                         );
-                        // Treat as an empty list for this directory to allow others to proceed
-                        return [] as string[];
+                        return [] as string[]; // Treat as empty list for this directory
                     },
                 }),
-            { concurrency: 5 }, // Limit concurrency for directory scanning
+            { concurrency: 5 },
         ),
-        Effect.map((results) => results.flat()), // Flatten the array of arrays
+        Effect.map((results) => results.flat()),
         Effect.flatMap((allFiles) =>
-            // Parse files concurrently, allowing individual failures
             Effect.forEach(allFiles, (filePath) => parseDesktopFile(filePath), {
-                concurrency: 10, // Increase concurrency for parsing
+                concurrency: 10,
             }),
         ),
-        // Filter out nulls (files not found, skipped, or failed to parse)
         Effect.map((parsedEntries) =>
             parsedEntries.filter(
                 (entry): entry is DesktopEntryView => entry !== null,
             ),
         ),
-        // Catch any unexpected errors in the overall pipeline (less likely now)
         Effect.catchAll((error) => {
+            // This catchAll is a safeguard, but errors should ideally be handled earlier
             console.error(
                 'Caught unexpected error during desktop entry processing pipeline:',
                 error,
             );
-            // Return an empty array in case of unexpected failure
-            return Effect.succeed([]);
+            return Effect.succeed([]); // Return empty array on unexpected failure
         }),
     );
 }
