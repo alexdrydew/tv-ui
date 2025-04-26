@@ -13,7 +13,6 @@
       system: let
         pkgs = import inputs.nixpkgs {
           inherit system;
-          # overlays = [inputs.rust-overlay.overlays.default];
           overlays = [
             (self: super: {
               nodejs_23 = super.nodejs_23.overrideAttrs (old: {
@@ -31,68 +30,73 @@
         shellHook = ''
           $SHELL
         '';
-        devShell = pkgs.mkShell rec {
-          env = {
-            # this somehow fixes https://github.com/rust-lang/rust-analyzer/issues/19135
-            RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
-          };
+        devShell =
+          (pkgs.buildFHSUserEnv rec {
+            name = "tv-ui-electron";
+            env = {
+              # this somehow fixes https://github.com/rust-lang/rust-analyzer/issues/19135
+              RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
+            };
 
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            gobject-introspection
-            cargo
-            cargo-tauri
-            nodejs_23
-          ];
+            targetPkgs = pkgs:
+              with pkgs;
+                [
+                  pkg-config
+                  gobject-introspection
+                  cargo
+                  cargo-tauri
+                  nodejs_23
+                  at-spi2-atk
+                  atkmm
+                  cairo
+                  gdk-pixbuf
+                  glib
+                  gtk3
+                  harfbuzz
+                  librsvg
+                  libsoup_3
+                  pango
+                  openssl
 
-          buildInputs = with pkgs;
-            [
-              at-spi2-atk
-              atkmm
-              cairo
-              gdk-pixbuf
-              glib
-              gtk3
-              harfbuzz
-              librsvg
-              libsoup_3
-              pango
-              openssl
+                  rustup
+                  lld
 
-              rustup
-              lld
-              # (pkgs.rust-bin.stable.latest.default.override {extensions = ["rust-src" "rust-analyzer"];})
+                  nodePackages.pnpm
+                  nodePackages.typescript
+                  nodePackages.typescript-language-server
+                ]
+                ++ (lib.optionals stdenv.isLinux [
+                  webkitgtk_4_1
+                  patchelf
+                  nss
+                  nspr
+                  dbus
+                  cups
+                  xorg.libX11
+                  xorg.libXcomposite
+                  xorg.libXdamage
+                  xorg.libXext
+                  xorg.libXfixes
+                  xorg.libXrandr
+                  xorg.libxcb
+                  mesa
+                  expat
+                  libxkbcommon
+                  alsa-lib
+                  systemd
+                  libxcrypt
+                  libxcrypt-legacy
+                  binutils
+                ]);
 
-              nodePackages.pnpm
-              nodePackages.typescript
-              nodePackages.typescript-language-server
-            ]
-            ++ (lib.optionals stdenv.isLinux [
-              webkitgtk_4_1
-              patchelf
-              nss
-              nspr
-              dbus
-              cups
-              xorg.libX11
-              xorg.libXcomposite
-              xorg.libXdamage
-              xorg.libXext
-              xorg.libXfixes
-              xorg.libXrandr
-              xorg.libxcb
-              mesa
-              expat
-              libxkbcommon
-              alsa-lib
-            ]);
+            # LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}";
 
-          LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}";
-
-          shellHook = ''
-            export PATH="${pkgs.nodejs_23}/bin:$PATH"
-          '';
-        };
+            # runScript = ''
+            #   export PATH="${pkgs.nodejs_23}/bin:$PATH"
+            # '';
+            runScript = "zsh";
+          })
+          .env;
       }
     );
 }
