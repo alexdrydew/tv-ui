@@ -1,20 +1,6 @@
 import { Button } from '@/components/ui/button';
-import {
-    Form,
-    FormControl,
-    FormDescription,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { AppConfig } from '@app/types';
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import { Schema } from 'effect';
-import { nanoid } from 'nanoid';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -23,171 +9,144 @@ import {
     DialogHeader,
     DialogTitle,
 } from '../ui/dialog';
+import { ManualAppConfigForm } from './ManualAppConfigForm';
+import { SelectAppFromOS } from './SelectAppFromOS'; // Import the new component
 
-const AppConfigFormSchema = Schema.Struct({
-    name: Schema.NonEmptyString.annotations({
-        message: () => 'App name cannot be empty',
-    }),
-    icon: Schema.optional(Schema.String),
-    launchCommand: Schema.NonEmptyString.annotations({
-        message: () => 'Launch command cannot be empty',
-    }),
-});
-type FormValues = Schema.Schema.Type<typeof AppConfigFormSchema>;
+type DialogView = 'initial' | 'manual' | 'selectOS';
 
-interface AddAppDialogProps {
+interface AppConfigDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    configFilePath: string; // Keep configFilePath if needed for context, though not used directly for saving here
     appToEdit?: AppConfig | null;
-    onSave: (config: AppConfig) => Promise<void>; // Add the onSave prop
-    mode: 'add' | 'edit'; // Keep mode to adjust dialog text
+    onSave: (config: AppConfig) => Promise<void>;
+    mode: 'add' | 'edit';
 }
 
 export function AppConfigDialog({
     isOpen,
     onOpenChange,
-    // configFilePath, // No longer needed for internal saving
     appToEdit = null,
-    onSave, // Destructure onSave
-    mode, // Destructure mode
-}: AddAppDialogProps) {
+    onSave,
+    mode,
+}: AppConfigDialogProps) {
+    const [view, setView] = useState<DialogView>('initial');
     const isEditing = mode === 'edit' && appToEdit !== null;
 
-    const form = useForm<FormValues>({
-        resolver: effectTsResolver(AppConfigFormSchema),
-        defaultValues: {
-            name: '',
-            icon: undefined,
-            launchCommand: '',
-        },
-    });
-
+    // Determine view when dialog opens or mode changes
     useEffect(() => {
         if (isOpen) {
             if (isEditing) {
-                form.reset({
-                    name: appToEdit.name,
-                    icon: appToEdit.icon ?? '',
-                    launchCommand: appToEdit.launchCommand,
-                });
+                setView('manual'); // Directly go to manual form for editing
             } else {
-                form.reset({
-                    name: '',
-                    icon: '',
-                    launchCommand: '',
-                });
+                setView('initial'); // Start with choice for adding
             }
+        } else {
+            // Reset view when dialog closes
+            setView('initial');
         }
-    }, [isOpen, isEditing, appToEdit, form]);
+    }, [isOpen, isEditing]);
 
-    // onSubmit now calls the passed onSave prop
-    async function onSubmit(values: FormValues) {
-        const configToUpsert: AppConfig = {
-            id: appToEdit?.id ?? nanoid(),
-            name: values.name,
-            icon: values.icon?.trim() ? values.icon.trim() : undefined,
-            launchCommand: values.launchCommand,
-        };
+    const handleSave = async (config: AppConfig) => {
+        await onSave(config);
+        // Assuming onSave handles closing the dialog on success
+        // If not, uncomment the next line:
+        // onOpenChange(false);
+    };
 
-        // Call the parent's save handler
-        await onSave(configToUpsert);
-        // Parent handler is responsible for closing the dialog and showing toasts
-    }
-
-    const handleOpenChange = (open: boolean) => {
-        if (!open) {
-            form.reset(); // Reset form when closing
+    const handleCancel = () => {
+        // If adding, go back to initial choice, otherwise close dialog
+        if (mode === 'add' && view !== 'initial') {
+            setView('initial');
+        } else {
+            onOpenChange(false);
         }
-        onOpenChange(open);
+    };
+
+    const renderContent = () => {
+        switch (view) {
+            case 'manual':
+                return (
+                    <ManualAppConfigForm
+                        appToEdit={appToEdit}
+                        onSave={handleSave}
+                        onCancel={handleCancel}
+                        mode={mode}
+                    />
+                );
+            case 'selectOS':
+                return (
+                    <SelectAppFromOS
+                        onSelect={handleSave}
+                        onCancel={handleCancel}
+                    />
+                );
+            case 'initial':
+            default:
+                return (
+                    <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setView('selectOS')}
+                            className="h-20 text-lg"
+                        >
+                            Select from OS
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setView('manual')}
+                            className="h-20 text-lg"
+                        >
+                            Create Manually
+                        </Button>
+                    </div>
+                );
+        }
+    };
+
+    const getTitle = () => {
+        if (isEditing) return 'Edit App';
+        switch (view) {
+            case 'manual':
+                return 'Add App Manually';
+            case 'selectOS':
+                return 'Select App from System';
+            case 'initial':
+            default:
+                return 'Add New App';
+        }
+    };
+
+    const getDescription = () => {
+        if (isEditing)
+            return `Update the details for ${appToEdit?.name ?? 'the app'}.`;
+        switch (view) {
+            case 'manual':
+                return 'Enter the details for the new application configuration.';
+            case 'selectOS':
+                return 'Choose an application detected on your operating system.';
+            case 'initial':
+            default:
+                return 'How would you like to add the new application?';
+        }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>
-                        {isEditing ? 'Edit App' : 'Add New App'}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {isEditing
-                            ? `Update the details for ${appToEdit?.name ?? 'the app'}.` // Safer access to name
-                            : 'Enter the details for the new application configuration.'}
-                    </DialogDescription>
+                    <DialogTitle>{getTitle()}</DialogTitle>
+                    <DialogDescription>{getDescription()}</DialogDescription>
                 </DialogHeader>
-                <Form {...form}>
-                    <form
-                        onSubmit={form.handleSubmit(onSubmit)}
-                        className="grid gap-4"
-                    >
-                        <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>App Name</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="My Awesome App"
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        The display name for the application.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="icon"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Icon Path (Optional)</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="/path/to/icon.png"
-                                            {...field}
-                                            // Ensure value is handled correctly for optional field
-                                            value={field.value ?? ''}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        Path to the application icon file. Leave
-                                        empty for default icon.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="launchCommand"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Launch Command</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="/usr/bin/my-app --arg"
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        The command used to launch the
-                                        application.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <DialogFooter>
-                            <Button type="submit">
-                                {isEditing ? 'Save Changes' : 'Save App'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
+                {renderContent()}
+                {/* Footer is now part of the specific view components (ManualAppConfigForm, SelectAppFromOS)
+                    or not needed for the initial view */}
+                {view === 'initial' && (
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                            Cancel
+                        </Button>
+                    </DialogFooter>
+                )}
             </DialogContent>
         </Dialog>
     );
