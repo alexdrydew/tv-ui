@@ -7,13 +7,14 @@ export {
     upsertAppConfig,
     removeAppConfig,
     watchConfigFile,
+    getSuggestedAppConfigs, // <-- Add the new import/export here
 } from './configs/commands.js';
 export { launchApp } from './apps/commands.js';
 export { onConfigUpdate, onAppUpdate } from './events.js';
 
 export { killApp } from './apps/commands.js';
 export type { LaunchInstanceId };
-export { suggestAppConfigs } from './configs/suggestions/index.js';
+// Removed suggestAppConfigs export as it's now wrapped by getSuggestedAppConfigs
 
 /**
  * Retrieves the value of an environment variable.
