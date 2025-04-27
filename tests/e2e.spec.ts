@@ -629,7 +629,23 @@ linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
                 ); // ID used in testid
 
                 await mkdir(appDir, { recursive: true });
-                await mkdir(iconDir, { recursive: true });
+                await mkdir(iconDir, { recursive: true }); // Creates .../icons/hicolor/48x48/apps
+
+                // Create the index.theme file in the theme's base directory (hicolor)
+                const themeBaseDir = dirname(dirname(iconDir)); // .../icons/hicolor
+                const indexThemePath = join(themeBaseDir, 'index.theme');
+                const indexThemeContent = `
+[Icon Theme]
+Name=Hicolor
+Comment=Fallback theme for icons
+Directories=48x48/apps
+
+[48x48/apps]
+Size=48
+Context=Applications
+Type=Scalable
+`;
+                await writeFile(indexThemePath, indexThemeContent, 'utf-8');
 
                 // Create the .desktop file with the correct Icon= value for the current scenario
                 const desktopFileContent = `
