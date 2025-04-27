@@ -14,7 +14,6 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
             let iconPath: string | undefined | null = undefined;
             if (entry.icon) {
                 try {
-                    // Request icon path from main process
                     iconPath = await ipcRenderer.invoke(
                         'get-freedesktop-icon',
                         entry.icon,
