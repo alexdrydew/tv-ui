@@ -7,7 +7,14 @@ import { getDesktopEntries } from './linux.js';
 async function getIconPathFromMain(
     iconName: string,
 ): Promise<string | undefined> {
-    return await ipcRenderer.invoke('get-freedesktop-icon', iconName);
+    console.log(
+        `[preload][getIconPathFromMain] Requesting icon path for: ${iconName}`,
+    );
+    const iconPath = await ipcRenderer.invoke('get-freedesktop-icon', iconName);
+    console.log(
+        `[preload][getIconPathFromMain] Received icon path: ${iconPath}`,
+    );
+    return iconPath;
 }
 
 export async function suggestAppConfigs(): Promise<AppConfig[]> {

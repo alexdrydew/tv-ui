@@ -83,22 +83,27 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                 data-testid={`suggested-app-${app.id}`} // Add test ID
                             >
                                 {app.icon ? (
-                                    <img
-                                        src={`file://${app.icon}`} // Use file protocol for absolute paths
-                                        alt={`${app.name} icon`}
-                                        className="h-8 w-8 mb-1 object-contain" // Ensure icon fits
-                                        onError={(e) => {
-                                            // Fallback or hide if image fails to load
-                                            console.warn(
-                                                `Failed to load icon: ${app.icon}`,
-                                                e,
-                                            );
-                                            (
-                                                e.target as HTMLImageElement
-                                            ).style.display = 'none';
-                                            // Optionally show a fallback icon here
-                                        }}
-                                    />
+                                    <>
+                                        {console.log(
+                                            `[renderer][SelectAppFromOS] Rendering img for ${app.name} with icon: ${app.icon}`,
+                                        )}
+                                        <img
+                                            src={`file://${app.icon}`} // Use file protocol for absolute paths
+                                            alt={`${app.name} icon`}
+                                            className="h-8 w-8 mb-1 object-contain" // Ensure icon fits
+                                            onError={(e) => {
+                                                // Fallback or hide if image fails to load
+                                                console.warn(
+                                                    `[renderer][SelectAppFromOS] Failed to load icon: ${app.icon}`,
+                                                    e,
+                                                );
+                                                (
+                                                    e.target as HTMLImageElement
+                                                ).style.display = 'none';
+                                                // Optionally show a fallback icon here
+                                            }}
+                                        />
+                                    </>
                                 ) : (
                                     <PackageIcon className="h-8 w-8 mb-1 text-muted-foreground" />
                                 )}

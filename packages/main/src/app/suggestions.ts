@@ -11,10 +11,16 @@ export function registerSuggestionHandlers() {
             exts?: string | string[],
             fallbackPaths?: string | string[],
         ): Promise<string | undefined> => {
-            return (
-                (await freedesktopIcons(iconName, themes, exts, fallbackPaths)) ||
-                undefined
+            console.log(
+                `[main][get-freedesktop-icon] Searching for icon: ${JSON.stringify(iconName)}`,
             );
+            const result =
+                (await freedesktopIcons(iconName, themes, exts, fallbackPaths)) ||
+                undefined;
+            console.log(
+                `[main][get-freedesktop-icon] Found icon path: ${result}`,
+            );
+            return result;
         },
     );
 }
