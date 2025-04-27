@@ -20,6 +20,7 @@ const minimalPngData = Buffer.from(
 type TestFixtures = {
     electronApp: ElectronApplication;
     configFilePath: string;
+    setupEnv: Record<string, string>;
     electronVersions: NodeJS.ProcessVersions;
 };
 
@@ -71,8 +72,14 @@ const test = base.extend<TestFixtures>({
         },
         { scope: 'test', auto: true },
     ],
+    setupEnv: [
+        async ({}, use) => {
+            await use({});
+        },
+        { scope: 'test', auto: true },
+    ],
     electronApp: [
-        async ({ configFilePath }, use, testInfo) => {
+        async ({ configFilePath, setupEnv }, use) => {
             let executablePattern = 'dist/*/root{,.*}';
             if (nodePlatform === 'darwin') {
                 executablePattern += '/Contents/*/root';
@@ -90,7 +97,7 @@ const test = base.extend<TestFixtures>({
                 env: {
                     ...process.env, // Pass existing env vars
                     TV_UI_CONFIG_PATH: configFilePath, // Standard config path
-                    ...(testInfo.project.use.env as Record<string, string>), // Env vars specific to this test run
+                    ...setupEnv,
                 },
             });
 
@@ -191,7 +198,9 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
     ).toBeVisible();
 
     // Click the "Create Manually" button
-    await initialDialog.getByRole('button', { name: 'Create Manually' }).click();
+    await initialDialog
+        .getByRole('button', { name: 'Create Manually' })
+        .click();
 
     // Now expect the manual form dialog
     const manualDialog = page.getByRole('dialog', { name: 'Add App Manually' });
@@ -381,7 +390,8 @@ test('Edit app config via context menu', async ({ page, configFilePath }) => {
 
     // Ensure no config with the old name exists if ID is the primary key
     const configWithOldNameButSameId = updatedConfigs.find(
-        (config) => config.name === initialAppName && config.id === initialAppId,
+        (config) =>
+            config.name === initialAppName && config.id === initialAppId,
     );
     expect(
         configWithOldNameButSameId,
@@ -464,180 +474,6 @@ test('Kill running app via context menu', async ({ page }) => {
     ).not.toBeVisible({ timeout: 2000 });
 });
 
-// Test Linux-specific features by mocking the environment
-test.describe('Linux Specific Features (Mocked)', () => {
-    // Define environment variables needed for Linux suggestions
-    test.use({
-        env: {
-            E2E_TEST_PLATFORM: 'linux', // Force Linux suggestion logic
-            // We'll set XDG dirs dynamically in the test
-        },
-    });
-
-    test(
-        'Suggest app from OS shows icon from .desktop file',
-        async ({ page, electronApp }) => {
-            // 1. Setup temporary XDG structure and files
-            const tempDir = join(tmpdir(), `tv-ui-test-linux-${Date.now()}`);
-            const xdgDataHome = join(tempDir, 'home', '.local', 'share');
-            const xdgDataDirShare = join(tempDir, 'usr', 'share');
-            const appDir = join(xdgDataHome, 'applications');
-            const iconDir = join(
-                xdgDataDirShare,
-                'icons',
-                'hicolor',
-                '48x48',
-                'apps',
-            );
-            const desktopFilePath = join(appDir, 'test-icon-app.desktop');
-            const iconFileName = 'test-app-icon.png';
-            const iconFilePath = join(iconDir, iconFileName);
-
-            await mkdir(appDir, { recursive: true });
-            await mkdir(iconDir, { recursive: true });
-
-            const desktopFileContent = `
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Test Icon App
-Exec=/usr/bin/test-icon-app %U
-Icon=test-app-icon
-Terminal=false
-Categories=Utility;
-NoDisplay=false
-`;
-            await writeFile(desktopFilePath, desktopFileContent, 'utf-8');
-            await writeFile(iconFilePath, minimalPngData); // Write minimal PNG data
-
-            console.log(`Created temp dir: ${tempDir}`);
-            console.log(`Created desktop file: ${desktopFilePath}`);
-            console.log(`Created icon file: ${iconFilePath}`);
-
-            // 2. Relaunch the app with the correct environment variables for this test
-            // Playwright doesn't easily allow changing env vars *during* a test for the *same* app instance.
-            // We need to close the default fixture app and launch a new one with specific env.
-            await electronApp.close(); // Close the app launched by the fixture
-
-            let executablePattern = 'dist/*/root{,.*}';
-            if (nodePlatform === 'darwin') {
-                executablePattern += '/Contents/*/root';
-            }
-            const [executablePath] = globSync(executablePattern);
-
-            const testSpecificApp = await electron.launch({
-                executablePath: executablePath,
-                args: ['--no-sandbox'],
-                env: {
-                    ...process.env,
-                    E2E_TEST_PLATFORM: 'linux', // Force Linux suggestion logic
-                    XDG_DATA_DIRS: xdgDataDirShare, // Point to temp /usr/share
-                    XDG_DATA_HOME: xdgDataHome, // Point to temp ~/.local/share
-                    HOME: join(tempDir, 'home'), // Set HOME for os.homedir() consistency
-                    // Use a defined temp path instead of empty string
-                    TV_UI_CONFIG_PATH: join(tempDir, 'test-config.json'),
-                },
-            });
-            testSpecificApp.on('window', async (window) => {
-                // Log console messages from the new window's renderer process
-                window.on('console', (msg) => {
-                    if (msg.type() === 'error') {
-                        console.error(
-                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
-                        );
-                    } else {
-                        console.log(
-                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
-                        );
-                    }
-                });
-                // Log crashes
-                window.on('crash', () => {
-                    console.error('[testSpecificApp][renderer] Renderer crashed');
-                });
-                // Log page errors
-                window.on('pageerror', (error) => {
-                    console.error(
-                        `[testSpecificApp][renderer] Page error: ${error}`,
-                    );
-                });
-            });
-            testSpecificApp.on('console', (msg) => { // Logs from main process
-                if (msg.type() === 'error') {
-                    console.error(
-                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
-                    );
-                } else {
-                    console.log(
-                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
-                    );
-                }
-            });
-
-            // Wait for the first window to open
-            page = await testSpecificApp.firstWindow();
-            if (!page) {
-                throw new Error('testSpecificApp failed to open a window.');
-            }
-
-            // Wait for the page to load, potentially longer timeout if needed
-            try {
-                await page.waitForLoadState('load', { timeout: 15000 }); // Increased timeout
-                console.log('[testSpecificApp] Page loaded.');
-            } catch (e) {
-                console.error('[testSpecificApp] Page load timed out or failed.');
-                // Capture a screenshot on failure
-                const screenshotPath = join(
-                    tempDir,
-                    'page-load-failure.png',
-                );
-                await page.screenshot({ path: screenshotPath });
-                console.error(`Screenshot saved to ${screenshotPath}`);
-                throw e; // Re-throw the error
-            }
-
-            // 3. Navigate UI
-            await page.getByRole('button', { name: 'Add App' }).click();
-            const initialDialog = page.getByRole('dialog', {
-                name: 'Add New App',
-            });
-            await expect(initialDialog).toBeVisible();
-            await initialDialog
-                .getByRole('button', { name: 'Select from OS' })
-                .click();
-
-            // 4. Verify Suggestion and Icon
-            const selectDialog = page.getByRole('dialog', {
-                name: 'Select App from System',
-            });
-            await expect(selectDialog).toBeVisible();
-
-            // Wait for suggestions to load (adjust timeout if needed)
-            await expect(
-                selectDialog.getByText('Loading suggestions...'),
-            ).not.toBeVisible({ timeout: 10000 });
-
-            const suggestedAppButton = selectDialog.getByTestId(
-                'suggested-app-test-icon-app',
-            );
-            await expect(suggestedAppButton).toBeVisible();
-            await expect(suggestedAppButton).toContainText('Test Icon App');
-
-            const iconImage = suggestedAppButton.locator('img');
-            await expect(iconImage).toBeVisible();
-
-            // Convert expected file path to file:// URL for comparison
-            const expectedIconSrc = pathToFileURL(iconFilePath).toString();
-            await expect(iconImage).toHaveAttribute('src', expectedIconSrc);
-
-            // 5. Cleanup (Close the test-specific app, temp dir removal)
-            await testSpecificApp.close();
-            await rm(tempDir, { recursive: true, force: true });
-            console.log(`Cleaned up temp dir: ${tempDir}`);
-        },
-    );
-});
-
 test('Config file watcher updates UI on external change', async ({
     page,
     configFilePath,
@@ -709,4 +545,172 @@ test('Config file watcher updates UI on external change', async ({
         newAppTile,
         `New app "${newAppName}" should still be visible after initial app removal`,
     ).toBeVisible();
+});
+
+type LinuxTestFixtures = {
+    tempDir: string;
+    electronApp: ElectronApplication;
+    configFilePath: string;
+    setupEnv: Record<string, string>;
+};
+
+// Test Linux-specific features by mocking the environment
+const linuxEnvTest = test.extend<LinuxTestFixtures>({
+    tempDir: [
+        async ({}, use) => {
+            const tempDir = join(tmpdir(), `tv-ui-test-linux-${Date.now()}`);
+            await mkdir(tempDir, { recursive: true });
+            await use(tempDir);
+            await rm(tempDir, { recursive: true, force: true });
+        },
+        { scope: 'test' },
+    ],
+    setupEnv: [
+        async ({ tempDir }, use) => {
+            const xdgDataHome = join(tempDir, 'home', '.local', 'share');
+            const xdgDataDirShare = join(tempDir, 'usr', 'share');
+
+            await use({
+                E2E_TEST_PLATFORM: 'linux', // Force Linux suggestion logic
+                XDG_DATA_DIRS: xdgDataDirShare, // Point to temp /usr/share
+                XDG_DATA_HOME: xdgDataHome, // Point to temp ~/.local/share
+                HOME: join(tempDir, 'home'), // Set HOME for os.homedir() consistency
+                TV_UI_CONFIG_PATH: join(tempDir, 'test-config.json'),
+            });
+        },
+        { scope: 'test', auto: true },
+    ],
+});
+
+linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
+    linuxEnvTest(
+        'Suggest app from OS shows icon from .desktop file',
+        async ({ page, electronApp, setupEnv, tempDir }) => {
+            const xdgDataHome = setupEnv['XDG_DATA_HOME'];
+            const xdgDataDirShare = setupEnv['XDG_DATA_DIRS'];
+
+            const appDir = join(xdgDataHome, 'applications');
+            const iconDir = join(
+                xdgDataDirShare,
+                'icons',
+                'hicolor',
+                '48x48',
+                'apps',
+            );
+            const desktopFilePath = join(appDir, 'test-icon-app.desktop');
+            const iconFileName = 'test-app-icon.png';
+            const iconFilePath = join(iconDir, iconFileName);
+
+            await mkdir(appDir, { recursive: true });
+            await mkdir(iconDir, { recursive: true });
+
+            const desktopFileContent = `
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Test Icon App
+Exec=/usr/bin/test-icon-app %U
+Icon=test-app-icon
+Terminal=false
+Categories=Utility;
+NoDisplay=false
+`;
+            await writeFile(desktopFilePath, desktopFileContent, 'utf-8');
+            await writeFile(iconFilePath, minimalPngData); // Write minimal PNG data
+
+            electronApp.on('window', async (window) => {
+                // Log console messages from the new window's renderer process
+                window.on('console', (msg) => {
+                    if (msg.type() === 'error') {
+                        console.error(
+                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                        );
+                    } else {
+                        console.log(
+                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                        );
+                    }
+                });
+                // Log crashes
+                window.on('crash', () => {
+                    console.error(
+                        '[testSpecificApp][renderer] Renderer crashed',
+                    );
+                });
+                // Log page errors
+                window.on('pageerror', (error) => {
+                    console.error(
+                        `[testSpecificApp][renderer] Page error: ${error}`,
+                    );
+                });
+            });
+            electronApp.on('console', (msg) => {
+                // Logs from main process
+                if (msg.type() === 'error') {
+                    console.error(
+                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
+                    );
+                } else {
+                    console.log(
+                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
+                    );
+                }
+            });
+
+            // Wait for the first window to open
+            page = await electronApp.firstWindow();
+            if (!page) {
+                throw new Error('testSpecificApp failed to open a window.');
+            }
+
+            // Wait for the page to load, potentially longer timeout if needed
+            try {
+                await page.waitForLoadState('load', { timeout: 15000 }); // Increased timeout
+                console.log('[testSpecificApp] Page loaded.');
+            } catch (e) {
+                console.error(
+                    '[testSpecificApp] Page load timed out or failed.',
+                );
+                // Capture a screenshot on failure
+                const screenshotPath = join(tempDir, 'page-load-failure.png');
+                await page.screenshot({ path: screenshotPath });
+                console.error(`Screenshot saved to ${screenshotPath}`);
+                throw e; // Re-throw the error
+            }
+
+            // 3. Navigate UI
+            await page.getByRole('button', { name: 'Add App' }).click();
+            const initialDialog = page.getByRole('dialog', {
+                name: 'Add New App',
+            });
+            await expect(initialDialog).toBeVisible();
+            await initialDialog
+                .getByRole('button', { name: 'Select from OS' })
+                .click();
+
+            // 4. Verify Suggestion and Icon
+            const selectDialog = page.getByRole('dialog', {
+                name: 'Select App from System',
+            });
+            await expect(selectDialog).toBeVisible();
+
+            // Wait for suggestions to load (adjust timeout if needed)
+            await expect(
+                selectDialog.getByText('Loading suggestions...'),
+            ).not.toBeVisible({ timeout: 10000 });
+
+            const suggestedAppButton = selectDialog.getByTestId(
+                'suggested-app-test-icon-app',
+            );
+            await expect(suggestedAppButton).toBeVisible();
+            await expect(suggestedAppButton).toContainText('Test Icon App');
+
+            const iconImage = suggestedAppButton.locator('img');
+            await expect(iconImage).toBeVisible();
+
+            // Convert expected file path to file:// URL for comparison
+            const expectedIconSrc = pathToFileURL(iconFilePath).toString();
+            await expect(iconImage).toHaveAttribute('src', expectedIconSrc);
+        },
+    );
 });
