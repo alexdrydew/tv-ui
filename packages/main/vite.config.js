@@ -18,6 +18,22 @@ export default /**
             formats: ['es'],
         },
         rollupOptions: {
+            // Tell Vite/Rollup to treat Electron and Node.js built-ins as external
+            external: [
+                'electron',
+                'electron/main',
+                'electron/common',
+                'electron/renderer',
+                'electron/utility',
+                'node:fs',
+                'node:fs/promises',
+                'node:path',
+                'node:os',
+                'node:child_process',
+                'node:url',
+                'node:events',
+                // Add any other Node.js built-ins you might use
+            ],
             output: {
                 entryFileNames: '[name].js',
             },
