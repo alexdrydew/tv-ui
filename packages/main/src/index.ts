@@ -7,6 +7,7 @@ import { allowExternalUrls } from './modules/ExternalUrls.js';
 import { hardwareAccelerationMode } from './modules/HardwareAccelerationModule.js';
 import { disallowMultipleAppInstance } from './modules/SingleInstanceApp.js';
 import { createWindowManagerModule } from './modules/WindowManager.js';
+import './app/suggestions.js';
 
 export async function initApp(initConfig: AppInitConfig) {
     const moduleRunner = createModuleRunner()
