@@ -15,8 +15,12 @@ export function registerSuggestionHandlers() {
                 `[main][get-freedesktop-icon] Searching for icon: ${JSON.stringify(iconName)}`,
             );
             const result =
-                (await freedesktopIcons(iconName, themes, exts, fallbackPaths)) ||
-                undefined;
+                (await freedesktopIcons(
+                    iconName,
+                    themes,
+                    exts,
+                    fallbackPaths,
+                )) || undefined;
             console.log(
                 `[main][get-freedesktop-icon] Found icon path: ${result}`,
             );

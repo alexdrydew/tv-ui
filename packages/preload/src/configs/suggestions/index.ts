@@ -2,19 +2,18 @@ import { AppConfig } from '@app/types';
 import os from 'node:os';
 import { ipcRenderer } from 'electron';
 import { getDesktopEntries } from './linux.js';
+import { fileExists } from '#src/fs/index.js';
+import { Effect } from 'effect';
 
 // freedesktopIcons can't be called from preload process
 async function getIconPathFromMain(
     iconName: string,
 ): Promise<string | undefined> {
-    console.log(
-        `[preload][getIconPathFromMain] Requesting icon path for: ${iconName}`,
-    );
-    const iconPath = await ipcRenderer.invoke('get-freedesktop-icon', iconName);
-    console.log(
-        `[preload][getIconPathFromMain] Received icon path: ${iconPath}`,
-    );
-    return iconPath;
+    if (await Effect.runPromise(fileExists(iconName))) {
+        return iconName;
+    }
+
+    return ipcRenderer.invoke('get-freedesktop-icon', iconName);
 }
 
 export async function suggestAppConfigs(): Promise<AppConfig[]> {

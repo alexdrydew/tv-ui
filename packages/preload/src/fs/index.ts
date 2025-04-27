@@ -1,11 +1,7 @@
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { Effect } from 'effect';
 import { UnknownException } from 'effect/Cause';
-import {
-    mapFsError,
-    type FsError,
-    FsNoSuchFileOrDirError,
-} from './errors.js';
+import { mapFsError, type FsError, FsNoSuchFileOrDirError } from './errors.js';
 import constants from 'node:constants';
 
 export function readFileEffect(
