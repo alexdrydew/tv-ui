@@ -3,6 +3,13 @@ import os from 'node:os';
 import { ipcRenderer } from 'electron';
 import { getDesktopEntries } from './linux.js';
 
+// freedesktopIcons can't be called from preload process
+async function getIconPathFromMain(
+    iconName: string,
+): Promise<string | undefined> {
+    return await ipcRenderer.invoke('get-freedesktop-icon', iconName);
+}
+
 export async function suggestAppConfigs(): Promise<AppConfig[]> {
     const platform = os.platform();
 
@@ -11,21 +18,9 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
         const suggestions: AppConfig[] = [];
         for (const entry of entries) {
             const command = entry.exec;
-            let iconPath: string | undefined | null = undefined;
-            if (entry.icon) {
-                try {
-                    iconPath = await ipcRenderer.invoke(
-                        'get-freedesktop-icon',
-                        entry.icon,
-                    );
-                } catch (error) {
-                    console.error(
-                        `IPC call failed for icon '${entry.icon}':`,
-                        error,
-                    );
-                    iconPath = undefined; // Treat as if no icon found on error
-                }
-            }
+            const iconPath = entry.icon
+                ? await getIconPathFromMain(entry.icon)
+                : undefined;
 
             if (command) {
                 const suggestion: AppConfig = {

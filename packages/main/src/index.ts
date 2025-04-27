@@ -1,41 +1,14 @@
-import { ipcMain } from 'electron';
-import freedesktopIcons from 'freedesktop-icons';
 import type { AppInitConfig } from './AppInitConfig.js';
 import { createModuleRunner } from './ModuleRunner.js';
-import { disallowMultipleAppInstance } from './modules/SingleInstanceApp.js';
-import { createWindowManagerModule } from './modules/WindowManager.js';
 import { terminateAppOnLastWindowClose } from './modules/ApplicationTerminatorOnLastWindowClose.js';
-import { hardwareAccelerationMode } from './modules/HardwareAccelerationModule.js';
 import { autoUpdater } from './modules/AutoUpdater.js';
 import { allowInternalOrigins } from './modules/BlockNotAllowdOrigins.js';
 import { allowExternalUrls } from './modules/ExternalUrls.js';
+import { hardwareAccelerationMode } from './modules/HardwareAccelerationModule.js';
+import { disallowMultipleAppInstance } from './modules/SingleInstanceApp.js';
+import { createWindowManagerModule } from './modules/WindowManager.js';
 
 export async function initApp(initConfig: AppInitConfig) {
-    // Handle icon lookups from preload
-    ipcMain.handle(
-        'get-freedesktop-icon',
-        async (
-            _event,
-            iconName: string | string[],
-            themes?: string | string[],
-            exts?: string | string[],
-            fallbackPaths?: string | string[],
-        ): Promise<string | null> => {
-            try {
-                // Directly pass arguments; freedesktopIcons handles undefined correctly
-                return await freedesktopIcons(
-                    iconName,
-                    themes,
-                    exts,
-                    fallbackPaths,
-                );
-            } catch (error) {
-                console.error('Error looking up freedesktop icon:', error);
-                return null; // Return null or throw, depending on desired error handling
-            }
-        },
-    );
-
     const moduleRunner = createModuleRunner()
         .init(
             createWindowManagerModule({
