@@ -589,43 +589,67 @@ const linuxEnvTest = test.extend<LinuxTestFixtures>({
 });
 
 linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
-    linuxEnvTest(
-        'Suggest app from OS shows icon from .desktop file',
-        async ({ page, electronApp, setupEnv, tempDir }) => {
-            const xdgDataHome = setupEnv['XDG_DATA_HOME'];
-            const xdgDataDirShare = setupEnv['XDG_DATA_DIRS'];
+    // Define scenarios for testing icon specification in .desktop files
+    const scenarios = [
+        { iconSpecifier: 'test-app-icon', testNameSuffix: 'by name' },
+        { iconSpecifier: '{{ICON_FILE_PATH}}', testNameSuffix: 'by full path' }, // Placeholder
+    ];
 
-            const appDir = join(xdgDataHome, 'applications');
-            const iconDir = join(
-                xdgDataDirShare,
-                'icons',
-                'hicolor',
-                '48x48',
-                'apps',
-            );
-            const desktopFilePath = join(appDir, 'test-icon-app.desktop');
-            const iconFileName = 'test-app-icon.png';
-            const iconFilePath = join(iconDir, iconFileName);
+    for (const scenario of scenarios) {
+        linuxEnvTest(
+            `Suggest app from OS shows icon ${scenario.testNameSuffix} from .desktop file`,
+            async ({ page, electronApp, setupEnv, tempDir }) => {
+                // --- Test Setup ---
+                const xdgDataHome = setupEnv['XDG_DATA_HOME'];
+                const xdgDataDirShare = setupEnv['XDG_DATA_DIRS'];
+                const appDir = join(xdgDataHome, 'applications');
+                const iconDir = join(
+                    xdgDataDirShare,
+                    'icons',
+                    'hicolor', // Using a standard theme directory
+                    '48x48', // Standard size
+                    'apps', // Standard type
+                );
+                const iconFileName = 'test-app-icon.png'; // Actual icon file
+                const iconFilePath = join(iconDir, iconFileName); // Full path to the actual icon file
 
-            await mkdir(appDir, { recursive: true });
-            await mkdir(iconDir, { recursive: true });
+                // Resolve the placeholder for the full path scenario AFTER iconFilePath is defined
+                const iconValueForDesktopFile =
+                    scenario.iconSpecifier === '{{ICON_FILE_PATH}}'
+                        ? iconFilePath // Use the full path for this scenario
+                        : scenario.iconSpecifier; // Use the name ('test-app-icon') for the other
 
-            const desktopFileContent = `
+                // Use unique names for desktop file and app to avoid conflicts between test runs
+                const uniqueAppName = `Test Icon App ${scenario.testNameSuffix}`;
+                const uniqueDesktopFileName = `test-icon-app-${scenario.testNameSuffix.replace(/ /g, '-')}.desktop`;
+                const desktopFilePath = join(appDir, uniqueDesktopFileName);
+                const desktopFileId = uniqueDesktopFileName.replace(
+                    '.desktop',
+                    '',
+                ); // ID used in testid
+
+                await mkdir(appDir, { recursive: true });
+                await mkdir(iconDir, { recursive: true });
+
+                // Create the .desktop file with the correct Icon= value for the current scenario
+                const desktopFileContent = `
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Test Icon App
-Exec=/usr/bin/test-icon-app %U
-Icon=${iconFilePath}
+Name=${uniqueAppName}
+Exec=/usr/bin/test-icon-app-${scenario.testNameSuffix.replace(/ /g, '-')} %U
+Icon=${iconValueForDesktopFile}
 Terminal=false
 Categories=Utility;
 NoDisplay=false
 `;
-            await writeFile(desktopFilePath, desktopFileContent, 'utf-8');
-            await writeFile(iconFilePath, minimalPngData); // Write minimal PNG data
+                await writeFile(desktopFilePath, desktopFileContent, 'utf-8');
+                // Ensure the actual icon file exists
+                await writeFile(iconFilePath, minimalPngData);
 
-            electronApp.on('window', async (window) => {
-                // Log console messages from the new window's renderer process
+                // --- Attach Loggers ---
+                electronApp.on('window', async (window) => {
+                    // Log console messages from the new window's renderer process
                 window.on('console', (msg) => {
                     if (msg.type() === 'error') {
                         console.error(
@@ -663,8 +687,8 @@ NoDisplay=false
                 }
             });
 
-            // Wait for the first window to open
-            page = await electronApp.firstWindow();
+            // --- Page Load ---
+            page = await electronApp.firstWindow(); // Reassign page for this specific test run
             if (!page) {
                 throw new Error('testSpecificApp failed to open a window.');
             }
@@ -677,14 +701,16 @@ NoDisplay=false
                 console.error(
                     '[testSpecificApp] Page load timed out or failed.',
                 );
-                // Capture a screenshot on failure
-                const screenshotPath = join(tempDir, 'page-load-failure.png');
+                const screenshotPath = join(
+                    tempDir,
+                    `page-load-failure-${scenario.testNameSuffix.replace(/ /g, '-')}.png`,
+                );
                 await page.screenshot({ path: screenshotPath });
                 console.error(`Screenshot saved to ${screenshotPath}`);
-                throw e; // Re-throw the error
+                throw e;
             }
 
-            // 3. Navigate UI
+            // --- UI Navigation ---
             await page.getByRole('button', { name: 'Add App' }).click();
             const initialDialog = page.getByRole('dialog', {
                 name: 'Add New App',
@@ -705,18 +731,33 @@ NoDisplay=false
                 selectDialog.getByText('Loading suggestions...'),
             ).not.toBeVisible({ timeout: 10000 });
 
+            // Use the unique desktop file ID derived earlier for the testId
             const suggestedAppButton = selectDialog.getByTestId(
-                'suggested-app-test-icon-app',
+                `suggested-app-${desktopFileId}`,
             );
-            await expect(suggestedAppButton).toBeVisible();
-            await expect(suggestedAppButton).toContainText('Test Icon App');
+            await expect(
+                suggestedAppButton,
+                `Suggested app button for ${uniqueAppName} should be visible`,
+            ).toBeVisible();
+            // Check for the unique name
+            await expect(
+                suggestedAppButton,
+                `Suggested app button should contain text "${uniqueAppName}"`,
+            ).toContainText(uniqueAppName);
 
             const iconImage = suggestedAppButton.locator('img');
-            await expect(iconImage).toBeVisible();
+            await expect(
+                iconImage,
+                `Icon image within button for ${uniqueAppName} should be visible`,
+            ).toBeVisible();
 
-            // Convert expected file path to file:// URL for comparison
+            // IMPORTANT: Both scenarios should resolve to the *actual* icon file path's URL
             const expectedIconSrc = pathToFileURL(iconFilePath).toString();
-            await expect(iconImage).toHaveAttribute('src', expectedIconSrc);
+            await expect(
+                iconImage,
+                `Icon image src should be "${expectedIconSrc}" for scenario "${scenario.testNameSuffix}"`,
+            ).toHaveAttribute('src', expectedIconSrc);
         },
     );
+    } // End of loop for scenarios
 });
