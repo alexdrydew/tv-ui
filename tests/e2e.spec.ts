@@ -539,18 +539,67 @@ NoDisplay=false
                     XDG_DATA_DIRS: xdgDataDirShare, // Point to temp /usr/share
                     XDG_DATA_HOME: xdgDataHome, // Point to temp ~/.local/share
                     HOME: join(tempDir, 'home'), // Set HOME for os.homedir() consistency
-                    TV_UI_CONFIG_PATH: '', // Use default or empty config for this specific test
+                    // Use a defined temp path instead of empty string
+                    TV_UI_CONFIG_PATH: join(tempDir, 'test-config.json'),
                 },
             });
-            testSpecificApp.on('console', (msg) => {
+            testSpecificApp.on('window', async (window) => {
+                // Log console messages from the new window's renderer process
+                window.on('console', (msg) => {
+                    if (msg.type() === 'error') {
+                        console.error(
+                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                        );
+                    } else {
+                        console.log(
+                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                        );
+                    }
+                });
+                // Log crashes
+                window.on('crash', () => {
+                    console.error('[testSpecificApp][renderer] Renderer crashed');
+                });
+                // Log page errors
+                window.on('pageerror', (error) => {
+                    console.error(
+                        `[testSpecificApp][renderer] Page error: ${error}`,
+                    );
+                });
+            });
+            testSpecificApp.on('console', (msg) => { // Logs from main process
                 if (msg.type() === 'error') {
-                    console.error(`[electron][${msg.type()}] ${msg.text()}`);
+                    console.error(
+                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
+                    );
                 } else {
-                    console.log(`[electron][${msg.type()}] ${msg.text()}`);
+                    console.log(
+                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
+                    );
                 }
             });
-            page = await testSpecificApp.firstWindow(); // Get the new window
-            await page.waitForLoadState('load');
+
+            // Wait for the first window to open
+            page = await testSpecificApp.firstWindow();
+            if (!page) {
+                throw new Error('testSpecificApp failed to open a window.');
+            }
+
+            // Wait for the page to load, potentially longer timeout if needed
+            try {
+                await page.waitForLoadState('load', { timeout: 15000 }); // Increased timeout
+                console.log('[testSpecificApp] Page loaded.');
+            } catch (e) {
+                console.error('[testSpecificApp] Page load timed out or failed.');
+                // Capture a screenshot on failure
+                const screenshotPath = join(
+                    tempDir,
+                    'page-load-failure.png',
+                );
+                await page.screenshot({ path: screenshotPath });
+                console.error(`Screenshot saved to ${screenshotPath}`);
+                throw e; // Re-throw the error
+            }
 
             // 3. Navigate UI
             await page.getByRole('button', { name: 'Add App' }).click();
