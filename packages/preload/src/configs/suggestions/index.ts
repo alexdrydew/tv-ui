@@ -1,6 +1,7 @@
 import { AppConfig } from '@app/types';
 import os from 'node:os';
 import { getDesktopEntries } from './linux.js';
+import '@apps/freedesktop-icons-types';
 import freedesktopIcons from 'freedesktop-icons';
 
 export async function suggestAppConfigs(): Promise<AppConfig[]> {
@@ -18,7 +19,7 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
                     id: entry.id,
                     name: entry.name,
                     launchCommand: command,
-                    icon: icon,
+                    icon: icon === null ? undefined : icon,
                 };
                 suggestions.push(suggestion);
             } else {

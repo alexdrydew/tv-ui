@@ -22,6 +22,7 @@
     },
     "devDependencies": {
         "@app/electron-versions": "*",
+        "@types/freedesktop-icons": "*",
         "@types/ini": "^4.1.1",
         "memfs": "^4.17.0",
         "mlly": "1.7.4",
