@@ -569,13 +569,19 @@ const linuxEnvTest = test.extend<LinuxTestFixtures>({
         async ({ tempDir }, use) => {
             const xdgDataHome = join(tempDir, 'home', '.local', 'share');
             const xdgDataDirShare = join(tempDir, 'usr', 'share');
+            const testConfigPath = join(tempDir, 'test-config.json');
+
+            // Ensure the config directory exists and create an empty config file
+            // so the app doesn't crash on startup trying to read/watch it.
+            await mkdir(dirname(testConfigPath), { recursive: true });
+            await writeFile(testConfigPath, '[]', 'utf-8'); // Create empty config
 
             await use({
                 E2E_TEST_PLATFORM: 'linux', // Force Linux suggestion logic
                 XDG_DATA_DIRS: xdgDataDirShare, // Point to temp /usr/share
                 XDG_DATA_HOME: xdgDataHome, // Point to temp ~/.local/share
                 HOME: join(tempDir, 'home'), // Set HOME for os.homedir() consistency
-                TV_UI_CONFIG_PATH: join(tempDir, 'test-config.json'),
+                TV_UI_CONFIG_PATH: testConfigPath, // Use the created path
             });
         },
         { scope: 'test', auto: true },
