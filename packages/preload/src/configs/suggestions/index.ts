@@ -5,7 +5,6 @@ import { getDesktopEntries } from './linux.js';
 import { fileExists } from '#src/fs/index.js';
 import { Effect } from 'effect';
 
-// freedesktopIcons can't be called from preload process
 async function getIconPathFromMain(
     iconName: string,
 ): Promise<string | undefined> {
@@ -13,6 +12,8 @@ async function getIconPathFromMain(
         return iconName;
     }
 
+    // freedesktopIcons can't be called from preload process
+    console.log(`Searching icon for ${iconName} using freedesktopIcons...`);
     return ipcRenderer.invoke('get-freedesktop-icon', iconName);
 }
 

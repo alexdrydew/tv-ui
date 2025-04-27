@@ -17,9 +17,12 @@ type DesktopEntryInternal = {
 function parseDesktopFile(
     filePath: string,
 ): Effect.Effect<DesktopEntryInternal | null, never> {
-    // Return internal type
     return pipe(
-        readFileEffect(filePath), // Can fail with Fs*Error
+        Effect.logDebug(`Parsing desktop file: ${filePath}`),
+        Effect.flatMap(() => readFileEffect(filePath)), // Can fail with Fs*Error
+        Effect.tapError((error) =>
+            Effect.logWarning(`Error reading file ${filePath}`, error),
+        ),
         Effect.map((buffer) => buffer.toString('utf-8')),
         Effect.tryMap({
             // Can fail with UnknownException (parsing)
@@ -61,13 +64,22 @@ function parseDesktopFile(
             };
             return result;
         }),
-        Effect.catchAll((_error) => {
-            console.info(
-                `Skipping desktop entry due to error reading/parsing ${filePath}:`,
-                _error,
-            );
-            return Effect.succeed(null);
-        }),
+        Effect.tap((entry) =>
+            entry
+                ? Effect.logDebug(`Successfully parsed ${filePath}`)
+                : Effect.logDebug(
+                      `Skipping invalid/filtered entry ${filePath}`,
+                  ),
+        ),
+        Effect.catchAll((error) =>
+            pipe(
+                Effect.logWarning(
+                    `Skipping desktop entry due to error reading/parsing ${filePath}`,
+                    error,
+                ),
+                Effect.andThen(Effect.succeed(null)), // Ensure the pipeline continues with null
+            ),
+        ),
     );
 }
 
@@ -141,19 +153,36 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
     ];
 
     const effect = pipe(
-        Effect.forEach(uniqueSearchDirs, (dir) =>
-            Effect.tryPromise({
-                try: () => findDesktopFiles(dir),
-                catch: (error: unknown) => {
-                    console.error(
-                        `Unexpected error calling findDesktopFiles for ${dir}:`,
-                        error,
-                    );
-                    return [];
-                },
-            }),
+        Effect.logInfo(
+            `Searching for desktop entries in: ${uniqueSearchDirs.join(', ')}`,
+        ),
+        Effect.flatMap(() =>
+            Effect.forEach(uniqueSearchDirs, (dir) =>
+                pipe(
+                    Effect.logDebug(
+                        `Finding desktop files in directory: ${dir}`,
+                    ),
+                    Effect.flatMap(() =>
+                        Effect.tryPromise({
+                            try: () => findDesktopFiles(dir),
+                            catch: (error: unknown) => {
+                                Effect.logError(
+                                    `Error finding desktop files in ${dir}`,
+                                    error,
+                                );
+                                return []; // Return empty array on error for this dir
+                            },
+                        }),
+                    ),
+                ),
+            ),
         ),
         Effect.map((results) => results.flat()),
+        Effect.tap((allFiles) =>
+            Effect.logDebug(
+                `Found ${allFiles.length} potential .desktop files`,
+            ),
+        ),
         Effect.flatMap((allFiles) =>
             Effect.forEach(allFiles, (filePath) => parseDesktopFile(filePath)),
         ),
@@ -162,13 +191,20 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                 (entry): entry is DesktopEntryInternal => entry !== null,
             ),
         ),
-        Effect.catchAll((error) => {
-            console.error(
-                'Caught unexpected error during desktop entry processing pipeline:',
-                error,
-            );
-            return Effect.succeed([]);
-        }),
+        Effect.tap((entries) =>
+            Effect.logInfo(
+                `Successfully processed ${entries.length} desktop entries`,
+            ),
+        ),
+        Effect.catchAll((error) =>
+            pipe(
+                Effect.logError(
+                    'Caught unexpected error during desktop entry processing pipeline',
+                    error,
+                ),
+                Effect.andThen(Effect.succeed([])), // Return empty array on pipeline error
+            ),
+        ),
     );
     return Effect.runPromise(effect);
 }
