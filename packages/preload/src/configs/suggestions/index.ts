@@ -1,14 +1,13 @@
 import { AppConfig } from '@app/types';
 import os from 'node:os';
 import { getDesktopEntries } from './linux.js';
-import '@apps/freedesktop-icons-types';
 import freedesktopIcons from 'freedesktop-icons';
 
 export async function suggestAppConfigs(): Promise<AppConfig[]> {
     const platform = os.platform();
 
     if (platform === 'linux') {
-        const entries = getDesktopEntries();
+        const entries = await getDesktopEntries();
         const suggestions: AppConfig[] = [];
         for (const entry of entries) {
             const command = entry.exec;

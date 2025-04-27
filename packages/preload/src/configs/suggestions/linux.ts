@@ -127,7 +127,7 @@ function getXdgDataHome(): string {
     return result;
 }
 
-export function getDesktopEntries(): DesktopEntryInternal[] {
+export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
     const xdgDataDirs = getXdgDataDirs();
     const xdgDataHome = getXdgDataHome();
 
@@ -141,31 +141,23 @@ export function getDesktopEntries(): DesktopEntryInternal[] {
     ];
 
     const effect = pipe(
-        Effect.forEach(
-            uniqueSearchDirs,
-            (dir) =>
-                Effect.tryPromise({
-                    try: () => findDesktopFiles(dir),
-                    // Provide a specific type for the caught error
-                    catch: (error: unknown) => {
-                        console.error(
-                            `Unexpected error calling findDesktopFiles for ${dir}:`,
-                            error,
-                        );
-                        // Ensure the catch returns the expected type (string[])
-                        return [] as string[];
-                    },
-                }),
-            { concurrency: 5 },
+        Effect.forEach(uniqueSearchDirs, (dir) =>
+            Effect.tryPromise({
+                try: () => findDesktopFiles(dir),
+                catch: (error: unknown) => {
+                    console.error(
+                        `Unexpected error calling findDesktopFiles for ${dir}:`,
+                        error,
+                    );
+                    return [];
+                },
+            }),
         ),
         Effect.map((results) => results.flat()),
         Effect.flatMap((allFiles) =>
-            Effect.forEach(allFiles, (filePath) => parseDesktopFile(filePath), {
-                concurrency: 10,
-            }),
+            Effect.forEach(allFiles, (filePath) => parseDesktopFile(filePath)),
         ),
         Effect.map((parsedEntries) =>
-            // Filter out nulls and ensure type correctness
             parsedEntries.filter(
                 (entry): entry is DesktopEntryInternal => entry !== null,
             ),
@@ -178,5 +170,5 @@ export function getDesktopEntries(): DesktopEntryInternal[] {
             return Effect.succeed([]);
         }),
     );
-    return Effect.runSync(effect);
+    return Effect.runPromise(effect);
 }

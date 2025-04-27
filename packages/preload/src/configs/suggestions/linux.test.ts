@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Effect } from 'effect';
 import { vol, fs } from 'memfs';
 import path from 'node:path';
 import { getDesktopEntries } from './linux.js'; // Changed import path
@@ -56,7 +55,7 @@ describe('getDesktopEntries', () => {
     });
 
     it('should return an empty array if no standard directories exist', async () => {
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
         expect(result).toEqual([]);
     });
 
@@ -66,7 +65,7 @@ describe('getDesktopEntries', () => {
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
         expect(result).toEqual([]);
     });
 
@@ -87,7 +86,7 @@ describe('getDesktopEntries', () => {
             ),
         });
 
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
 
         expect(result).toHaveLength(3);
         expect(result).toEqual(
@@ -140,7 +139,7 @@ describe('getDesktopEntries', () => {
             [HOME_LOCAL_SHARE_APPS]: null,
         });
 
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
 
         expect(result).toHaveLength(3);
         expect(result).toEqual(
@@ -176,7 +175,7 @@ describe('getDesktopEntries', () => {
             [HOME_LOCAL_SHARE_APPS]: null,
         });
 
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
 
         expect(result).toHaveLength(1);
         expect(result[0]).toEqual(
@@ -198,7 +197,7 @@ describe('getDesktopEntries', () => {
             [HOME_LOCAL_SHARE_APPS]: null,
         });
 
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
 
         expect(result).toHaveLength(1);
         expect(result[0]).toEqual(
@@ -213,7 +212,7 @@ describe('getDesktopEntries', () => {
         });
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        const result = await Effect.runPromise(getDesktopEntries());
+        const result = await getDesktopEntries();
 
         expect(result).toHaveLength(1);
         expect(result[0].id).toBe('app1');
