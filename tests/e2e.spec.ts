@@ -650,114 +650,114 @@ NoDisplay=false
                 // --- Attach Loggers ---
                 electronApp.on('window', async (window) => {
                     // Log console messages from the new window's renderer process
-                window.on('console', (msg) => {
+                    window.on('console', (msg) => {
+                        if (msg.type() === 'error') {
+                            console.error(
+                                `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                            );
+                        } else {
+                            console.log(
+                                `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                            );
+                        }
+                    });
+                    // Log crashes
+                    window.on('crash', () => {
+                        console.error(
+                            '[testSpecificApp][renderer] Renderer crashed',
+                        );
+                    });
+                    // Log page errors
+                    window.on('pageerror', (error) => {
+                        console.error(
+                            `[testSpecificApp][renderer] Page error: ${error}`,
+                        );
+                    });
+                });
+                electronApp.on('console', (msg) => {
+                    // Logs from main process
                     if (msg.type() === 'error') {
                         console.error(
-                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                            `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
                         );
                     } else {
                         console.log(
-                            `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
+                            `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
                         );
                     }
                 });
-                // Log crashes
-                window.on('crash', () => {
-                    console.error(
-                        '[testSpecificApp][renderer] Renderer crashed',
-                    );
-                });
-                // Log page errors
-                window.on('pageerror', (error) => {
-                    console.error(
-                        `[testSpecificApp][renderer] Page error: ${error}`,
-                    );
-                });
-            });
-            electronApp.on('console', (msg) => {
-                // Logs from main process
-                if (msg.type() === 'error') {
-                    console.error(
-                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
-                    );
-                } else {
-                    console.log(
-                        `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
-                    );
+
+                // --- Page Load ---
+                page = await electronApp.firstWindow(); // Reassign page for this specific test run
+                if (!page) {
+                    throw new Error('testSpecificApp failed to open a window.');
                 }
-            });
 
-            // --- Page Load ---
-            page = await electronApp.firstWindow(); // Reassign page for this specific test run
-            if (!page) {
-                throw new Error('testSpecificApp failed to open a window.');
-            }
+                // Wait for the page to load, potentially longer timeout if needed
+                try {
+                    await page.waitForLoadState('load', { timeout: 15000 }); // Increased timeout
+                    console.log('[testSpecificApp] Page loaded.');
+                } catch (e) {
+                    console.error(
+                        '[testSpecificApp] Page load timed out or failed.',
+                    );
+                    const screenshotPath = join(
+                        tempDir,
+                        `page-load-failure-${scenario.testNameSuffix.replace(/ /g, '-')}.png`,
+                    );
+                    await page.screenshot({ path: screenshotPath });
+                    console.error(`Screenshot saved to ${screenshotPath}`);
+                    throw e;
+                }
 
-            // Wait for the page to load, potentially longer timeout if needed
-            try {
-                await page.waitForLoadState('load', { timeout: 15000 }); // Increased timeout
-                console.log('[testSpecificApp] Page loaded.');
-            } catch (e) {
-                console.error(
-                    '[testSpecificApp] Page load timed out or failed.',
+                // --- UI Navigation ---
+                await page.getByRole('button', { name: 'Add App' }).click();
+                const initialDialog = page.getByRole('dialog', {
+                    name: 'Add New App',
+                });
+                await expect(initialDialog).toBeVisible();
+                await initialDialog
+                    .getByRole('button', { name: 'Select from OS' })
+                    .click();
+
+                // 4. Verify Suggestion and Icon
+                const selectDialog = page.getByRole('dialog', {
+                    name: 'Select App from System',
+                });
+                await expect(selectDialog).toBeVisible();
+
+                // Wait for suggestions to load (adjust timeout if needed)
+                await expect(
+                    selectDialog.getByText('Loading suggestions...'),
+                ).not.toBeVisible({ timeout: 10000 });
+
+                // Use the unique desktop file ID derived earlier for the testId
+                const suggestedAppButton = selectDialog.getByTestId(
+                    `suggested-app-${desktopFileId}`,
                 );
-                const screenshotPath = join(
-                    tempDir,
-                    `page-load-failure-${scenario.testNameSuffix.replace(/ /g, '-')}.png`,
-                );
-                await page.screenshot({ path: screenshotPath });
-                console.error(`Screenshot saved to ${screenshotPath}`);
-                throw e;
-            }
+                await expect(
+                    suggestedAppButton,
+                    `Suggested app button for ${uniqueAppName} should be visible`,
+                ).toBeVisible();
+                // Check for the unique name
+                await expect(
+                    suggestedAppButton,
+                    `Suggested app button should contain text "${uniqueAppName}"`,
+                ).toContainText(uniqueAppName);
 
-            // --- UI Navigation ---
-            await page.getByRole('button', { name: 'Add App' }).click();
-            const initialDialog = page.getByRole('dialog', {
-                name: 'Add New App',
-            });
-            await expect(initialDialog).toBeVisible();
-            await initialDialog
-                .getByRole('button', { name: 'Select from OS' })
-                .click();
+                const iconImage = suggestedAppButton.locator('img');
+                await expect(
+                    iconImage,
+                    `Icon image within button for ${uniqueAppName} should be visible`,
+                ).toBeVisible();
 
-            // 4. Verify Suggestion and Icon
-            const selectDialog = page.getByRole('dialog', {
-                name: 'Select App from System',
-            });
-            await expect(selectDialog).toBeVisible();
-
-            // Wait for suggestions to load (adjust timeout if needed)
-            await expect(
-                selectDialog.getByText('Loading suggestions...'),
-            ).not.toBeVisible({ timeout: 10000 });
-
-            // Use the unique desktop file ID derived earlier for the testId
-            const suggestedAppButton = selectDialog.getByTestId(
-                `suggested-app-${desktopFileId}`,
-            );
-            await expect(
-                suggestedAppButton,
-                `Suggested app button for ${uniqueAppName} should be visible`,
-            ).toBeVisible();
-            // Check for the unique name
-            await expect(
-                suggestedAppButton,
-                `Suggested app button should contain text "${uniqueAppName}"`,
-            ).toContainText(uniqueAppName);
-
-            const iconImage = suggestedAppButton.locator('img');
-            await expect(
-                iconImage,
-                `Icon image within button for ${uniqueAppName} should be visible`,
-            ).toBeVisible();
-
-            // IMPORTANT: Both scenarios should resolve to the *actual* icon file path's URL
-            const expectedIconSrc = pathToFileURL(iconFilePath).toString();
-            await expect(
-                iconImage,
-                `Icon image src should be "${expectedIconSrc}" for scenario "${scenario.testNameSuffix}"`,
-            ).toHaveAttribute('src', expectedIconSrc);
-        },
-    );
+                // IMPORTANT: Both scenarios should resolve to the *actual* icon file path's URL
+                const expectedIconSrc = pathToFileURL(iconFilePath).toString();
+                await expect(
+                    iconImage,
+                    `Icon image src should be "${expectedIconSrc}" for scenario "${scenario.testNameSuffix}"`,
+                ).toHaveAttribute('src', expectedIconSrc);
+            },
+        );
     } // End of loop for scenarios
 });
