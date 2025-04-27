@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir } from 'node:fs/promises';
 import { Effect } from 'effect';
 import { UnknownException } from 'effect/Cause';
 import { mapFsError, type FsError, FsNoSuchFileOrDirError } from './errors.js';
@@ -24,6 +24,18 @@ export function mkdirEffect(
 > {
     return Effect.tryPromise({
         try: () => mkdir(...args),
+        catch: mapFsError,
+    });
+}
+
+export function readdirEffect(
+    ...args: Parameters<typeof readdir>
+): Effect.Effect<
+    Awaited<ReturnType<typeof readdir>>,
+    FsError | UnknownException
+> {
+    return Effect.tryPromise({
+        try: () => readdir(...args),
         catch: mapFsError,
     });
 }
