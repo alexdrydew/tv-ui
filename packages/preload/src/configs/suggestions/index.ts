@@ -11,10 +11,13 @@ async function getIconPathFromMain(
 }
 
 export async function suggestAppConfigs(): Promise<AppConfig[]> {
-    const platform = os.platform();
+    // Allow overriding the platform for testing purposes
+    const platform = process.env['E2E_TEST_PLATFORM'] ?? os.platform();
 
     if (platform === 'linux') {
+        console.info('Suggesting apps using Linux strategy...');
         const entries = await getDesktopEntries();
+        console.info(`Found ${entries.length} raw desktop entries.`);
         const suggestions: AppConfig[] = [];
         for (const entry of entries) {
             const command = entry.exec;
@@ -36,7 +39,14 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
                 );
             }
         }
+        console.info(
+            `Returning ${suggestions.length} processed Linux suggestions.`,
+        );
         return suggestions;
     }
+
+    console.info(
+        `App suggestion not implemented or skipped for platform: ${platform}`,
+    );
     return [];
 }

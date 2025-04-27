@@ -2,7 +2,7 @@ import { AppConfig } from '@app/types';
 import { Button } from '../ui/button';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Loader2Icon, PackageIcon } from 'lucide-react'; // Using PackageIcon as a placeholder
+import { Loader2Icon, PackageIcon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
 
 interface SelectAppFromOSProps {
@@ -80,9 +80,28 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                     'flex flex-col items-center justify-center p-2 rounded-md border border-transparent hover:border-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors text-center h-24', // Fixed height for grid items
                                 )}
                                 title={app.name} // Tooltip for long names
+                                data-testid={`suggested-app-${app.id}`} // Add test ID
                             >
-                                {/* TODO: Implement proper icon rendering based on app.icon */}
-                                <PackageIcon className="h-8 w-8 mb-1 text-muted-foreground" />
+                                {app.icon ? (
+                                    <img
+                                        src={`file://${app.icon}`} // Use file protocol for absolute paths
+                                        alt={`${app.name} icon`}
+                                        className="h-8 w-8 mb-1 object-contain" // Ensure icon fits
+                                        onError={(e) => {
+                                            // Fallback or hide if image fails to load
+                                            console.warn(
+                                                `Failed to load icon: ${app.icon}`,
+                                                e,
+                                            );
+                                            (
+                                                e.target as HTMLImageElement
+                                            ).style.display = 'none';
+                                            // Optionally show a fallback icon here
+                                        }}
+                                    />
+                                ) : (
+                                    <PackageIcon className="h-8 w-8 mb-1 text-muted-foreground" />
+                                )}
                                 <span className="text-xs truncate w-full">
                                     {app.name}
                                 </span>
