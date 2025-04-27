@@ -464,22 +464,17 @@ test('Kill running app via context menu', async ({ page }) => {
     ).not.toBeVisible({ timeout: 2000 });
 });
 
-// Only run Linux-specific tests if explicitly requested or on Linux
-const testLinux =
-    process.env.TEST_LINUX_FEATURES === 'true' || nodePlatform === 'linux'
-        ? test
-        : test.skip;
-
-testLinux.describe('Linux Specific Features', () => {
+// Test Linux-specific features by mocking the environment
+test.describe('Linux Specific Features (Mocked)', () => {
     // Define environment variables needed for Linux suggestions
-    testLinux.use({
+    test.use({
         env: {
             E2E_TEST_PLATFORM: 'linux', // Force Linux suggestion logic
             // We'll set XDG dirs dynamically in the test
         },
     });
 
-    testLinux(
+    test(
         'Suggest app from OS shows icon from .desktop file',
         async ({ page, electronApp }) => {
             // 1. Setup temporary XDG structure and files
