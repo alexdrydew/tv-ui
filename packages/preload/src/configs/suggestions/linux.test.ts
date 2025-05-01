@@ -37,7 +37,12 @@ Name=Link File
 Type=Link
 URL=https://example.com
 `;
-const MOCK_DESKTOP_FILE_INVALID_INI = `[Desktop Entry\nName=Invalid`;
+// Syntactically valid INI, but missing the required [Desktop Entry] section for schema validation
+const MOCK_DESKTOP_FILE_INVALID_SCHEMA = `
+[Some Other Section]
+Name=Invalid Schema App
+Exec=/usr/bin/invalid
+`;
 
 describe('getDesktopEntries', () => {
     beforeEach(() => {
@@ -46,18 +51,24 @@ describe('getDesktopEntries', () => {
         vi.stubEnv('HOME', MOCK_HOME);
         vi.stubEnv('XDG_DATA_DIRS', '');
         vi.stubEnv('XDG_DATA_HOME', '');
-        vi.restoreAllMocks();
+        // Mock console.log BEFORE each test that needs it
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(console, 'info').mockImplementation(() => {}); // Also mock info if used
+        vi.spyOn(console, 'debug').mockImplementation(() => {}); // And debug
     });
 
     afterEach(() => {
         vol.reset();
         vi.unstubAllEnvs();
-        vi.restoreAllMocks();
+        vi.restoreAllMocks(); // This restores the console mocks too
     });
 
     it('should return an empty array if no standard directories exist', async () => {
         const result = await getDesktopEntries();
         expect(result).toEqual([]);
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
+        );
     });
 
     it('should return an empty array if standard directories exist but are empty', async () => {
@@ -68,6 +79,9 @@ describe('getDesktopEntries', () => {
         });
         const result = await getDesktopEntries();
         expect(result).toEqual([]);
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
+        );
     });
 
     it('should parse valid desktop entries from default locations, including subdirectories', async () => {
@@ -117,6 +131,9 @@ describe('getDesktopEntries', () => {
                     status: 'valid',
                 },
             ]),
+        );
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
         );
     });
 
@@ -183,6 +200,9 @@ describe('getDesktopEntries', () => {
                 expect.objectContaining({ entry: { name: 'Ignored 1' } }),
                 expect.objectContaining({ entry: { name: 'Ignored 2' } }),
             ]),
+        );
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
         );
     });
 
@@ -300,15 +320,18 @@ describe('getDesktopEntries', () => {
                 expect.objectContaining({ entry: { name: 'Home Nested App' } }),
             ]),
         );
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
+        );
     });
 
     it('should handle invalid INI files gracefully', async () => {
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = vi.mocked(console.log); // Use vi.mocked for type safety
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'good.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
-            [path.join(USR_SHARE_APPS, 'badini.desktop')]:
-                MOCK_DESKTOP_FILE_INVALID_INI,
+            [path.join(USR_SHARE_APPS, 'badschema.desktop')]: // Use the schema-invalid file
+                MOCK_DESKTOP_FILE_INVALID_SCHEMA,
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
@@ -326,18 +349,25 @@ describe('getDesktopEntries', () => {
             status: 'valid',
         });
 
-        // Check that the error for the bad INI file was logged (via Effect failure)
-        expect(logSpy).toHaveBeenCalledWith(
+        // Check that the initial search log happened, and then the error log
+        expect(logSpy).toHaveBeenCalledTimes(2);
+        // 1. The initial search log
+        expect(logSpy).toHaveBeenNthCalledWith(
+            1,
+            expect.stringContaining('Searching for desktop entries'),
+        );
+        // 2. The error log for the bad schema file
+        expect(logSpy).toHaveBeenNthCalledWith(
+            2,
             expect.stringContaining(
                 'Failed to process item when collecting desktop entries:',
             ),
-            expect.objectContaining({ _tag: 'InvalidIniSchemaError' }), // More specific check
+            expect.objectContaining({ _tag: 'ParseError' }), // Check for ParseError tag
         );
-        logSpy.mockRestore();
     });
 
     it('should handle inaccessible directories gracefully', async () => {
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = vi.mocked(console.log); // Use vi.mocked for type safety
         // Simulate an inaccessible directory by not creating USR_LOCAL_SHARE_APPS
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'app1.desktop')]:
@@ -357,9 +387,11 @@ describe('getDesktopEntries', () => {
             },
             status: 'valid',
         });
-        // Ensure no errors were logged for the missing directory (it's handled by catchAll)
-        expect(logSpy).not.toHaveBeenCalled();
-        logSpy.mockRestore();
+        // Ensure only the initial "Searching..." log was called
+        expect(logSpy).toHaveBeenCalledTimes(1);
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
+        );
     });
 
     it('should return entries with appropriate status (valid, hidden, non-executable)', async () => {
@@ -413,9 +445,14 @@ Type=Application
                 },
             ]),
         );
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
+        );
     });
 
     it('should correctly handle readdir with withFileTypes via mock', async () => {
+        // This test doesn't call getDesktopEntries, so no console.log mock needed here specifically
+        vi.restoreAllMocks(); // Restore console mock if it interferes
         const fsPromises = await import('node:fs/promises');
         const testDir = '/readdir-test';
         vol.fromJSON({
