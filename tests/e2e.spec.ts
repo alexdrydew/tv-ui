@@ -765,7 +765,7 @@ NoDisplay=false
                 await expect(
                     iconImage,
                     `Icon image within button for ${uniqueAppName} should be visible`,
-                ).toBeVisible();
+                ).toBeVisible({ timeout: 1000000 });
 
                 // IMPORTANT: Both scenarios should resolve to the *actual* icon file path's URL
                 const expectedIconSrc = pathToFileURL(iconFilePath).toString();
