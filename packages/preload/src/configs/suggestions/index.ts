@@ -27,9 +27,12 @@ async function getIconDataUrlFromMain(
     try {
         // Pass the identifier as the first element of the array,
         // as expected by the main process handler.
-        const dataUrl = await ipcRenderer.invoke('get-freedesktop-icon', [
-            iconIdentifier,
-        ]);
+        const dataUrl = await ipcRenderer.invoke(
+            'get-freedesktop-icon',
+            [iconIdentifier],
+            undefined,
+            256,
+        );
         if (dataUrl) {
             console.log(
                 `Received data URL for icon identifier "${iconIdentifier}" (Length: ${dataUrl.length})`,

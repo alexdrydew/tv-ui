@@ -225,18 +225,17 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                 className={cn(
                                     'flex flex-col items-center justify-center p-2 rounded-md border border-transparent hover:border-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors text-center h-24', // Fixed height for grid items
                                 )}
-                                title={app.name} // Tooltip for long names
-                                data-testid={`suggested-app-${app.id}`} // Add test ID
+                                title={app.name}
+                                data-testid={`suggested-app-${app.id}`}
                             >
                                 {app.icon ? (
                                     <>
                                         {/* Removed console log for cleaner output */}
                                         <img
-                                            src={app.icon} // Use data URL directly
+                                            src={app.icon}
                                             alt={`${app.name} icon`}
-                                            className="h-8 w-8 mb-1 object-contain" // Ensure icon fits
+                                            className="h-8 w-8 mb-1 object-contain"
                                             onError={(e) => {
-                                                // Fallback or hide if image fails to load
                                                 console.warn(
                                                     `[renderer][SelectAppFromOS] Failed to load icon from data URL for ${app.name}`,
                                                     e,
