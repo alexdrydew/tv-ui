@@ -612,6 +612,57 @@ const linuxEnvTest = test.extend<LinuxTestFixtures>({
 });
 
 linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
+    // Helper function to create a .desktop file
+    const createDesktopFile = async (
+        appDir: string,
+        appName: string,
+        desktopFileName: string,
+        iconValue: string,
+    ) => {
+        const desktopFilePath = join(appDir, desktopFileName);
+        const desktopFileContent = `
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=${appName}
+Exec=/usr/bin/${desktopFileName.replace('.desktop', '')} %U
+Icon=${iconValue}
+Terminal=false
+Categories=Utility;
+NoDisplay=false
+`;
+        await writeFile(desktopFilePath, desktopFileContent, 'utf-8');
+    };
+
+    // Helper function to create an icon file and theme index
+    const createIconFile = async (
+        iconDir: string,
+        iconFileName: string,
+        iconFilePath: string,
+    ) => {
+        await mkdir(iconDir, { recursive: true });
+        const themeBaseDir = dirname(dirname(iconDir)); // .../icons/hicolor
+        const indexThemePath = join(themeBaseDir, 'index.theme');
+        const indexThemeContent = `
+[Icon Theme]
+Name=Hicolor
+Comment=Fallback theme for icons
+Directories=48x48/apps
+
+[48x48/apps]
+Size=48
+Context=Applications
+Type=Scalable
+`;
+        // Write index.theme only if it doesn't exist to avoid race conditions in parallel tests
+        try {
+            await readFile(indexThemePath);
+        } catch {
+            await writeFile(indexThemePath, indexThemeContent, 'utf-8');
+        }
+        await writeFile(iconFilePath, minimalPngData);
+    };
+
     // Define scenarios for testing icon specification in .desktop files
     const scenarios = [
         { iconSpecifier: 'test-app-icon', testNameSuffix: 'by name' },
@@ -645,42 +696,15 @@ linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
                 // Use unique names for desktop file and app to avoid conflicts between test runs
                 const uniqueAppName = `Test Icon App ${scenario.testNameSuffix}`;
                 const uniqueDesktopFileName = `test-icon-app-${scenario.testNameSuffix.replace(/ /g, '-')}.desktop`;
-                const desktopFilePath = join(appDir, uniqueDesktopFileName);
 
                 await mkdir(appDir, { recursive: true });
-                await mkdir(iconDir, { recursive: true }); // Creates .../icons/hicolor/48x48/apps
-
-                // Create the index.theme file in the theme's base directory (hicolor)
-                const themeBaseDir = dirname(dirname(iconDir)); // .../icons/hicolor
-                const indexThemePath = join(themeBaseDir, 'index.theme');
-                const indexThemeContent = `
-[Icon Theme]
-Name=Hicolor
-Comment=Fallback theme for icons
-Directories=48x48/apps
-
-[48x48/apps]
-Size=48
-Context=Applications
-Type=Scalable
-`;
-                await writeFile(indexThemePath, indexThemeContent, 'utf-8');
-
-                // Create the .desktop file with the correct Icon= value for the current scenario
-                const desktopFileContent = `
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=${uniqueAppName}
-Exec=/usr/bin/test-icon-app-${scenario.testNameSuffix.replace(/ /g, '-')} %U
-Icon=${iconValueForDesktopFile}
-Terminal=false
-Categories=Utility;
-NoDisplay=false
-`;
-                await writeFile(desktopFilePath, desktopFileContent, 'utf-8');
-                // Ensure the actual icon file exists
-                await writeFile(iconFilePath, minimalPngData);
+                await createIconFile(iconDir, iconFileName, iconFilePath);
+                await createDesktopFile(
+                    appDir,
+                    uniqueAppName,
+                    uniqueDesktopFileName,
+                    iconValueForDesktopFile,
+                );
 
                 // --- Attach Loggers ---
                 // Note: Loggers are attached in the fixture now, no need to repeat here unless debugging specific window events
@@ -772,4 +796,221 @@ NoDisplay=false
             },
         );
     } // End of loop for scenarios
-});
+
+    linuxEnvTest(
+        'Suggest app from OS pagination works correctly',
+        async ({ page, electronApp, setupEnv }) => {
+            // --- Test Setup ---
+            const xdgDataHome = setupEnv['XDG_DATA_HOME'];
+            const appDir = join(xdgDataHome, 'applications');
+            await mkdir(appDir, { recursive: true });
+
+            const totalApps = 20; // More than ITEMS_PER_PAGE (16)
+            const appBaseName = 'Paginated App';
+            const desktopFileBaseName = 'paginated-app';
+            const iconValue = 'application-default-icon'; // Use a generic icon name
+
+            // Create desktop files
+            for (let i = 1; i <= totalApps; i++) {
+                const appName = `${appBaseName} ${i}`;
+                const desktopFileName = `${desktopFileBaseName}-${i}.desktop`;
+                await createDesktopFile(
+                    appDir,
+                    appName,
+                    desktopFileName,
+                    iconValue,
+                );
+            }
+
+            // --- Page Load & Navigation ---
+            page = await electronApp.firstWindow();
+            await page.waitForLoadState('load', { timeout: 15000 });
+            await page.getByRole('button', { name: 'Add App' }).click();
+            const initialDialog = page.getByRole('dialog', {
+                name: 'Add New App',
+            });
+            await expect(initialDialog).toBeVisible();
+            await initialDialog
+                .getByRole('button', { name: 'Select from OS' })
+                .click();
+
+            // --- Verify Dialog and Loading ---
+            const selectDialog = page.getByRole('dialog', {
+                name: 'Select App from System',
+            });
+            await expect(selectDialog).toBeVisible();
+            await expect(
+                selectDialog.getByText('Loading suggestions...'),
+            ).not.toBeVisible({ timeout: 10000 });
+
+            // --- Pagination Verification ---
+            const pagination = selectDialog.locator('[data-slot="pagination"]');
+            const prevButton = pagination.locator(
+                'a[aria-label="Go to previous page"]',
+            );
+            const nextButton = pagination.locator(
+                'a[aria-label="Go to next page"]',
+            );
+            const page1Link = pagination.locator(
+                'a[data-slot="pagination-link"]',
+                { hasText: '1' },
+            );
+            const page2Link = pagination.locator(
+                'a[data-slot="pagination-link"]',
+                { hasText: '2' },
+            );
+
+            // Check initial state (Page 1)
+            await expect(
+                pagination,
+                'Pagination controls should be visible',
+            ).toBeVisible();
+            await expect(
+                prevButton,
+                'Previous button should be initially disabled (visually)',
+            ).toHaveClass(/pointer-events-none/);
+            await expect(
+                prevButton,
+                'Previous button should have aria-disabled="true"',
+            ).toHaveAttribute('aria-disabled', 'true');
+            await expect(
+                nextButton,
+                'Next button should be initially enabled',
+            ).not.toHaveClass(/pointer-events-none/);
+            await expect(
+                nextButton,
+                'Next button should not have aria-disabled="true"',
+            ).not.toHaveAttribute('aria-disabled', 'true');
+            await expect(
+                page1Link,
+                'Page 1 link should be marked as active',
+            ).toHaveAttribute('aria-current', 'page');
+            await expect(
+                page2Link,
+                'Page 2 link should not be marked as active',
+            ).not.toHaveAttribute('aria-current', 'page');
+
+            // Verify apps on Page 1 (assuming default sort is somewhat stable, check first and last expected)
+            const app1Button = selectDialog
+                .getByRole('button')
+                .filter({ hasText: `${appBaseName} 1` });
+            const app16Button = selectDialog
+                .getByRole('button')
+                .filter({ hasText: `${appBaseName} 16` });
+            const app17Button = selectDialog
+                .getByRole('button')
+                .filter({ hasText: `${appBaseName} 17` });
+
+            await expect(
+                app1Button,
+                'App 1 should be visible on page 1',
+            ).toBeVisible();
+            await expect(
+                app16Button,
+                'App 16 should be visible on page 1',
+            ).toBeVisible();
+            await expect(
+                app17Button,
+                'App 17 should NOT be visible on page 1',
+            ).not.toBeVisible();
+
+            // Click Next button
+            await nextButton.click();
+
+            // Check state on Page 2
+            await expect(
+                prevButton,
+                'Previous button should be enabled on page 2',
+            ).not.toHaveClass(/pointer-events-none/);
+            await expect(
+                prevButton,
+                'Previous button should not have aria-disabled="true" on page 2',
+            ).not.toHaveAttribute('aria-disabled', 'true');
+            await expect(
+                nextButton,
+                'Next button should be disabled on page 2 (last page)',
+            ).toHaveClass(/pointer-events-none/);
+            await expect(
+                nextButton,
+                'Next button should have aria-disabled="true" on page 2',
+            ).toHaveAttribute('aria-disabled', 'true');
+            await expect(
+                page1Link,
+                'Page 1 link should not be active on page 2',
+            ).not.toHaveAttribute('aria-current', 'page');
+            await expect(
+                page2Link,
+                'Page 2 link should be active on page 2',
+            ).toHaveAttribute('aria-current', 'page');
+
+            // Verify apps on Page 2
+            await expect(
+                app1Button,
+                'App 1 should NOT be visible on page 2',
+            ).not.toBeVisible();
+            await expect(
+                app16Button,
+                'App 16 should NOT be visible on page 2',
+            ).not.toBeVisible();
+            await expect(
+                app17Button,
+                'App 17 should be visible on page 2',
+            ).toBeVisible();
+            const app20Button = selectDialog
+                .getByRole('button')
+                .filter({ hasText: `${appBaseName} 20` });
+            await expect(
+                app20Button,
+                'App 20 should be visible on page 2',
+            ).toBeVisible();
+
+            // Click Previous button
+            await prevButton.click();
+
+            // Check state back on Page 1
+            await expect(
+                prevButton,
+                'Previous button should be disabled again on page 1',
+            ).toHaveClass(/pointer-events-none/);
+            await expect(
+                nextButton,
+                'Next button should be enabled again on page 1',
+            ).not.toHaveClass(/pointer-events-none/);
+            await expect(
+                page1Link,
+                'Page 1 link should be active again',
+            ).toHaveAttribute('aria-current', 'page');
+            await expect(
+                page2Link,
+                'Page 2 link should not be active again',
+            ).not.toHaveAttribute('aria-current', 'page');
+
+            // Verify apps back on Page 1
+            await expect(
+                app1Button,
+                'App 1 should be visible again on page 1',
+            ).toBeVisible();
+            await expect(
+                app17Button,
+                'App 17 should NOT be visible again on page 1',
+            ).not.toBeVisible();
+
+            // Click Page 2 link directly
+            await page2Link.click();
+
+            // Verify apps on Page 2 again
+            await expect(
+                app1Button,
+                'App 1 should NOT be visible after clicking page 2 link',
+            ).not.toBeVisible();
+            await expect(
+                app17Button,
+                'App 17 should be visible after clicking page 2 link',
+            ).toBeVisible();
+            await expect(
+                page2Link,
+                'Page 2 link should be active after clicking it',
+            ).toHaveAttribute('aria-current', 'page');
+        },
+    );
+}); // End of Linux Specific Features describe block
