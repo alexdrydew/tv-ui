@@ -204,8 +204,15 @@ describe('getDesktopEntries', () => {
 
         const result = await getDesktopEntries();
 
-        // Current behavior logs errors and returns empty
-        expect(result).toEqual([]);
+        // Should still find the entry in the accessible directory
+        expect(result).toHaveLength(1);
+        expect(result[0]).toEqual(
+            expect.objectContaining({
+                name: 'Valid App',
+                exec: '/usr/bin/valid-app %U',
+                icon: 'valid-icon',
+            }),
+        );
 
         // Check that the error for the inaccessible directory was logged
         expect(logSpy).toHaveBeenCalledWith(
@@ -217,12 +224,8 @@ describe('getDesktopEntries', () => {
         expect(logSpy).toHaveBeenCalledWith(
             expect.stringContaining('FsNoSuchFileOrDirError'),
         );
-        // Also check for the error when trying to parse the valid file's path
-        expect(logSpy).toHaveBeenCalledWith(
-            expect.stringContaining('ParseError'), // Or InvalidIniSchemaError depending on exact failure point
-        );
-        // Should be called twice: once for dir error, once for file parse error
-        expect(logSpy).toHaveBeenCalledTimes(2);
+        // Should only be called once for the directory error
+        expect(logSpy).toHaveBeenCalledTimes(1);
 
         logSpy.mockRestore();
     });
