@@ -139,8 +139,11 @@ describe('getDesktopEntries', () => {
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Valid App 4'),
             [path.join(usrShareApps, 'app5.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Valid App 5'),
-            [USR_LOCAL_SHARE_APPS]: null,
-            [HOME_LOCAL_SHARE_APPS]: null,
+            // Standard dirs should be ignored when XDG vars are set
+            [path.join(USR_LOCAL_SHARE_APPS, 'ignored1.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Ignored 1'),
+            [path.join(HOME_LOCAL_SHARE_APPS, 'ignored2.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Ignored 2'),
         });
 
         const result = await getDesktopEntries();
@@ -174,43 +177,59 @@ describe('getDesktopEntries', () => {
                 },
             ]),
         );
+        // Ensure ignored files were not picked up
+        expect(result).not.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ entry: { name: 'Ignored 1' } }),
+                expect.objectContaining({ entry: { name: 'Ignored 2' } }),
+            ]),
+        );
     });
 
-    it('should find desktop entries in deeply nested directories', async () => {
+    it('should find desktop entries in deeply nested directories within XDG paths', async () => {
         const customDataHome = path.join(MOCK_HOME, 'custom-data');
         const optShare = '/opt/share';
+        const usrShareBase = '/usr/share'; // Use the base directory
 
-        vi.stubEnv('XDG_DATA_DIRS', `${optShare}:${USR_SHARE_APPS}`); // Use USR_SHARE_APPS directly
+        // Set XDG env vars - this should *replace* the defaults
+        vi.stubEnv('XDG_DATA_DIRS', `${optShare}:${usrShareBase}`);
         vi.stubEnv('XDG_DATA_HOME', customDataHome);
 
+        // Define paths based on XDG vars
         const optShareApps = path.join(optShare, 'applications');
         const customDataHomeApps = path.join(customDataHome, 'applications');
+        const usrShareApps = path.join(usrShareBase, 'applications'); // Correct base for search
+
+        // Define nested paths for placing files
         const usrShareAppsNested = path.join(
-            USR_SHARE_APPS,
+            usrShareApps, // Use the correct base path
             'nested1',
             'nested2',
-        );
-        const homeLocalShareAppsNested = path.join(
-            HOME_LOCAL_SHARE_APPS,
-            'deep',
-            'down',
         );
         const customDataHomeAppsNested = path.join(
             customDataHomeApps,
             'another-level',
         );
+        // Define paths for standard locations (should be ignored)
+        const homeLocalShareAppsNested = path.join(
+            HOME_LOCAL_SHARE_APPS,
+            'deep',
+            'down',
+        );
 
         vol.fromJSON({
-            // Standard location, top level
+            // Standard location, top level (should be ignored)
             [path.join(USR_LOCAL_SHARE_APPS, 'app-std-local.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Std Local App'),
-            // Standard location, nested
+            // Standard location, nested (should be ignored)
             [path.join(homeLocalShareAppsNested, 'app-home-nested.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Home Nested App'),
-            // XDG_DATA_DIRS location, top level
+
+            // --- Expected files ---
+            // XDG_DATA_DIRS location (/opt/share), top level
             [path.join(optShareApps, 'app-opt.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Opt App'),
-            // XDG_DATA_DIRS location, nested
+            // XDG_DATA_DIRS location (/usr/share), nested
             [path.join(usrShareAppsNested, 'app-usr-nested.desktop')]:
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Usr Nested App'),
             // XDG_DATA_HOME location, top level
@@ -224,32 +243,21 @@ describe('getDesktopEntries', () => {
                 'Valid App',
                 'Custom Home Nested App',
             ),
+            // --- End Expected files ---
+
             // Add some non-desktop files to ensure they are ignored
             [path.join(usrShareAppsNested, 'readme.txt')]: 'ignore me',
-            [path.join(homeLocalShareAppsNested, 'config.json')]: '{}',
+            [path.join(homeLocalShareAppsNested, 'config.json')]: '{}', // In ignored dir
+            [path.join(customDataHomeAppsNested, 'data.bin')]: 'binary', // In searched dir
         });
 
         const result = await getDesktopEntries();
 
-        expect(result).toHaveLength(6);
+        // Should only find the 4 files within the specified XDG paths
+        expect(result).toHaveLength(4);
         expect(result).toEqual(
             expect.arrayContaining([
-                {
-                    entry: {
-                        name: 'Std Local App',
-                        exec: '/usr/bin/valid-app %U',
-                        icon: 'valid-icon',
-                    },
-                    status: 'valid',
-                },
-                {
-                    entry: {
-                        name: 'Home Nested App',
-                        exec: '/usr/bin/valid-app %U',
-                        icon: 'valid-icon',
-                    },
-                    status: 'valid',
-                },
+                // Files from XDG_DATA_DIRS
                 {
                     entry: {
                         name: 'Opt App',
@@ -266,6 +274,7 @@ describe('getDesktopEntries', () => {
                     },
                     status: 'valid',
                 },
+                // Files from XDG_DATA_HOME
                 {
                     entry: {
                         name: 'Custom Home App',
@@ -282,6 +291,13 @@ describe('getDesktopEntries', () => {
                     },
                     status: 'valid',
                 },
+            ]),
+        );
+        // Explicitly check that ignored files were not included
+        expect(result).not.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ entry: { name: 'Std Local App' } }),
+                expect.objectContaining({ entry: { name: 'Home Nested App' } }),
             ]),
         );
     });
@@ -315,17 +331,19 @@ describe('getDesktopEntries', () => {
             expect.stringContaining(
                 'Failed to process item when collecting desktop entries:',
             ),
+            expect.objectContaining({ _tag: 'InvalidIniSchemaError' }), // More specific check
         );
         logSpy.mockRestore();
     });
 
     it('should handle inaccessible directories gracefully', async () => {
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         // Simulate an inaccessible directory by not creating USR_LOCAL_SHARE_APPS
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'app1.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
             // [USR_LOCAL_SHARE_APPS]: null, // This directory won't exist
-            [HOME_LOCAL_SHARE_APPS]: null,
+            [HOME_LOCAL_SHARE_APPS]: null, // This one exists but is empty
         });
         const result = await getDesktopEntries();
 
@@ -339,6 +357,9 @@ describe('getDesktopEntries', () => {
             },
             status: 'valid',
         });
+        // Ensure no errors were logged for the missing directory (it's handled by catchAll)
+        expect(logSpy).not.toHaveBeenCalled();
+        logSpy.mockRestore();
     });
 
     it('should return entries with appropriate status (valid, hidden, non-executable)', async () => {
