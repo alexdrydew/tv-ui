@@ -176,6 +176,120 @@ describe('getDesktopEntries', () => {
         );
     });
 
+    it('should find desktop entries in deeply nested directories', async () => {
+        const customDataHome = path.join(MOCK_HOME, 'custom-data');
+        const optShare = '/opt/share';
+        const usrShare = '/usr/share'; // Will be overridden by XDG_DATA_DIRS but tested implicitly
+
+        vi.stubEnv('XDG_DATA_DIRS', `${optShare}:${USR_SHARE_APPS}`); // Use USR_SHARE_APPS directly
+        vi.stubEnv('XDG_DATA_HOME', customDataHome);
+
+        const optShareApps = path.join(optShare, 'applications');
+        const customDataHomeApps = path.join(customDataHome, 'applications');
+        const usrShareAppsNested = path.join(
+            USR_SHARE_APPS,
+            'nested1',
+            'nested2',
+        );
+        const homeLocalShareAppsNested = path.join(
+            HOME_LOCAL_SHARE_APPS,
+            'deep',
+            'down',
+        );
+        const customDataHomeAppsNested = path.join(
+            customDataHomeApps,
+            'another-level',
+        );
+
+        vol.fromJSON({
+            // Standard location, top level
+            [path.join(USR_LOCAL_SHARE_APPS, 'app-std-local.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Std Local App'),
+            // Standard location, nested
+            [path.join(homeLocalShareAppsNested, 'app-home-nested.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Home Nested App'),
+            // XDG_DATA_DIRS location, top level
+            [path.join(optShareApps, 'app-opt.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Opt App'),
+            // XDG_DATA_DIRS location, nested
+            [path.join(usrShareAppsNested, 'app-usr-nested.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Usr Nested App'),
+            // XDG_DATA_HOME location, top level
+            [path.join(customDataHomeApps, 'app-custom-home.desktop')]:
+                MOCK_DESKTOP_FILE_VALID.replace(
+                    'Valid App',
+                    'Custom Home App',
+                ),
+            // XDG_DATA_HOME location, nested
+            [path.join(
+                customDataHomeAppsNested,
+                'app-custom-home-nested.desktop',
+            )]: MOCK_DESKTOP_FILE_VALID.replace(
+                'Valid App',
+                'Custom Home Nested App',
+            ),
+            // Add some non-desktop files to ensure they are ignored
+            [path.join(usrShareAppsNested, 'readme.txt')]: 'ignore me',
+            [path.join(homeLocalShareAppsNested, 'config.json')]: '{}',
+        });
+
+        const result = await getDesktopEntries();
+
+        expect(result).toHaveLength(6);
+        expect(result).toEqual(
+            expect.arrayContaining([
+                {
+                    entry: {
+                        name: 'Std Local App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Home Nested App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Opt App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Usr Nested App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Custom Home App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Custom Home Nested App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+            ]),
+        );
+    });
+
     it('should handle invalid INI files gracefully', async () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         vol.fromJSON({
