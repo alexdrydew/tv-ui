@@ -37,8 +37,10 @@
 
           rustup
           lld
+          napi-rs-cli
 
           nodePackages.pnpm
+          nodePackages.yarn
           nodePackages.typescript
           nodePackages.typescript-language-server
         ];

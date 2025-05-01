@@ -1,28 +1,28 @@
 import { ipcMain } from 'electron/main';
-import freedesktopIcons from 'freedesktop-icons';
+import { findIconPath } from '@app/native-freedesktop-icons';
 
 export function registerSuggestionHandlers() {
     ipcMain.handle(
         'get-freedesktop-icon',
         async (
             _event,
-            iconName: string | string[],
+            iconName: string[],
             themes?: string | string[],
-            exts?: string | string[],
-            fallbackPaths?: string | string[],
-        ): Promise<string | undefined> => {
+            size?: number,
+            scale?: number,
+        ): Promise<string | null> => {
             console.log(
-                `[main][get-freedesktop-icon] Searching for icon: ${JSON.stringify(iconName)}`,
+                `[main][get-freedesktop-icon] Searching for icon (native): ${JSON.stringify(iconName)} with options: ${JSON.stringify({ themes, size, scale })}`,
             );
-            const result =
-                (await freedesktopIcons(
-                    iconName,
-                    themes,
-                    exts,
-                    fallbackPaths,
-                )) || undefined;
+
+            const result = findIconPath(iconName, {
+                themes: typeof themes === 'string' ? [themes] : themes,
+                size,
+                scale,
+            });
+
             console.log(
-                `[main][get-freedesktop-icon] Found icon path: ${result}`,
+                `[main][get-freedesktop-icon] Found icon path (native): ${result}`,
             );
             return result;
         },

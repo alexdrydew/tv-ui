@@ -48,5 +48,6 @@
     },
     "dependencies": {
         "@app/main": "*"
-    }
+    },
+    "packageManager": "yarn@4.9.1"
 }

@@ -32,6 +32,7 @@ export default /**
                 'node:child_process',
                 'node:url',
                 'node:events',
+                '@app/native-freedesktop-icons',
                 // Add any other Node.js built-ins you might use
             ],
             output: {

@@ -1,0 +1,15 @@
+{
+  "name": "native-freedesktop-icons-darwin-universal",
+  "version": "0.0.0",
+  "os": [
+    "darwin"
+  ],
+  "main": "native-freedesktop-icons.darwin-universal.node",
+  "files": [
+    "native-freedesktop-icons.darwin-universal.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

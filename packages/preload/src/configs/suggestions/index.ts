@@ -17,10 +17,9 @@ async function getIconPathFromMain(
     // If not a direct path, ask the main process to find it using freedesktop-icons
     console.log(`Searching icon for ${iconName} using freedesktopIcons...`);
     try {
-        const foundPath = await ipcRenderer.invoke(
-            'get-freedesktop-icon',
+        const foundPath = await ipcRenderer.invoke('get-freedesktop-icon', [
             iconName,
-        );
+        ]);
         console.log(`Found icon for ${iconName}: ${foundPath ?? 'Not Found'}`);
         return foundPath; // Will be undefined if not found
     } catch (error) {
