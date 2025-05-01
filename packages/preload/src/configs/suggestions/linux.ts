@@ -80,7 +80,7 @@ function findDesktopFilesStreams(dirPath: string): DesktopFilesRecursiveStream {
         Stream.map((dirent) => {
             if (dirent.isDirectory()) {
                 return findDesktopFilesStreams(path.join(dirPath, dirent.name));
-            } else if (dirent.isFile() && dirent.name.endsWith('.desktop')) {
+            } else if (dirent.name.endsWith('.desktop')) {
                 return path.join(dirPath, dirent.name);
             }
         }),
