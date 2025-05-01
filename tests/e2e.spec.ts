@@ -27,7 +27,8 @@ type TestFixtures = {
 
 const test = base.extend<TestFixtures>({
     configFilePath: [
-        async (_, use) => {
+        // eslint-disable-next-line no-empty-pattern
+        async ({}, use) => {
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
             const configFilePath = join(tempConfigDir, 'tv-ui.json');
             const configDir = dirname(configFilePath);
@@ -74,7 +75,8 @@ const test = base.extend<TestFixtures>({
         { scope: 'test', auto: true },
     ],
     setupEnv: [
-        async (_, use) => {
+        // eslint-disable-next-line no-empty-pattern
+        async ({}, use) => {
             await use({});
         },
         { scope: 'test', auto: true },
@@ -582,7 +584,8 @@ type LinuxTestFixtures = {
 // Test Linux-specific features by mocking the environment
 const linuxEnvTest = test.extend<LinuxTestFixtures>({
     tempDir: [
-        async (_, use) => {
+        // eslint-disable-next-line no-empty-pattern
+        async ({}, use) => {
             const tempDir = join(tmpdir(), `tv-ui-test-linux-${Date.now()}`);
             await mkdir(tempDir, { recursive: true });
             await use(tempDir);
@@ -591,7 +594,7 @@ const linuxEnvTest = test.extend<LinuxTestFixtures>({
         { scope: 'test' },
     ],
     setupEnv: [
-        async ({ tempDir }, use) => {
+        async ({ tempDir }, use) => { // Correctly use tempDir here
             const xdgDataHome = join(tempDir, 'home', '.local', 'share');
             const xdgDataDirShare = join(tempDir, 'usr', 'share');
             const testConfigPath = join(tempDir, 'test-config.json');
