@@ -1,102 +1,42 @@
-import { Effect, pipe, Stream, Schema, Data } from 'effect';
+import { Effect, pipe, Stream, Schema, Data, Exit } from 'effect';
 import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
-import { readdirEffect, readFileEffect } from '#src/fs/index.js';
+import { readdirEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
 import { FsError } from '#src/fs/errors.js';
 
-// Custom error for filtering invalid entries
-class InvalidDesktopEntryError extends Data.TaggedError('InvalidDesktopEntryError')<{
-    readonly reason: string;
-}> {}
-
-// Schema for the relevant part of the .desktop file content after ini.parse
 const DesktopEntryIniSchema = Schema.Struct({
-    // Use optional to handle cases where the section might be missing or the file is malformed
-    'Desktop Entry': Schema.optional(Schema.Struct({
+    'Desktop Entry': Schema.Struct({
         Name: Schema.String,
         Exec: Schema.String,
         Type: Schema.optional(Schema.String), // Optional because we need to check its value
         NoDisplay: Schema.optional(Schema.Union(Schema.String, Schema.Boolean)), // Optional and can be string or boolean
         Icon: Schema.optional(Schema.String),
-    })),
+    }),
 });
 
-// Schema for the final output structure
-const DesktopEntryInternalSchema = Schema.Struct({
-    id: Schema.String,
-    name: Schema.String,
-    icon: Schema.optional(Schema.String),
-    filePath: Schema.String,
-    exec: Schema.String,
-});
-type DesktopEntryInternal = Schema.Schema.Type<typeof DesktopEntryInternalSchema>;
+type DesktopEntryInternal = {
+    name: string;
+    icon?: string;
+    exec: string;
+};
 
+class InvalidIniSchemaError extends Data.TaggedError('InvalidIniSchemaError')<{
+    readonly reason: string;
+}> {}
 
-function parseDesktopFile(
-    filePath: string,
-): Effect.Effect<DesktopEntryInternal | null, never> { // Error channel is never
-    const parseValidateAndTransform = pipe(
-        readFileEffect(filePath), // Effect<Buffer, FsError>
-        Effect.map((buffer) => buffer.toString('utf-8')), // Effect<string, FsError>
-        Effect.tryMap({ // Effect<unknown, FsError | UnknownException>
-            try: (content) => ini.parse(content),
-            catch: (error) => new UnknownException({ message: `INI parsing failed for ${filePath}`, cause: error }),
-        }),
-        // Decode the parsed object using the schema
-        // Effect<DecodedIni, FsError | UnknownException | ParseError>
-        Effect.flatMap((parsedIni) => Schema.decodeUnknown(DesktopEntryIniSchema)(parsedIni)),
-        // Filter based on existence of 'Desktop Entry' and its properties
-        Effect.filterOrFail(
-            (decoded): decoded is { 'Desktop Entry': NonNullable<typeof decoded['Desktop Entry']> } => // Type guard
-                decoded['Desktop Entry'] !== undefined && decoded['Desktop Entry'] !== null,
-            () => new InvalidDesktopEntryError({ reason: "Missing 'Desktop Entry' section" })
-        ),
-        Effect.filterOrFail(
-            (decoded) => {
-                const entry = decoded['Desktop Entry'];
-                const noDisplay = entry.NoDisplay;
-                const isHidden = noDisplay === true || String(noDisplay).toLowerCase() === 'true';
-                // Ensure Name and Exec are present (already handled by schema) and Type is Application
-                return entry.Type === 'Application' && !isHidden;
-            },
-            () => new InvalidDesktopEntryError({ reason: 'Entry is not a visible application or missing required fields' })
-        ),
-         // Map to the final DesktopEntryInternal structure
-         // Effect<DesktopEntryInternal, FsError | UnknownException | ParseError | InvalidDesktopEntryError>
-        Effect.map((decoded) => {
-            const entry = decoded['Desktop Entry']; // Now guaranteed to exist by filterOrFail
-            const id = path.basename(filePath, '.desktop');
-            const result: DesktopEntryInternal = {
-                id: id,
-                name: entry.Name,
-                icon: entry.Icon, // Already optional from schema
-                filePath: path.resolve(filePath), // Ensure filePath is absolute
-                exec: entry.Exec, // Already required by schema
-            };
-            // Use the schema to construct the final object for potential future transformations/validations if needed
-            // This step is somewhat redundant here as we manually created the object, but good practice.
-            return DesktopEntryInternalSchema.makeSync(result);
-        }),
-    );
-
-     return pipe(
-        Effect.logDebug(`Parsing desktop file: ${filePath}`),
-        // Execute the pipeline and catch *all* expected errors, returning null
-        Effect.flatMap(() => parseValidateAndTransform),
-        Effect.tap((entry) => Effect.logDebug(`Successfully parsed and validated ${filePath}`)), // Only logs on success path
-        // Catch all errors from the pipeline (FsError, ParseError, UnknownException, InvalidDesktopEntryError)
-        Effect.catchAll((error) =>
-            pipe(
-                Effect.logWarning(
-                    `Skipping desktop entry ${filePath} due to error or filter`,
-                    error,
-                ),
-                Effect.andThen(Effect.succeed(null)), // Return null on any error/filter
-            ),
-        ),
-    );
+function parseIniEffect(
+    content: string,
+): Effect.Effect<object, InvalidIniSchemaError> {
+    return Effect.try({
+        try: () => ini.parse(content),
+        catch: (error) => {
+            return new InvalidIniSchemaError({
+                reason: `Failed to parse INI file: ${(error as Error).message}`,
+            });
+        },
+    });
 }
 
 type DesktopFilesRecursiveStream = Stream.Stream<
@@ -191,48 +131,41 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
     const filesStream = dirsStream.pipe(
         Stream.flatMap(findDesktopFilesEffects),
     );
-
-    filesStream.pipe(
+    const decodedStream = filesStream.pipe(
         Stream.map((filePathEffect) => {
-            pipe(Effect.flatMap(parseDesktopFile));
+            return pipe(
+                filePathEffect,
+                Effect.flatMap(parseIniEffect),
+                Effect.flatMap(Schema.decodeUnknown(DesktopEntryIniSchema)),
+                Effect.map((parsedIni) => {
+                    return {
+                        name: parsedIni['Desktop Entry'].Name,
+                        icon: parsedIni['Desktop Entry'].Icon,
+                        exec: parsedIni['Desktop Entry'].Exec,
+                    };
+                }),
+            );
         }),
     );
 
-    filesStream.pipe(
-        Stream.tap((filePath) =>
-            filePath.Effect.logDebug(`Found .desktop file: ${filePath}`),
-        ),
+    const decodedItemEffects = await Effect.runPromise(
+        Stream.runCollect(decodedStream),
     );
 
-    const effect = pipe(
-        Effect.map((results) => results.flat()),
-        Effect.tap((allFiles) =>
-            Effect.logDebug(
-                `Found ${allFiles.length} potential .desktop files`,
-            ),
-        ),
-        Effect.flatMap((allFiles) =>
-            Effect.forEach(allFiles, (filePath) => parseDesktopFile(filePath)),
-        ),
-        Effect.map((parsedEntries) =>
-            parsedEntries.filter(
-                (entry): entry is DesktopEntryInternal => entry !== null,
-            ),
-        ),
-        Effect.tap((entries) =>
-            Effect.logInfo(
-                `Successfully processed ${entries.length} desktop entries`,
-            ),
-        ),
-        Effect.catchAll((error) =>
-            pipe(
-                Effect.logError(
-                    'Caught unexpected error during desktop entry processing pipeline',
-                    error,
-                ),
-                Effect.andThen(Effect.succeed([])), // Return empty array on pipeline error
-            ),
-        ),
-    );
-    return Effect.runPromise(effect);
+    const desktopEntries: DesktopEntryInternal[] = [];
+    for (const itemEffect of decodedItemEffects) {
+        const result = await Effect.runPromiseExit(itemEffect);
+        const matched = Exit.match(result, {
+            onFailure: (error) => {
+                console.log(
+                    `Failed to process item when collecting desktop entries: ${error}`,
+                );
+            },
+            onSuccess: (item) => item,
+        });
+        if (matched) {
+            desktopEntries.push(matched);
+        }
+    }
+    return desktopEntries;
 }
