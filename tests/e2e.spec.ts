@@ -748,10 +748,11 @@ NoDisplay=false
                     selectDialog.getByText('Loading suggestions...'),
                 ).not.toBeVisible({ timeout: 10000 });
 
-                // Use the unique desktop file ID derived earlier for the testId
-                const suggestedAppButton = selectDialog.getByTestId(
-                    `suggested-app-${desktopFileId}`,
-                );
+                // Locate the button by its role and the text it contains
+                const suggestedAppButton = selectDialog
+                    .getByRole('button')
+                    .filter({ hasText: uniqueAppName });
+
                 await expect(
                     suggestedAppButton,
                     `Suggested app button for ${uniqueAppName} should be visible`,
