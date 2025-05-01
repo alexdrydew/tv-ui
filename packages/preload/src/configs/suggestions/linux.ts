@@ -1,4 +1,4 @@
-import { Effect, pipe, Stream } from 'effect';
+import { Effect, pipe, Stream, Schema, Data } from 'effect';
 import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
@@ -6,78 +6,94 @@ import { readdirEffect, readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
 import { FsError } from '#src/fs/errors.js';
 
-type DesktopEntryInternal = {
-    id: string; // Typically the file name without .desktop
-    name: string;
-    icon?: string; // Optional icon name or path
-    filePath: string; // Full path to the .desktop file
-    exec?: string; // The command from the Exec field
-};
+// Custom error for filtering invalid entries
+class InvalidDesktopEntryError extends Data.TaggedError('InvalidDesktopEntryError')<{
+    readonly reason: string;
+}> {}
+
+// Schema for the relevant part of the .desktop file content after ini.parse
+const DesktopEntryIniSchema = Schema.Struct({
+    // Use optional to handle cases where the section might be missing or the file is malformed
+    'Desktop Entry': Schema.optional(Schema.Struct({
+        Name: Schema.String,
+        Exec: Schema.String,
+        Type: Schema.optional(Schema.String), // Optional because we need to check its value
+        NoDisplay: Schema.optional(Schema.Union(Schema.String, Schema.Boolean)), // Optional and can be string or boolean
+        Icon: Schema.optional(Schema.String),
+    })),
+});
+
+// Schema for the final output structure
+const DesktopEntryInternalSchema = Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    icon: Schema.optional(Schema.String),
+    filePath: Schema.String,
+    exec: Schema.String,
+});
+type DesktopEntryInternal = Schema.Schema.Type<typeof DesktopEntryInternalSchema>;
+
 
 function parseDesktopFile(
     filePath: string,
-): Effect.Effect<DesktopEntryInternal | null, never> {
-    return pipe(
-        Effect.logDebug(`Parsing desktop file: ${filePath}`),
-        Effect.flatMap(() => readFileEffect(filePath)), // Can fail with Fs*Error
-        Effect.tapError((error) =>
-            Effect.logWarning(`Error reading file ${filePath}`, error),
-        ),
-        Effect.map((buffer) => buffer.toString('utf-8')),
-        Effect.tryMap({
-            // Can fail with UnknownException (parsing)
+): Effect.Effect<DesktopEntryInternal | null, never> { // Error channel is never
+    const parseValidateAndTransform = pipe(
+        readFileEffect(filePath), // Effect<Buffer, FsError>
+        Effect.map((buffer) => buffer.toString('utf-8')), // Effect<string, FsError>
+        Effect.tryMap({ // Effect<unknown, FsError | UnknownException>
             try: (content) => ini.parse(content),
-            catch: (error) => {
-                return new UnknownException({
-                    message: `INI parsing failed for ${filePath}`,
-                    cause: error,
-                });
-            },
+            catch: (error) => new UnknownException({ message: `INI parsing failed for ${filePath}`, cause: error }),
         }),
-        Effect.map((parsed) => {
-            const entry = parsed?.['Desktop Entry'];
-
-            if (
-                !entry ||
-                typeof entry !== 'object' ||
-                !entry.Name ||
-                !entry.Exec || // Ensure Exec exists
-                entry.NoDisplay === true ||
-                String(entry.NoDisplay).toLowerCase() === 'true' ||
-                entry.Type !== 'Application'
-            ) {
-                return null; // Not a valid/visible application entry or missing Exec
-            }
-
+        // Decode the parsed object using the schema
+        // Effect<DecodedIni, FsError | UnknownException | ParseError>
+        Effect.flatMap((parsedIni) => Schema.decodeUnknown(DesktopEntryIniSchema)(parsedIni)),
+        // Filter based on existence of 'Desktop Entry' and its properties
+        Effect.filterOrFail(
+            (decoded): decoded is { 'Desktop Entry': NonNullable<typeof decoded['Desktop Entry']> } => // Type guard
+                decoded['Desktop Entry'] !== undefined && decoded['Desktop Entry'] !== null,
+            () => new InvalidDesktopEntryError({ reason: "Missing 'Desktop Entry' section" })
+        ),
+        Effect.filterOrFail(
+            (decoded) => {
+                const entry = decoded['Desktop Entry'];
+                const noDisplay = entry.NoDisplay;
+                const isHidden = noDisplay === true || String(noDisplay).toLowerCase() === 'true';
+                // Ensure Name and Exec are present (already handled by schema) and Type is Application
+                return entry.Type === 'Application' && !isHidden;
+            },
+            () => new InvalidDesktopEntryError({ reason: 'Entry is not a visible application or missing required fields' })
+        ),
+         // Map to the final DesktopEntryInternal structure
+         // Effect<DesktopEntryInternal, FsError | UnknownException | ParseError | InvalidDesktopEntryError>
+        Effect.map((decoded) => {
+            const entry = decoded['Desktop Entry']; // Now guaranteed to exist by filterOrFail
             const id = path.basename(filePath, '.desktop');
-            // Basic parsing of Exec: take the part before the first space, if any,
-            // or the whole string. This is a simplification.
-            // A more robust parser would handle quotes and placeholders like %f, %U etc.
-            // const command = String(entry.Exec).split(' ')[0]; // Simplistic command extraction
-
             const result: DesktopEntryInternal = {
                 id: id,
-                name: String(entry.Name),
-                icon: entry.Icon ? String(entry.Icon) : undefined,
+                name: entry.Name,
+                icon: entry.Icon, // Already optional from schema
                 filePath: path.resolve(filePath), // Ensure filePath is absolute
-                exec: String(entry.Exec), // Store the raw Exec string for now
+                exec: entry.Exec, // Already required by schema
             };
-            return result;
+            // Use the schema to construct the final object for potential future transformations/validations if needed
+            // This step is somewhat redundant here as we manually created the object, but good practice.
+            return DesktopEntryInternalSchema.makeSync(result);
         }),
-        Effect.tap((entry) =>
-            entry
-                ? Effect.logDebug(`Successfully parsed ${filePath}`)
-                : Effect.logDebug(
-                      `Skipping invalid/filtered entry ${filePath}`,
-                  ),
-        ),
+    );
+
+     return pipe(
+        Effect.logDebug(`Parsing desktop file: ${filePath}`),
+        // Execute the pipeline and catch *all* expected errors, returning null
+        Effect.flatMap(() => parseValidateAndTransform),
+        Effect.tap((entry) => Effect.logDebug(`Successfully parsed and validated ${filePath}`)), // Only logs on success path
+        // Catch all errors from the pipeline (FsError, ParseError, UnknownException, InvalidDesktopEntryError)
         Effect.catchAll((error) =>
             pipe(
                 Effect.logWarning(
-                    `Skipping desktop entry due to error reading/parsing ${filePath}`,
+                    `Skipping desktop entry ${filePath} due to error or filter`,
                     error,
                 ),
-                Effect.andThen(Effect.succeed(null)), // Ensure the pipeline continues with null
+                Effect.andThen(Effect.succeed(null)), // Return null on any error/filter
             ),
         ),
     );
