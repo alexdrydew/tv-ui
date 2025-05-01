@@ -92,21 +92,30 @@ describe('getDesktopEntries', () => {
         expect(result).toHaveLength(3);
         expect(result).toEqual(
             expect.arrayContaining([
-                expect.objectContaining({
-                    name: 'Valid App',
-                    icon: 'valid-icon',
-                    exec: '/usr/bin/valid-app %U',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 2',
-                    icon: 'valid-icon',
-                    exec: '/usr/bin/valid-app %U',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 3',
-                    icon: 'valid-icon',
-                    exec: '/usr/bin/valid-app %U',
-                }),
+                {
+                    entry: {
+                        name: 'Valid App',
+                        icon: 'valid-icon',
+                        exec: '/usr/bin/valid-app %U',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Valid App 2',
+                        icon: 'valid-icon',
+                        exec: '/usr/bin/valid-app %U',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Valid App 3',
+                        icon: 'valid-icon',
+                        exec: '/usr/bin/valid-app %U',
+                    },
+                    status: 'valid',
+                },
             ]),
         );
     });
@@ -139,21 +148,30 @@ describe('getDesktopEntries', () => {
         expect(result).toHaveLength(3);
         expect(result).toEqual(
             expect.arrayContaining([
-                expect.objectContaining({
-                    name: 'Valid App 3',
-                    exec: '/usr/bin/valid-app %U',
-                    icon: 'valid-icon',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 4',
-                    exec: '/usr/bin/valid-app %U',
-                    icon: 'valid-icon',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 5',
-                    exec: '/usr/bin/valid-app %U',
-                    icon: 'valid-icon',
-                }),
+                {
+                    entry: {
+                        name: 'Valid App 3',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Valid App 4',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Valid App 5',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
             ]),
         );
     });
@@ -173,15 +191,16 @@ describe('getDesktopEntries', () => {
 
         // Should only return the valid entry
         expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({
+        expect(result[0]).toEqual({
+            entry: {
                 name: 'Valid App',
                 exec: '/usr/bin/valid-app %U',
                 icon: 'valid-icon',
-            }),
-        );
+            },
+            status: 'valid',
+        });
 
-        // Check that the error for the bad INI file was logged
+        // Check that the error for the bad INI file was logged (via Effect failure)
         expect(logSpy).toHaveBeenCalledWith(
             expect.stringContaining(
                 'Failed to process item when collecting desktop entries:',
@@ -204,43 +223,67 @@ describe('getDesktopEntries', () => {
 
         // Should still find the entry in the accessible directory
         expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({
+        expect(result[0]).toEqual({
+            entry: {
                 name: 'Valid App',
                 exec: '/usr/bin/valid-app %U',
                 icon: 'valid-icon',
-            }),
-        );
+            },
+            status: 'valid',
+        });
     });
 
-    it('should filter out NoDisplay=true and non-Application entries', async () => {
+    it('should return entries with appropriate status (valid, hidden, non-executable)', async () => {
+        const MOCK_DESKTOP_FILE_NO_EXEC = `
+[Desktop Entry]
+Name=No Exec App
+Icon=no-exec-icon
+Type=Application
+`;
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'valid.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
             [path.join(USR_SHARE_APPS, 'hidden.desktop')]:
                 MOCK_DESKTOP_FILE_NODISPLAY,
-            [path.join(USR_SHARE_APPS, 'link.desktop')]:
-                MOCK_DESKTOP_FILE_NOT_APP,
+            [path.join(USR_SHARE_APPS, 'noexec.desktop')]:
+                MOCK_DESKTOP_FILE_NO_EXEC,
+            // MOCK_DESKTOP_FILE_NOT_APP is invalid schema (missing required Name), so it won't be parsed successfully
+            // [path.join(USR_SHARE_APPS, 'link.desktop')]: MOCK_DESKTOP_FILE_NOT_APP,
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
         });
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
         const result = await getDesktopEntries();
 
-        // Should only return the 'valid.desktop' entry
-        expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({
-                name: 'Valid App',
-                exec: '/usr/bin/valid-app %U',
-                icon: 'valid-icon',
-            }),
+        // Should return all successfully parsed entries with their status
+        expect(result).toHaveLength(3);
+        expect(result).toEqual(
+            expect.arrayContaining([
+                {
+                    entry: {
+                        name: 'Valid App',
+                        exec: '/usr/bin/valid-app %U',
+                        icon: 'valid-icon',
+                    },
+                    status: 'valid',
+                },
+                {
+                    entry: {
+                        name: 'Hidden App',
+                        exec: '/usr/bin/hidden-app',
+                        // Icon is optional, so undefined is expected if not present
+                    },
+                    status: 'hidden',
+                },
+                {
+                    entry: {
+                        name: 'No Exec App',
+                        icon: 'no-exec-icon',
+                    },
+                    status: 'non-executable',
+                },
+            ]),
         );
-
-        // Filtering is not an error, so no logs expected for hidden/link files
-        expect(logSpy).not.toHaveBeenCalled();
-        logSpy.mockRestore();
     });
 
     it('should correctly handle readdir with withFileTypes via mock', async () => {
