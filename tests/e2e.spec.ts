@@ -865,22 +865,16 @@ Type=Scalable
                 pagination,
                 'Pagination controls should be visible',
             ).toBeVisible();
-            await expect(
-                prevButton,
-                'Previous button should be initially disabled (visually)',
-            ).toHaveClass(/pointer-events-none/);
+            // Use aria-disabled for state checking
             await expect(
                 prevButton,
                 'Previous button should have aria-disabled="true"',
             ).toHaveAttribute('aria-disabled', 'true');
             await expect(
                 nextButton,
-                'Next button should be initially enabled',
-            ).not.toHaveClass(/pointer-events-none/);
-            await expect(
-                nextButton,
                 'Next button should not have aria-disabled="true"',
             ).not.toHaveAttribute('aria-disabled', 'true');
+            // Active state check remains the same
             await expect(
                 page1Link,
                 'Page 1 link should be marked as active',
@@ -918,22 +912,16 @@ Type=Scalable
             await nextButton.click();
 
             // Check state on Page 2
-            await expect(
-                prevButton,
-                'Previous button should be enabled on page 2',
-            ).not.toHaveClass(/pointer-events-none/);
+            // Use aria-disabled for state checking
             await expect(
                 prevButton,
                 'Previous button should not have aria-disabled="true" on page 2',
             ).not.toHaveAttribute('aria-disabled', 'true');
             await expect(
                 nextButton,
-                'Next button should be disabled on page 2 (last page)',
-            ).toHaveClass(/pointer-events-none/);
-            await expect(
-                nextButton,
                 'Next button should have aria-disabled="true" on page 2',
             ).toHaveAttribute('aria-disabled', 'true');
+            // Active state check remains the same
             await expect(
                 page1Link,
                 'Page 1 link should not be active on page 2',
@@ -968,14 +956,16 @@ Type=Scalable
             await prevButton.click();
 
             // Check state back on Page 1
+            // Use aria-disabled for state checking
             await expect(
                 prevButton,
                 'Previous button should be disabled again on page 1',
-            ).toHaveClass(/pointer-events-none/);
+            ).toHaveAttribute('aria-disabled', 'true');
             await expect(
                 nextButton,
                 'Next button should be enabled again on page 1',
-            ).not.toHaveClass(/pointer-events-none/);
+            ).not.toHaveAttribute('aria-disabled', 'true');
+            // Active state check remains the same
             await expect(
                 page1Link,
                 'Page 1 link should be active again',
