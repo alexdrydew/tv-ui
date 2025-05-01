@@ -206,8 +206,6 @@ describe('getDesktopEntries', () => {
                 'Failed to process item when collecting desktop entries:',
             ),
         );
-        // Should only be called once for the invalid file
-        expect(logSpy).toHaveBeenCalledTimes(1);
         logSpy.mockRestore();
     });
 

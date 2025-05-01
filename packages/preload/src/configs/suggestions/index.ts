@@ -27,18 +27,28 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
         console.info(`Found ${entries.length} raw desktop entries.`);
         const suggestions: AppConfig[] = [];
         for (const entry of entries) {
-            const command = entry.exec;
-            const iconPath = entry.icon
-                ? await getIconPathFromMain(entry.icon)
-                : undefined;
+            if (entry.status === 'non-executable') {
+                console.info(
+                    `Skipping non-executable entry: ${entry.entry.name}`,
+                );
+            } else if (entry.status === 'hidden') {
+                console.log(
+                    `Skipping hidden entry: ${entry.entry.name} (NoDisplay=true)`,
+                );
+            } else {
+                const command = entry.entry.exec;
+                const iconPath = entry.entry.icon
+                    ? await getIconPathFromMain(entry.entry.icon)
+                    : undefined;
 
-            const suggestion: AppConfig = {
-                id: randomUUID(),
-                name: entry.name,
-                launchCommand: command,
-                icon: iconPath ?? undefined, // Use nullish coalescing
-            };
-            suggestions.push(suggestion);
+                const suggestion: AppConfig = {
+                    id: randomUUID(),
+                    name: entry.entry.name,
+                    launchCommand: command,
+                    icon: iconPath ?? undefined, // Use nullish coalescing
+                };
+                suggestions.push(suggestion);
+            }
         }
         console.info(
             `Returning ${suggestions.length} processed Linux suggestions.`,

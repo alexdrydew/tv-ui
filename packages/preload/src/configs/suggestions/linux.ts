@@ -1,4 +1,4 @@
-import { Effect, pipe, Stream, Schema, Data, Exit, Option } from 'effect';
+import { Effect, pipe, Stream, Schema, Data, Exit } from 'effect';
 import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
@@ -16,18 +16,22 @@ const DesktopEntryIniSchema = Schema.Struct({
     }),
 });
 
-type DesktopEntryIni = Schema.Schema.Type<typeof DesktopEntryIniSchema>;
-type ExecutableDesktopEntryIni = Omit<DesktopEntryIni, 'Desktop Entry'> & {
-    'Desktop Entry': Omit<DesktopEntryIni['Desktop Entry'], 'Exec'> & {
-        Exec: string;
-    };
-};
-
-type DesktopEntryInternal = {
-    name: string;
-    icon?: string;
-    exec: string;
-};
+type DesktopEntryInternal =
+    | {
+          entry: {
+              name: string;
+              icon?: string;
+              exec: string;
+          };
+          status: 'hidden' | 'valid';
+      }
+    | {
+          entry: {
+              name: string;
+              icon?: string;
+          };
+          status: 'non-executable';
+      };
 
 class InvalidIniSchemaError extends Data.TaggedError('InvalidIniSchemaError')<{
     readonly reason: string;
@@ -44,22 +48,6 @@ function parseIniEffect(
             });
         },
     });
-}
-
-function getExecutableDesktopIni(
-    parsedIni: DesktopEntryIni,
-): Option.Option<ExecutableDesktopEntryIni> {
-    const exec = parsedIni['Desktop Entry'].Exec;
-    if (exec && exec.trim().length > 0) {
-        return Option.some({
-            ...parsedIni,
-            'Desktop Entry': {
-                ...parsedIni['Desktop Entry'],
-                Exec: exec,
-            },
-        });
-    }
-    return Option.none();
 }
 
 type DesktopFilesRecursiveStream = Stream.Stream<
@@ -174,22 +162,35 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                 Effect.map((bufOrString) => bufOrString.toString('utf-8')),
                 Effect.flatMap(parseIniEffect),
                 Effect.flatMap(Schema.decodeUnknown(DesktopEntryIniSchema)),
-                Effect.map((parsedIni) => {
+                Effect.map((parsedIni): DesktopEntryInternal => {
+                    if (!parsedIni['Desktop Entry'].Exec) {
+                        return {
+                            entry: {
+                                name: parsedIni['Desktop Entry'].Name,
+                                icon: parsedIni['Desktop Entry'].Icon,
+                            },
+                            status: 'non-executable',
+                        };
+                    }
+
+                    const entry = {
+                        name: parsedIni['Desktop Entry'].Name,
+                        icon: parsedIni['Desktop Entry'].Icon,
+                        exec: parsedIni['Desktop Entry'].Exec,
+                    };
+
                     const noDisplay = parsedIni['Desktop Entry'].NoDisplay;
                     if (noDisplay || noDisplay === 'true') {
-                        return Option.none();
-                    }
-                    return Option.some(parsedIni);
-                }),
-                Effect.map(Option.flatMap(getExecutableDesktopIni)),
-                Effect.map((executableIni) => {
-                    return Option.map(executableIni, (content) => {
                         return {
-                            name: content['Desktop Entry'].Name,
-                            icon: content['Desktop Entry'].Icon,
-                            exec: content['Desktop Entry'].Exec,
+                            entry,
+                            status: 'hidden',
                         };
-                    });
+                    }
+
+                    return {
+                        entry,
+                        status: 'valid',
+                    };
                 }),
             );
         }),
@@ -208,14 +209,10 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                     `Failed to process item when collecting desktop entries: ${error}`,
                 );
             },
-            onSuccess: (item) => {
-                if (Option.isSome(item)) {
-                    return item;
-                }
-            },
+            onSuccess: (item) => item,
         });
         if (matched) {
-            desktopEntries.push(matched.value);
+            desktopEntries.push(matched);
         }
     }
     return desktopEntries;
