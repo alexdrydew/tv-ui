@@ -27,7 +27,7 @@ type TestFixtures = {
 
 const test = base.extend<TestFixtures>({
     configFilePath: [
-        async ({}, use) => {
+        async (_, use) => {
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
             const configFilePath = join(tempConfigDir, 'tv-ui.json');
             const configDir = dirname(configFilePath);
@@ -74,7 +74,7 @@ const test = base.extend<TestFixtures>({
         { scope: 'test', auto: true },
     ],
     setupEnv: [
-        async ({}, use) => {
+        async (_, use) => {
             await use({});
         },
         { scope: 'test', auto: true },
@@ -140,10 +140,12 @@ const test = base.extend<TestFixtures>({
         });
 
         await page.waitForLoadState('load');
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use(page);
     },
 
     electronVersions: async ({ electronApp }, use) => {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use(await electronApp.evaluate(() => process.versions));
     },
 });
@@ -580,7 +582,7 @@ type LinuxTestFixtures = {
 // Test Linux-specific features by mocking the environment
 const linuxEnvTest = test.extend<LinuxTestFixtures>({
     tempDir: [
-        async ({}, use) => {
+        async (_, use) => {
             const tempDir = join(tmpdir(), `tv-ui-test-linux-${Date.now()}`);
             await mkdir(tempDir, { recursive: true });
             await use(tempDir);
