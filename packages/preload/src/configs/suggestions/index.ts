@@ -21,9 +21,7 @@ async function getIconPathFromMain(
             'get-freedesktop-icon',
             iconName,
         );
-        console.log(
-            `Found icon for ${iconName}: ${foundPath ?? 'Not Found'}`,
-        );
+        console.log(`Found icon for ${iconName}: ${foundPath ?? 'Not Found'}`);
         return foundPath; // Will be undefined if not found
     } catch (error) {
         console.error(
@@ -74,10 +72,7 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
             }
         });
 
-        // Wait for all promises to resolve
         const resolvedSuggestions = await Promise.all(suggestionPromises);
-
-        // Filter out the null results (skipped entries)
         const suggestions = resolvedSuggestions.filter(
             (s): s is AppConfig => s !== null,
         );
