@@ -2,10 +2,6 @@ import { AppConfig } from '@app/types';
 import os from 'node:os';
 import { ipcRenderer } from 'electron';
 import { getDesktopEntries } from './linux.js';
-// Remove fileExists import as it's no longer needed here
-// import { fileExists } from '#src/fs/index.js';
-// Remove Effect import if fileExists was the only reason for it
-// import { Effect } from 'effect';
 import { randomUUID } from 'crypto';
 
 /**
@@ -17,10 +13,6 @@ import { randomUUID } from 'crypto';
 async function getIconDataUrlFromMain(
     iconIdentifier: string,
 ): Promise<string | undefined> {
-    // Always delegate to the main process.
-    // The main process handler ('get-freedesktop-icon') is responsible for
-    // determining if the identifier is a path or a name, finding the icon,
-    // and converting it to a data URL.
     console.log(
         `Requesting data URL for icon identifier "${iconIdentifier}" from main process...`,
     );

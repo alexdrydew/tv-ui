@@ -21,9 +21,12 @@ interface SelectAppFromOSProps {
 
 const ITEMS_PER_PAGE = 16; // Define how many apps per page
 
-// Helper function for sorting AppConfig by name (case-insensitive)
+// Helper function for sorting AppConfig by name (case-insensitive, natural numeric sort)
 const sortAppsByName = (a: AppConfig, b: AppConfig) => {
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    return a.name.localeCompare(b.name, undefined, {
+        sensitivity: 'base',
+        numeric: true, // Enable natural numeric sorting
+    });
 };
 
 export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
