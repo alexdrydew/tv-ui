@@ -90,13 +90,13 @@ const test = base.extend<TestFixtures>({
                 executablePattern = 'dist/*/root'; // Default for Linux
             }
 
-
             const [executablePath] = globSync(executablePattern);
             if (!executablePath) {
-                throw new Error(`App Executable path not found using pattern: ${executablePattern}`);
+                throw new Error(
+                    `App Executable path not found using pattern: ${executablePattern}`,
+                );
             }
             console.log(`Found executable at: ${executablePath}`);
-
 
             const electronApp = await electron.launch({
                 executablePath: executablePath,
@@ -114,7 +114,7 @@ const test = base.extend<TestFixtures>({
                 const text = msg.text();
                 // Filter out noisy DevTools warnings unless it's an error
                 if (type === 'error' || !text.includes('DevTools')) {
-                     console.error(`[electron][${type}] ${text}`);
+                    console.error(`[electron][${type}] ${text}`);
                 }
             });
 
@@ -131,14 +131,13 @@ const test = base.extend<TestFixtures>({
             console.error(`[renderer][pageerror] ${error}`);
         });
         page.on('console', (msg) => {
-             const type = msg.type();
-             const text = msg.text();
-             // Filter out noisy DevTools warnings unless it's an error
-             if (type === 'error' || !text.includes('DevTools')) {
-                 console.log(`[renderer][${type}] ${text}`);
-             }
+            const type = msg.type();
+            const text = msg.text();
+            // Filter out noisy DevTools warnings unless it's an error
+            if (type === 'error' || !text.includes('DevTools')) {
+                console.log(`[renderer][${type}] ${text}`);
+            }
         });
-
 
         await page.waitForLoadState('load');
         await use(page);
@@ -630,9 +629,9 @@ linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
                 const iconDir = join(
                     xdgDataDirShare,
                     'icons',
-                    'hicolor', // Using a standard theme directory
-                    '48x48', // Standard size
-                    'apps', // Standard type
+                    'hicolor',
+                    '48x48',
+                    'apps',
                 );
                 const iconFileName = 'test-app-icon.png'; // Actual icon file
                 const iconFilePath = join(iconDir, iconFileName); // Full path to the actual icon file
@@ -759,7 +758,10 @@ NoDisplay=false
                 await expect(
                     iconImage,
                     `Icon image src should start with "${expectedIconSrcPrefix}" for scenario "${scenario.testNameSuffix}"`,
-                ).toHaveAttribute('src', new RegExp(`^${expectedIconSrcPrefix}`));
+                ).toHaveAttribute(
+                    'src',
+                    new RegExp(`^${expectedIconSrcPrefix}`),
+                );
 
                 // Optional: Check that the src is not *just* the prefix (i.e., it has content)
                 const actualSrc = await iconImage.getAttribute('src');
@@ -767,7 +769,6 @@ NoDisplay=false
                     actualSrc?.length ?? 0,
                     'Icon data URL should have content',
                 ).toBeGreaterThan(expectedIconSrcPrefix.length);
-
             },
         );
     } // End of loop for scenarios
