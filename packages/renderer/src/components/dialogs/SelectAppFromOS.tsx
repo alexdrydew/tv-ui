@@ -88,7 +88,7 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                             `[renderer][SelectAppFromOS] Rendering img for ${app.name} with icon: ${app.icon}`,
                                         )}
                                         <img
-                                            src={`file://${app.icon}`} // Use file protocol for absolute paths
+                                            src={`file://${app.icon.slice(1)}`} // Use file protocol for absolute paths
                                             alt={`${app.name} icon`}
                                             className="h-8 w-8 mb-1 object-contain" // Ensure icon fits
                                             onError={(e) => {
