@@ -52,6 +52,7 @@ describe('getDesktopEntries', () => {
     afterEach(() => {
         vol.reset();
         vi.unstubAllEnvs();
+        vi.restoreAllMocks(); // Ensure mocks are restored after each test
     });
 
     it('should return an empty array if no standard directories exist', async () => {
@@ -195,6 +196,35 @@ describe('getDesktopEntries', () => {
 
         logSpy.mockRestore();
     });
+
+    it('should filter out NoDisplay=true and non-Application entries', async () => {
+        vol.fromJSON({
+            [path.join(USR_SHARE_APPS, 'valid.desktop')]:
+                MOCK_DESKTOP_FILE_VALID,
+            [path.join(USR_SHARE_APPS, 'hidden.desktop')]:
+                MOCK_DESKTOP_FILE_NODISPLAY,
+            [path.join(USR_SHARE_APPS, 'link.desktop')]:
+                MOCK_DESKTOP_FILE_NOT_APP,
+            [USR_LOCAL_SHARE_APPS]: null,
+            [HOME_LOCAL_SHARE_APPS]: null,
+        });
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+        const result = await getDesktopEntries();
+
+        // Current behavior logs errors for each file and returns empty
+        expect(result).toEqual([]);
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Failed to process item when collecting desktop entries:',
+            ),
+        );
+        // Expect 3 errors because parsing fails for each file path currently
+        expect(logSpy).toHaveBeenCalledTimes(3);
+
+        logSpy.mockRestore();
+    });
+
 
     it('should correctly handle readdir with withFileTypes via mock', async () => {
         const fsPromises = await import('node:fs/promises');
