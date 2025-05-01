@@ -147,14 +147,14 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                     return Option.some(parsedIni);
                 }),
                 // Filter out entries without a valid Exec command
-                Effect.map(Option.filter((parsedIni) => {
-                    const exec = parsedIni['Desktop Entry'].Exec;
-                    return !!exec && exec.trim().length > 0;
-                })),
+                Effect.map(
+                    Option.filter((parsedIni) => {
+                        const exec = parsedIni['Desktop Entry'].Exec;
+                        return !!exec && exec.trim().length > 0;
+                    }),
+                ),
                 Effect.map((parsedIniOpt) => {
-                    // Map the Option<ParsedIni> to Option<DesktopEntryInternal>
                     return Option.map(parsedIniOpt, (content) => {
-                        // We can now safely access Exec as it's guaranteed by the filter
                         const exec = content['Desktop Entry'].Exec as string;
                         return {
                             name: content['Desktop Entry'].Name,
