@@ -4,7 +4,7 @@ import path from 'node:path';
 import ini from 'ini';
 import { readdirEffect, readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
-import { FsError } from '#src/fs/errors.js';
+import { FsError, FsNoSuchFileOrDirError } from '#src/fs/errors.js';
 
 const DesktopEntryIniSchema = Schema.Struct({
     'Desktop Entry': Schema.Struct({
@@ -71,7 +71,15 @@ function findDesktopFilesStreams(dirPath: string): DesktopFilesRecursiveStream {
     // we may fail to read from the directory at all
     const dirents = Stream.fromIterableEffect(
         readdirEffect(dirPath, { withFileTypes: true }),
+    ).pipe(
+        Stream.catchAll((error) => {
+            if (error instanceof FsNoSuchFileOrDirError) {
+                return Stream.empty;
+            }
+            return Stream.fail(error);
+        }),
     );
+
     const loggedDirents = dirents.pipe(
         Stream.tap((dirent) =>
             Effect.logDebug(

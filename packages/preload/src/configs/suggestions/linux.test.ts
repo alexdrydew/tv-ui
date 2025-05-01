@@ -200,8 +200,6 @@ describe('getDesktopEntries', () => {
             // [USR_LOCAL_SHARE_APPS]: null, // This directory won't exist
             [HOME_LOCAL_SHARE_APPS]: null,
         });
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
         const result = await getDesktopEntries();
 
         // Should still find the entry in the accessible directory
@@ -213,21 +211,6 @@ describe('getDesktopEntries', () => {
                 icon: 'valid-icon',
             }),
         );
-
-        // Check that the error for the inaccessible directory was logged
-        expect(logSpy).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Failed to process item when collecting desktop entries:',
-            ),
-        );
-        // Check specifically for the directory read error
-        expect(logSpy).toHaveBeenCalledWith(
-            expect.stringContaining('FsNoSuchFileOrDirError'),
-        );
-        // Should only be called once for the directory error
-        expect(logSpy).toHaveBeenCalledTimes(1);
-
-        logSpy.mockRestore();
     });
 
     it('should filter out NoDisplay=true and non-Application entries', async () => {
