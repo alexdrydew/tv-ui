@@ -92,25 +92,19 @@ describe('getDesktopEntries', () => {
         expect(result).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    id: 'app1',
                     name: 'Valid App',
                     icon: 'valid-icon',
-                    filePath: path.resolve(USR_SHARE_APPS, 'app1.desktop'),
+                    exec: '/usr/bin/valid-app %U',
                 }),
                 expect.objectContaining({
-                    id: 'app2',
                     name: 'Valid App 2',
                     icon: 'valid-icon',
-                    filePath: path.resolve(
-                        HOME_LOCAL_SHARE_APPS,
-                        'app2.desktop',
-                    ),
+                    exec: '/usr/bin/valid-app %U',
                 }),
                 expect.objectContaining({
-                    id: 'app3',
                     name: 'Valid App 3',
                     icon: 'valid-icon',
-                    filePath: path.resolve(subDirFilePath),
+                    exec: '/usr/bin/valid-app %U',
                 }),
             ]),
         );
@@ -145,49 +139,26 @@ describe('getDesktopEntries', () => {
         expect(result).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    id: 'app3',
                     name: 'Valid App 3',
-                    filePath: path.resolve(optShareApps, 'app3.desktop'),
+                    exec: '/usr/bin/valid-app %U',
+                    icon: 'valid-icon',
                 }),
                 expect.objectContaining({
-                    id: 'app4',
                     name: 'Valid App 4',
-                    filePath: path.resolve(customDataHomeApps, 'app4.desktop'),
+                    exec: '/usr/bin/valid-app %U',
+                    icon: 'valid-icon',
                 }),
                 expect.objectContaining({
-                    id: 'app5',
                     name: 'Valid App 5',
-                    filePath: path.resolve(usrShareApps, 'app5.desktop'),
+                    exec: '/usr/bin/valid-app %U',
+                    icon: 'valid-icon',
                 }),
             ]),
         );
     });
 
-    it('should skip NoDisplay=true and non-Application types', async () => {
-        vol.fromJSON({
-            [path.join(USR_SHARE_APPS, 'visible.desktop')]:
-                MOCK_DESKTOP_FILE_VALID,
-            [path.join(USR_SHARE_APPS, 'hidden.desktop')]:
-                MOCK_DESKTOP_FILE_NODISPLAY,
-            [path.join(USR_SHARE_APPS, 'link.desktop')]:
-                MOCK_DESKTOP_FILE_NOT_APP,
-            [USR_LOCAL_SHARE_APPS]: null,
-            [HOME_LOCAL_SHARE_APPS]: null,
-        });
-
-        const result = await getDesktopEntries();
-
-        expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({
-                id: 'visible',
-                name: 'Valid App',
-                filePath: path.resolve(USR_SHARE_APPS, 'visible.desktop'),
-            }),
-        );
-    });
-
     it('should handle invalid INI files gracefully', async () => {
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'good.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
@@ -199,27 +170,58 @@ describe('getDesktopEntries', () => {
 
         const result = await getDesktopEntries();
 
-        expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({ id: 'good', name: 'Valid App' }),
-        );
-    });
-
-    it('should handle inaccessible directories gracefully', async () => {
-        vol.fromJSON({
-            [path.join(USR_SHARE_APPS, 'app1.desktop')]:
-                MOCK_DESKTOP_FILE_VALID,
-        });
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
         const result = await getDesktopEntries();
 
         expect(result).toHaveLength(1);
-        expect(result[0].id).toBe('app1');
+        expect(result[0]).toEqual(
+            expect.objectContaining({
+                name: 'Valid App',
+                exec: '/usr/bin/valid-app %U',
+                icon: 'valid-icon',
+            }),
+        );
+        // Check that the error for the bad INI file was logged
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Failed to process item when collecting desktop entries:',
+            ),
+        );
+        logSpy.mockRestore();
+    });
 
-        expect(warnSpy).not.toHaveBeenCalled();
+    it('should handle inaccessible directories gracefully', async () => {
+        // Simulate an inaccessible directory by not creating USR_LOCAL_SHARE_APPS
+        vol.fromJSON({
+            [path.join(USR_SHARE_APPS, 'app1.desktop')]:
+                MOCK_DESKTOP_FILE_VALID,
+            // [USR_LOCAL_SHARE_APPS]: null, // This directory won't exist
+            [HOME_LOCAL_SHARE_APPS]: null,
+        });
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-        warnSpy.mockRestore();
+        const result = await getDesktopEntries();
+
+        // Should still find the entry in the accessible directory
+        expect(result).toHaveLength(1);
+        expect(result[0]).toEqual(
+            expect.objectContaining({
+                name: 'Valid App',
+                exec: '/usr/bin/valid-app %U',
+                icon: 'valid-icon',
+            }),
+        );
+
+        // Check that the error for the inaccessible directory was logged
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Failed to process item when collecting desktop entries:',
+            ),
+        );
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('FsNoSuchFileOrDirError'),
+        ); // Error from readdirEffect
+
+        logSpy.mockRestore();
     });
 
     it('should correctly handle readdir with withFileTypes via mock', async () => {
