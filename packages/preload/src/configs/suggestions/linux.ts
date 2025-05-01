@@ -1,10 +1,10 @@
-import { Effect, pipe } from 'effect';
-import fs from 'node:fs/promises';
+import { Effect, pipe, Stream } from 'effect';
 import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
-import { readFileEffect } from '#src/fs/index.js';
+import { readdirEffect, readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
+import { FsError } from '#src/fs/errors.js';
 
 type DesktopEntryInternal = {
     id: string; // Typically the file name without .desktop
@@ -83,36 +83,57 @@ function parseDesktopFile(
     );
 }
 
-async function findDesktopFiles(dirPath: string): Promise<string[]> {
-    let entries: string[] = [];
-    try {
-        const dirents = await fs.readdir(dirPath, { withFileTypes: true });
-        for (const dirent of dirents) {
-            const fullPath = path.join(dirPath, dirent.name);
+type DesktopFilesRecursiveStream = Stream.Stream<
+    DesktopFilesRecursiveStream | string,
+    FsError | UnknownException
+>;
+
+function findDesktopFilesStreams(dirPath: string): DesktopFilesRecursiveStream {
+    // we may fail to read from the directory at all
+    const dirents = Stream.fromIterableEffect(
+        readdirEffect(dirPath, { withFileTypes: true }),
+    );
+    const loggedDirents = dirents.pipe(
+        Stream.tap((dirent) =>
+            Effect.logDebug(
+                `Found directory entry: ${dirent.name} (${dirent.isDirectory() ? 'directory' : 'file'})`,
+            ),
+        ),
+    );
+    // then we may fail to read from each entry
+    const paths = loggedDirents.pipe(
+        Stream.map((dirent) => {
             if (dirent.isDirectory()) {
-                const subEntries = await findDesktopFiles(fullPath);
-                entries = entries.concat(subEntries);
+                return findDesktopFilesStreams(path.join(dirPath, dirent.name));
             } else if (dirent.isFile() && dirent.name.endsWith('.desktop')) {
-                entries.push(fullPath);
+                return path.join(dirPath, dirent.name);
             }
-        }
-    } catch (error: unknown) {
-        // Check if error is an object with a 'code' property
-        if (
-            typeof error === 'object' &&
-            error !== null &&
-            'code' in error &&
-            (error.code === 'ENOENT' || error.code === 'EACCES')
-        ) {
-            // Skip silently for not found or permission denied
-        } else {
-            console.warn(
-                `Unexpected error reading directory ${dirPath}:`,
-                error,
-            );
-        }
-    }
-    return entries;
+        }),
+        Stream.filter((filePath) => filePath !== undefined),
+    );
+    return paths;
+}
+
+function flattenDesktopFilesStreams(
+    streamOfStreams: DesktopFilesRecursiveStream,
+): Stream.Stream<Effect.Effect<string, FsError | UnknownException>, never> {
+    const f = streamOfStreams.pipe(
+        Stream.flatMap((elem) => {
+            if (typeof elem === 'string') {
+                return Stream.succeed(Effect.succeed(elem));
+            }
+            return flattenDesktopFilesStreams(elem);
+        }),
+        Stream.catchAll((error) => Stream.succeed(Effect.fail(error))),
+    );
+    return f;
+}
+
+function findDesktopFilesEffects(
+    dirPath: string,
+): Stream.Stream<Effect.Effect<string, FsError | UnknownException>, never> {
+    const streamOfStreams = findDesktopFilesStreams(dirPath);
+    return flattenDesktopFilesStreams(streamOfStreams);
 }
 
 function getXdgDataDirs(): string[] {
@@ -148,35 +169,26 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
         path.join(xdgDataHome, 'applications'),
     ];
 
-    const uniqueSearchDirs = [
-        ...new Set(searchDirs.map((dir) => path.resolve(dir))),
-    ];
+    const dirsStream = Stream.fromIterable(
+        new Set(searchDirs.map((dir) => path.resolve(dir))),
+    );
+    const filesStream = dirsStream.pipe(
+        Stream.flatMap(findDesktopFilesEffects),
+    );
+
+    filesStream.pipe(
+        Stream.map((filePathEffect) => {
+            pipe(Effect.flatMap(parseDesktopFile));
+        }),
+    );
+
+    filesStream.pipe(
+        Stream.tap((filePath) =>
+            filePath.Effect.logDebug(`Found .desktop file: ${filePath}`),
+        ),
+    );
 
     const effect = pipe(
-        Effect.logInfo(
-            `Searching for desktop entries in: ${uniqueSearchDirs.join(', ')}`,
-        ),
-        Effect.flatMap(() =>
-            Effect.forEach(uniqueSearchDirs, (dir) =>
-                pipe(
-                    Effect.logDebug(
-                        `Finding desktop files in directory: ${dir}`,
-                    ),
-                    Effect.flatMap(() =>
-                        Effect.tryPromise({
-                            try: () => findDesktopFiles(dir),
-                            catch: (error: unknown) => {
-                                Effect.logError(
-                                    `Error finding desktop files in ${dir}`,
-                                    error,
-                                );
-                                return []; // Return empty array on error for this dir
-                            },
-                        }),
-                    ),
-                ),
-            ),
-        ),
         Effect.map((results) => results.flat()),
         Effect.tap((allFiles) =>
             Effect.logDebug(
