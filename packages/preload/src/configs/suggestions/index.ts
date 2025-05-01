@@ -2,29 +2,47 @@ import { AppConfig } from '@app/types';
 import os from 'node:os';
 import { ipcRenderer } from 'electron';
 import { getDesktopEntries } from './linux.js';
-import { fileExists } from '#src/fs/index.js';
-import { Effect } from 'effect';
+// Remove fileExists import as it's no longer needed here
+// import { fileExists } from '#src/fs/index.js';
+// Remove Effect import if fileExists was the only reason for it
+// import { Effect } from 'effect';
 import { randomUUID } from 'crypto';
 
-async function getIconPathFromMain(
-    iconName: string,
+/**
+ * Asks the main process to resolve an icon identifier (name or path)
+ * and return its data URL.
+ * @param iconIdentifier The icon name or absolute path from the .desktop file.
+ * @returns A promise that resolves to the data URL string or undefined if not found/error.
+ */
+async function getIconDataUrlFromMain(
+    iconIdentifier: string,
 ): Promise<string | undefined> {
-    // Check if the iconName is already a valid path
-    if (await Effect.runPromise(fileExists(iconName))) {
-        return iconName;
-    }
-
-    // If not a direct path, ask the main process to find it using freedesktop-icons
-    console.log(`Searching icon for ${iconName} using freedesktopIcons...`);
+    // Always delegate to the main process.
+    // The main process handler ('get-freedesktop-icon') is responsible for
+    // determining if the identifier is a path or a name, finding the icon,
+    // and converting it to a data URL.
+    console.log(
+        `Requesting data URL for icon identifier "${iconIdentifier}" from main process...`,
+    );
     try {
-        const foundPath = await ipcRenderer.invoke('get-freedesktop-icon', [
-            iconName,
+        // Pass the identifier as the first element of the array,
+        // as expected by the main process handler.
+        const dataUrl = await ipcRenderer.invoke('get-freedesktop-icon', [
+            iconIdentifier,
         ]);
-        console.log(`Found icon for ${iconName}: ${foundPath ?? 'Not Found'}`);
-        return foundPath; // Will be undefined if not found
+        if (dataUrl) {
+            console.log(
+                `Received data URL for icon identifier "${iconIdentifier}" (Length: ${dataUrl.length})`,
+            );
+        } else {
+            console.log(
+                `Main process did not find or could not generate data URL for icon identifier "${iconIdentifier}".`,
+            );
+        }
+        return dataUrl; // Will be the data URL string or null/undefined
     } catch (error) {
         console.error(
-            `Error invoking 'get-freedesktop-icon' for ${iconName}:`,
+            `Error invoking 'get-freedesktop-icon' for identifier "${iconIdentifier}":`,
             error,
         );
         return undefined;
@@ -54,18 +72,20 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
             } else {
                 // Entry is 'valid'
                 const command = entry.entry.exec;
-                let iconPath: string | undefined = undefined;
+                let iconDataUrl: string | undefined = undefined;
 
                 if (entry.entry.icon) {
-                    // Only search if an icon name is provided
-                    iconPath = await getIconPathFromMain(entry.entry.icon);
+                    // Always call the main process to get the data URL
+                    iconDataUrl = await getIconDataUrlFromMain(
+                        entry.entry.icon,
+                    );
                 }
 
                 const suggestion: AppConfig = {
                     id: randomUUID(),
                     name: entry.entry.name,
                     launchCommand: command,
-                    icon: iconPath, // Assign found path or undefined
+                    icon: iconDataUrl, // Assign found data URL or undefined
                 };
                 return suggestion;
             }
@@ -77,7 +97,7 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
         );
 
         console.info(
-            `Returning ${suggestions.length} processed Linux suggestions after parallel icon search.`,
+            `Returning ${suggestions.length} processed Linux suggestions after parallel icon processing.`,
         );
         return suggestions;
     }
