@@ -146,20 +146,16 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                     }
                     return Option.some(parsedIni);
                 }),
-                // Filter out entries without a valid Exec command
-                Effect.map(
-                    Option.filter((parsedIni) => {
-                        const exec = parsedIni['Desktop Entry'].Exec;
-                        return !!exec && exec.trim().length > 0;
-                    }),
-                ),
-                Effect.map((parsedIniOpt) => {
-                    return Option.map(parsedIniOpt, (content) => {
-                        const exec = content['Desktop Entry'].Exec as string;
+                // Validate and map Exec, filtering out entries where it's missing/empty
+                Effect.map(Option.flatMap(validateAndMapExec)),
+                Effect.map((validatedIniOpt) => {
+                    // Map the Option<ValidatedDesktopEntryIni> to Option<DesktopEntryInternal>
+                    return Option.map(validatedIniOpt, (content) => {
+                        // content now has 'Desktop Entry'.Exec guaranteed as string
                         return {
                             name: content['Desktop Entry'].Name,
                             icon: content['Desktop Entry'].Icon,
-                            exec: exec, // Use the validated exec command
+                            exec: content['Desktop Entry'].Exec, // Directly use the validated string
                         };
                     });
                 }),
