@@ -5,10 +5,12 @@ import { getDesktopEntries } from './linux.js'; // Changed import path
 
 vi.mock('node:fs', async () => {
     const memfs = await vi.importActual<typeof import('memfs')>('memfs');
-    return { ...fs, default: memfs.fs };
+    // Ensure symlinkSync is part of the mock if needed, though promises version is preferred
+    return { ...memfs.fs, default: memfs.fs };
 });
 vi.mock('node:fs/promises', async () => {
     const memfs = await vi.importActual<typeof import('memfs')>('memfs');
+    // Ensure symlink is part of the promises mock
     return { ...memfs.fs.promises, default: memfs.fs.promises };
 });
 
@@ -51,10 +53,11 @@ describe('getDesktopEntries', () => {
         vi.stubEnv('HOME', MOCK_HOME);
         vi.stubEnv('XDG_DATA_DIRS', '');
         vi.stubEnv('XDG_DATA_HOME', '');
-        // Mock console.log BEFORE each test that needs it
+        // Mock console methods BEFORE each test
         vi.spyOn(console, 'log').mockImplementation(() => {});
-        vi.spyOn(console, 'info').mockImplementation(() => {}); // Also mock info if used
-        vi.spyOn(console, 'debug').mockImplementation(() => {}); // And debug
+        vi.spyOn(console, 'info').mockImplementation(() => {});
+        vi.spyOn(console, 'debug').mockImplementation(() => {});
+        vi.spyOn(console, 'error').mockImplementation(() => {}); // Mock error too if used by Effect logging
     });
 
     afterEach(() => {
@@ -447,6 +450,52 @@ Type=Application
         expect(console.log).toHaveBeenCalledWith(
             expect.stringContaining('Searching for desktop entries'),
         );
+    });
+
+    it('should follow symbolic links to desktop files outside search directories', async () => {
+        // 1. Define paths
+        const searchDir = USR_SHARE_APPS;
+        const targetDir = '/opt/myapps'; // Outside standard search paths
+        const targetFile = path.join(targetDir, 'linked-app.desktop');
+        const linkFile = path.join(searchDir, 'link-to-app.desktop');
+        const targetContent = MOCK_DESKTOP_FILE_VALID.replace(
+            'Valid App',
+            'Linked App',
+        );
+
+        // 2. Setup filesystem using vol.fromJSON for directories and the target file
+        vol.fromJSON({
+            [searchDir]: null, // Create the search directory
+            [targetDir]: null, // Create the target directory
+            [targetFile]: targetContent, // Create the target file
+            // Standard dirs needed for default search path calculation if XDG vars aren't set
+            [USR_LOCAL_SHARE_APPS]: null,
+            [HOME_LOCAL_SHARE_APPS]: null,
+        });
+
+        // 3. Create the symbolic link using the mocked fs/promises
+        const fsPromises = await import('node:fs/promises');
+        // Use await here as symlink is async
+        await fsPromises.symlink(targetFile, linkFile);
+
+        // 4. Call the function
+        const result = await getDesktopEntries();
+
+        // 5. Assertions
+        expect(result).toHaveLength(1);
+        expect(result[0]).toEqual({
+            entry: {
+                name: 'Linked App',
+                exec: '/usr/bin/valid-app %U',
+                icon: 'valid-icon',
+            },
+            status: 'valid',
+        });
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining('Searching for desktop entries'),
+        );
+        // Check that the symlink itself was found during the scan (optional, depends on logging level)
+        // expect(console.debug).toHaveBeenCalledWith(expect.stringContaining(linkFile));
     });
 
     it('should correctly handle readdir with withFileTypes via mock', async () => {
