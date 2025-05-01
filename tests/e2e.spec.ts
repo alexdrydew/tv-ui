@@ -623,10 +623,11 @@ linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
                 const uniqueAppName = `Test Icon App ${scenario.testNameSuffix}`;
                 const uniqueDesktopFileName = `test-icon-app-${scenario.testNameSuffix.replace(/ /g, '-')}.desktop`;
                 const desktopFilePath = join(appDir, uniqueDesktopFileName);
-                const desktopFileId = uniqueDesktopFileName.replace(
-                    '.desktop',
-                    '',
-                ); // ID used in testid
+                // No longer need desktopFileId
+                // const desktopFileId = uniqueDesktopFileName.replace(
+                //     '.desktop',
+                //     '',
+                // ); // ID used in testid
 
                 await mkdir(appDir, { recursive: true });
                 await mkdir(iconDir, { recursive: true }); // Creates .../icons/hicolor/48x48/apps
