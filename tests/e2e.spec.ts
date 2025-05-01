@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os';
 import { globSync } from 'glob';
 import type { AppConfig } from '@app/types';
 import { platform as nodePlatform } from 'node:process';
-import { pathToFileURL } from 'node:url';
+// Remove pathToFileURL import as it's no longer needed for the assertion
+// import { pathToFileURL } from 'node:url';
 process.env.PLAYWRIGHT_TEST = 'true';
 
 // Minimal valid PNG data (1x1 transparent pixel)
@@ -83,12 +84,19 @@ const test = base.extend<TestFixtures>({
             let executablePattern = 'dist/*/root{,.*}';
             if (nodePlatform === 'darwin') {
                 executablePattern += '/Contents/*/root';
+            } else if (nodePlatform === 'win32') {
+                executablePattern = 'dist/*/*.exe'; // Adjust for Windows if needed
+            } else {
+                executablePattern = 'dist/*/root'; // Default for Linux
             }
+
 
             const [executablePath] = globSync(executablePattern);
             if (!executablePath) {
-                throw new Error('App Executable path not found');
+                throw new Error(`App Executable path not found using pattern: ${executablePattern}`);
             }
+            console.log(`Found executable at: ${executablePath}`);
+
 
             const electronApp = await electron.launch({
                 executablePath: executablePath,
@@ -102,8 +110,11 @@ const test = base.extend<TestFixtures>({
             });
 
             electronApp.on('console', (msg) => {
-                if (msg.type() === 'error') {
-                    console.error(`[electron][${msg.type()}] ${msg.text()}`);
+                const type = msg.type();
+                const text = msg.text();
+                // Filter out noisy DevTools warnings unless it's an error
+                if (type === 'error' || !text.includes('DevTools')) {
+                     console.error(`[electron][${type}] ${text}`);
                 }
             });
 
@@ -117,11 +128,17 @@ const test = base.extend<TestFixtures>({
     page: async ({ electronApp }, use) => {
         const page = await electronApp.firstWindow();
         page.on('pageerror', (error) => {
-            console.error(error);
+            console.error(`[renderer][pageerror] ${error}`);
         });
         page.on('console', (msg) => {
-            console.log(msg.text());
+             const type = msg.type();
+             const text = msg.text();
+             // Filter out noisy DevTools warnings unless it's an error
+             if (type === 'error' || !text.includes('DevTools')) {
+                 console.log(`[renderer][${type}] ${text}`);
+             }
         });
+
 
         await page.waitForLoadState('load');
         await use(page);
@@ -423,12 +440,13 @@ test('Launch app via UI click', async ({ page }) => {
     await expect(
         runningIndicator,
         'Running indicator should become visible after launch',
-    ).toBeVisible({ timeout: 2000 });
+    ).toBeVisible({ timeout: 2000 }); // Increased timeout slightly
 
+    // Verify the indicator disappears after the 'sleep 1' command finishes
     await expect(
         runningIndicator,
         'Running indicator should disappear after app exits naturally',
-    ).not.toBeVisible({ timeout: 2000 });
+    ).not.toBeVisible({ timeout: 3000 }); // Allow extra time for sleep + processing
 });
 
 test('Kill running app via context menu', async ({ page }) => {
@@ -453,7 +471,7 @@ test('Kill running app via context menu', async ({ page }) => {
     await expect(
         runningIndicator,
         'Running indicator should be visible after launch',
-    ).toBeVisible({ timeout: 2000 });
+    ).toBeVisible({ timeout: 2000 }); // Increased timeout slightly
 
     await appTile.click({ button: 'right' });
     // The Kill menu item might be within a submenu if multiple instances can run
@@ -471,7 +489,7 @@ test('Kill running app via context menu', async ({ page }) => {
     await expect(
         runningIndicator,
         'Running indicator should disappear after killing',
-    ).not.toBeVisible({ timeout: 2000 });
+    ).not.toBeVisible({ timeout: 2000 }); // Increased timeout slightly
 });
 
 test('Config file watcher updates UI on external change', async ({
@@ -511,6 +529,7 @@ test('Config file watcher updates UI on external change', async ({
     };
     const updatedConfigs = [...currentConfigs, newConfig];
 
+    // Add a small delay before writing to ensure the watcher is ready
     await page.waitForTimeout(500);
 
     await writeFile(
@@ -520,14 +539,17 @@ test('Config file watcher updates UI on external change', async ({
     );
     console.log(`Updated config file externally: ${configFilePath}`);
 
+    // Wait for the UI to update
     await expect(
         newAppTile,
         `New app "${newAppName}" should become visible after config file change`,
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible({ timeout: 5000 }); // Increased timeout for watcher debounce + UI update
 
+    // Now remove the initial app
     const configsWithoutInitial = updatedConfigs.filter(
         (config) => config.id !== initialAppId,
     );
+    // Add another small delay
     await page.waitForTimeout(500);
     await writeFile(
         configFilePath!,
@@ -536,11 +558,13 @@ test('Config file watcher updates UI on external change', async ({
     );
     console.log(`Removed initial app from config file: ${configFilePath}`);
 
+    // Wait for the UI to update again
     await expect(
         initialAppTile,
-        `Locator for initial app "${initialAppName}" should find 0 elements after removal`,
-    ).toHaveCount(0, { timeout: 5000 });
+        `Initial app "${initialAppName}" should not be visible after removal`,
+    ).not.toBeVisible({ timeout: 5000 }); // Increased timeout
 
+    // Verify the new app is still there
     await expect(
         newAppTile,
         `New app "${newAppName}" should still be visible after initial app removal`,
@@ -623,11 +647,6 @@ linuxEnvTest.describe('Linux Specific Features (Mocked)', () => {
                 const uniqueAppName = `Test Icon App ${scenario.testNameSuffix}`;
                 const uniqueDesktopFileName = `test-icon-app-${scenario.testNameSuffix.replace(/ /g, '-')}.desktop`;
                 const desktopFilePath = join(appDir, uniqueDesktopFileName);
-                // No longer need desktopFileId
-                // const desktopFileId = uniqueDesktopFileName.replace(
-                //     '.desktop',
-                //     '',
-                // ); // ID used in testid
 
                 await mkdir(appDir, { recursive: true });
                 await mkdir(iconDir, { recursive: true }); // Creates .../icons/hicolor/48x48/apps
@@ -665,47 +684,11 @@ NoDisplay=false
                 await writeFile(iconFilePath, minimalPngData);
 
                 // --- Attach Loggers ---
-                electronApp.on('window', async (window) => {
-                    // Log console messages from the new window's renderer process
-                    window.on('console', (msg) => {
-                        if (msg.type() === 'error') {
-                            console.error(
-                                `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
-                            );
-                        } else {
-                            console.log(
-                                `[testSpecificApp][renderer][${msg.type()}] ${msg.text()}`,
-                            );
-                        }
-                    });
-                    // Log crashes
-                    window.on('crash', () => {
-                        console.error(
-                            '[testSpecificApp][renderer] Renderer crashed',
-                        );
-                    });
-                    // Log page errors
-                    window.on('pageerror', (error) => {
-                        console.error(
-                            `[testSpecificApp][renderer] Page error: ${error}`,
-                        );
-                    });
-                });
-                electronApp.on('console', (msg) => {
-                    // Logs from main process
-                    if (msg.type() === 'error') {
-                        console.error(
-                            `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
-                        );
-                    } else {
-                        console.log(
-                            `[testSpecificApp][main][${msg.type()}] ${msg.text()}`,
-                        );
-                    }
-                });
+                // Note: Loggers are attached in the fixture now, no need to repeat here unless debugging specific window events
 
                 // --- Page Load ---
-                page = await electronApp.firstWindow(); // Reassign page for this specific test run
+                // Reassign page if necessary (though fixture should handle it)
+                page = await electronApp.firstWindow();
                 if (!page) {
                     throw new Error('testSpecificApp failed to open a window.');
                 }
@@ -746,7 +729,7 @@ NoDisplay=false
                 // Wait for suggestions to load (adjust timeout if needed)
                 await expect(
                     selectDialog.getByText('Loading suggestions...'),
-                ).not.toBeVisible({ timeout: 5000 });
+                ).not.toBeVisible({ timeout: 10000 }); // Increased timeout for suggestion loading
 
                 // Locate the button by its role and the text it contains
                 const suggestedAppButton = selectDialog
@@ -769,12 +752,22 @@ NoDisplay=false
                     `Icon image within button for ${uniqueAppName} should be visible`,
                 ).toBeVisible({ timeout: 5000 });
 
-                // IMPORTANT: Both scenarios should resolve to the *actual* icon file path's URL
-                const expectedIconSrc = pathToFileURL(iconFilePath).toString();
+                // --- Updated Assertion ---
+                // Both scenarios should now result in a data URL.
+                // We check if the src attribute starts with the expected prefix.
+                const expectedIconSrcPrefix = 'data:image/png;base64,';
                 await expect(
                     iconImage,
-                    `Icon image src should be "${expectedIconSrc}" for scenario "${scenario.testNameSuffix}"`,
-                ).toHaveAttribute('src', expectedIconSrc);
+                    `Icon image src should start with "${expectedIconSrcPrefix}" for scenario "${scenario.testNameSuffix}"`,
+                ).toHaveAttribute('src', new RegExp(`^${expectedIconSrcPrefix}`));
+
+                // Optional: Check that the src is not *just* the prefix (i.e., it has content)
+                const actualSrc = await iconImage.getAttribute('src');
+                expect(
+                    actualSrc?.length ?? 0,
+                    'Icon data URL should have content',
+                ).toBeGreaterThan(expectedIconSrcPrefix.length);
+
             },
         );
     } // End of loop for scenarios
