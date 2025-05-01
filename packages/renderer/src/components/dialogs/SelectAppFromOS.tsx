@@ -4,23 +4,34 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2Icon, PackageIcon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination'; // Import pagination components
 
 interface SelectAppFromOSProps {
     onSelect: (config: AppConfig) => Promise<void>; // Callback when an app is selected
     onCancel: () => void; // Callback to handle cancellation/going back
 }
 
-const MAX_SUGGESTIONS_TO_SHOW = 16;
+const ITEMS_PER_PAGE = 16; // Define how many apps per page
 
 export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
     const [suggestions, setSuggestions] = useState<AppConfig[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1); // Add state for current page
 
     useEffect(() => {
         const fetchSuggestions = async () => {
             setIsLoading(true);
             setError(null);
+            setCurrentPage(1); // Reset to first page on new fetch
             try {
                 const result = await getSuggestedAppConfigs();
                 setSuggestions(result);
@@ -42,6 +53,125 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
         onSelect(app);
     };
 
+    // --- Pagination Logic ---
+    const totalPages = Math.ceil(suggestions.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const currentSuggestions = suggestions.slice(startIndex, endIndex);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    const handlePreviousPage = (
+        e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
+    ) => {
+        e.preventDefault(); // Prevent default anchor behavior
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = (
+        e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
+    ) => {
+        e.preventDefault(); // Prevent default anchor behavior
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
+
+    // Helper to generate pagination links with ellipsis
+    const renderPaginationLinks = () => {
+        const pageLinks = [];
+        const maxVisiblePages = 3; // Max page numbers to show directly (excluding first/last)
+        const halfVisible = Math.floor(maxVisiblePages / 2);
+
+        // Always show first page
+        pageLinks.push(
+            <PaginationItem key={1}>
+                <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handlePageChange(1);
+                    }}
+                    isActive={currentPage === 1}
+                >
+                    1
+                </PaginationLink>
+            </PaginationItem>,
+        );
+
+        // Ellipsis after first page?
+        if (currentPage > halfVisible + 2 && totalPages > maxVisiblePages + 2) {
+            pageLinks.push(<PaginationEllipsis key="start-ellipsis" />);
+        }
+
+        // Calculate range of pages to show around current page
+        let startPage = Math.max(2, currentPage - halfVisible);
+        let endPage = Math.min(
+            totalPages - 1,
+            currentPage + halfVisible,
+        );
+
+        // Adjust range if near the beginning or end
+         if (currentPage <= halfVisible + 1) {
+             endPage = Math.min(totalPages - 1, maxVisiblePages + 1);
+         }
+         if (currentPage >= totalPages - halfVisible) {
+             startPage = Math.max(2, totalPages - maxVisiblePages);
+         }
+
+
+        // Render page numbers in the calculated range
+        for (let i = startPage; i <= endPage; i++) {
+            pageLinks.push(
+                <PaginationItem key={i}>
+                    <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(i);
+                        }}
+                        isActive={currentPage === i}
+                    >
+                        {i}
+                    </PaginationLink>
+                </PaginationItem>,
+            );
+        }
+
+        // Ellipsis before last page?
+        if (
+            currentPage < totalPages - halfVisible - 1 &&
+            totalPages > maxVisiblePages + 2
+        ) {
+            pageLinks.push(<PaginationEllipsis key="end-ellipsis" />);
+        }
+
+        // Always show last page if more than 1 page
+        if (totalPages > 1) {
+            pageLinks.push(
+                <PaginationItem key={totalPages}>
+                    <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(totalPages);
+                        }}
+                        isActive={currentPage === totalPages}
+                    >
+                        {totalPages}
+                    </PaginationLink>
+                </PaginationItem>,
+            );
+        }
+
+        return pageLinks;
+    };
+    // --- End Pagination Logic ---
+
     return (
         <div className="py-4">
             <p className="text-muted-foreground mb-4">
@@ -49,30 +179,38 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
             </p>
 
             {isLoading && (
-                <div className="h-60 flex items-center justify-center text-muted-foreground">
+                <div className="h-72 flex items-center justify-center text-muted-foreground">
+                    {' '}
+                    {/* Increased height slightly */}
                     <Loader2Icon className="mr-2 h-6 w-6 animate-spin" />
                     Loading suggestions...
                 </div>
             )}
 
             {error && (
-                <div className="h-60 flex items-center justify-center text-destructive">
+                <div className="h-72 flex items-center justify-center text-destructive">
+                    {' '}
+                    {/* Increased height slightly */}
                     {error}
                 </div>
             )}
 
             {!isLoading && !error && suggestions.length === 0 && (
-                <div className="h-60 flex items-center justify-center text-muted-foreground">
+                <div className="h-72 flex items-center justify-center text-muted-foreground">
+                    {' '}
+                    {/* Increased height slightly */}
                     No applications found or suggestion feature not available on
                     this OS.
                 </div>
             )}
 
             {!isLoading && !error && suggestions.length > 0 && (
-                <div className="grid grid-cols-4 gap-4 max-h-60 overflow-y-auto p-1 border rounded-md mb-4">
-                    {suggestions
-                        .slice(0, MAX_SUGGESTIONS_TO_SHOW)
-                        .map((app) => (
+                <>
+                    {/* Grid for App Suggestions */}
+                    <div className="grid grid-cols-4 gap-4 min-h-72 max-h-72 overflow-y-auto p-1 border rounded-md mb-4">
+                        {' '}
+                        {/* Fixed height */}
+                        {currentSuggestions.map((app) => (
                             <button
                                 key={app.id}
                                 onClick={() => handleSelectApp(app)}
@@ -84,9 +222,7 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                             >
                                 {app.icon ? (
                                     <>
-                                        {console.log(
-                                            `[renderer][SelectAppFromOS] Rendering img for ${app.name} with icon data URL (length: ${app.icon.length})`,
-                                        )}
+                                        {/* Removed console log for cleaner output */}
                                         <img
                                             src={app.icon} // Use data URL directly
                                             alt={`${app.name} icon`}
@@ -112,20 +248,65 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                 </span>
                             </button>
                         ))}
-                </div>
-            )}
-            {suggestions.length > MAX_SUGGESTIONS_TO_SHOW && (
-                <p className="text-sm text-muted-foreground mb-4 text-center">
-                    Showing first {MAX_SUGGESTIONS_TO_SHOW} of{' '}
-                    {suggestions.length} apps found. Pagination coming soon.
-                </p>
+                        {/* Add placeholders if the last page isn't full, to maintain grid structure */}
+                        {currentSuggestions.length < ITEMS_PER_PAGE &&
+                            Array.from({
+                                length:
+                                    ITEMS_PER_PAGE -
+                                    currentSuggestions.length,
+                            }).map((_, index) => (
+                                <div
+                                    key={`placeholder-${index}`}
+                                    className="h-24" // Match item height
+                                    aria-hidden="true"
+                                ></div>
+                            ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <Pagination className="mt-4">
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        href="#"
+                                        onClick={handlePreviousPage}
+                                        aria-disabled={currentPage === 1}
+                                        className={
+                                            currentPage === 1
+                                                ? 'pointer-events-none opacity-50'
+                                                : undefined
+                                        }
+                                    />
+                                </PaginationItem>
+                                {renderPaginationLinks()}
+                                <PaginationItem>
+                                    <PaginationNext
+                                        href="#"
+                                        onClick={handleNextPage}
+                                        aria-disabled={currentPage === totalPages}
+                                        className={
+                                            currentPage === totalPages
+                                                ? 'pointer-events-none opacity-50'
+                                                : undefined
+                                        }
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    )}
+                </>
             )}
 
-            <div className="flex justify-end gap-2">
+            {/* Removed old pagination message */}
+
+            <div className="flex justify-end gap-2 mt-6">
+                {' '}
+                {/* Added margin-top */}
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Back
                 </Button>
-                {/* Selection happens by clicking the grid item now */}
+                {/* Selection happens by clicking the grid item */}
             </div>
         </div>
     );
