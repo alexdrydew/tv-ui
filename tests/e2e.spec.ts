@@ -746,7 +746,7 @@ NoDisplay=false
                 // Wait for suggestions to load (adjust timeout if needed)
                 await expect(
                     selectDialog.getByText('Loading suggestions...'),
-                ).not.toBeVisible({ timeout: 10000 });
+                ).not.toBeVisible({ timeout: 5000 });
 
                 // Locate the button by its role and the text it contains
                 const suggestedAppButton = selectDialog
@@ -767,7 +767,7 @@ NoDisplay=false
                 await expect(
                     iconImage,
                     `Icon image within button for ${uniqueAppName} should be visible`,
-                ).toBeVisible({ timeout: 1000000 });
+                ).toBeVisible({ timeout: 5000 });
 
                 // IMPORTANT: Both scenarios should resolve to the *actual* icon file path's URL
                 const expectedIconSrc = pathToFileURL(iconFilePath).toString();
