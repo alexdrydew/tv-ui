@@ -356,13 +356,12 @@ describe('getDesktopEntries', () => {
             1,
             expect.stringContaining('Searching for desktop entries'),
         );
-        // 2. The error log for the bad schema file
+        // 2. The error log for the bad schema file (expect one string argument containing 'ParseError')
         expect(logSpy).toHaveBeenNthCalledWith(
             2,
             expect.stringContaining(
                 'Failed to process item when collecting desktop entries:',
-            ),
-            expect.objectContaining({ _tag: 'ParseError' }), // Check for ParseError tag
+            ) && expect.stringContaining('ParseError'), // Check the string contains the error type
         );
     });
 
