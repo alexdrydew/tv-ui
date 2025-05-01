@@ -52,7 +52,7 @@ describe('getDesktopEntries', () => {
     afterEach(() => {
         vol.reset();
         vi.unstubAllEnvs();
-        vi.restoreAllMocks(); // Ensure mocks are restored after each test
+        vi.restoreAllMocks();
     });
 
     it('should return an empty array if no standard directories exist', async () => {
@@ -188,7 +188,7 @@ describe('getDesktopEntries', () => {
             expect.stringContaining('FsNoSuchFileOrDirError'),
         );
         // Also check for the error when trying to parse the valid file's path
-         expect(logSpy).toHaveBeenCalledWith(
+        expect(logSpy).toHaveBeenCalledWith(
             expect.stringContaining('ParseError'), // Or InvalidIniSchemaError depending on exact failure point
         );
         // Should be called twice: once for dir error, once for file parse error
@@ -224,7 +224,6 @@ describe('getDesktopEntries', () => {
 
         logSpy.mockRestore();
     });
-
 
     it('should correctly handle readdir with withFileTypes via mock', async () => {
         const fsPromises = await import('node:fs/promises');
