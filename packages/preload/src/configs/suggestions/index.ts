@@ -4,6 +4,7 @@ import { ipcRenderer } from 'electron';
 import { getDesktopEntries } from './linux.js';
 import { fileExists } from '#src/fs/index.js';
 import { Effect } from 'effect';
+import { randomUUID } from 'crypto';
 
 async function getIconPathFromMain(
     iconName: string,
@@ -18,7 +19,6 @@ async function getIconPathFromMain(
 }
 
 export async function suggestAppConfigs(): Promise<AppConfig[]> {
-    // Allow overriding the platform for testing purposes
     const platform = process.env['E2E_TEST_PLATFORM'] ?? os.platform();
 
     if (platform === 'linux') {
@@ -32,19 +32,13 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
                 ? await getIconPathFromMain(entry.icon)
                 : undefined;
 
-            if (command) {
-                const suggestion: AppConfig = {
-                    id: entry.id,
-                    name: entry.name,
-                    launchCommand: command,
-                    icon: iconPath ?? undefined, // Use nullish coalescing
-                };
-                suggestions.push(suggestion);
-            } else {
-                console.warn(
-                    `Could not determine command for suggestion: ${entry.name} (${entry.filePath})`,
-                );
-            }
+            const suggestion: AppConfig = {
+                id: randomUUID(),
+                name: entry.name,
+                launchCommand: command,
+                icon: iconPath ?? undefined, // Use nullish coalescing
+            };
+            suggestions.push(suggestion);
         }
         console.info(
             `Returning ${suggestions.length} processed Linux suggestions.`,

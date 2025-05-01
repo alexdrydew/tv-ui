@@ -9,12 +9,19 @@ import { FsError } from '#src/fs/errors.js';
 const DesktopEntryIniSchema = Schema.Struct({
     'Desktop Entry': Schema.Struct({
         Name: Schema.String,
-        Exec: Schema.optional(Schema.String), // Make Exec optional
-        Type: Schema.optional(Schema.String), // Optional because we need to check its value
-        NoDisplay: Schema.optional(Schema.Union(Schema.String, Schema.Boolean)), // Optional and can be string or boolean
+        Exec: Schema.optional(Schema.String),
+        Type: Schema.optional(Schema.String),
+        NoDisplay: Schema.optional(Schema.Union(Schema.String, Schema.Boolean)),
         Icon: Schema.optional(Schema.String),
     }),
 });
+
+type DesktopEntryIni = Schema.Schema.Type<typeof DesktopEntryIniSchema>;
+type ExecutableDesktopEntryIni = Omit<DesktopEntryIni, 'Desktop Entry'> & {
+    'Desktop Entry': Omit<DesktopEntryIni['Desktop Entry'], 'Exec'> & {
+        Exec: string;
+    };
+};
 
 type DesktopEntryInternal = {
     name: string;
@@ -37,6 +44,22 @@ function parseIniEffect(
             });
         },
     });
+}
+
+function getExecutableDesktopIni(
+    parsedIni: DesktopEntryIni,
+): Option.Option<ExecutableDesktopEntryIni> {
+    const exec = parsedIni['Desktop Entry'].Exec;
+    if (exec && exec.trim().length > 0) {
+        return Option.some({
+            ...parsedIni,
+            'Desktop Entry': {
+                ...parsedIni['Desktop Entry'],
+                Exec: exec,
+            },
+        });
+    }
+    return Option.none();
 }
 
 type DesktopFilesRecursiveStream = Stream.Stream<
@@ -146,16 +169,13 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                     }
                     return Option.some(parsedIni);
                 }),
-                // Validate and map Exec, filtering out entries where it's missing/empty
-                Effect.map(Option.flatMap(validateAndMapExec)),
-                Effect.map((validatedIniOpt) => {
-                    // Map the Option<ValidatedDesktopEntryIni> to Option<DesktopEntryInternal>
-                    return Option.map(validatedIniOpt, (content) => {
-                        // content now has 'Desktop Entry'.Exec guaranteed as string
+                Effect.map(Option.flatMap(getExecutableDesktopIni)),
+                Effect.map((executableIni) => {
+                    return Option.map(executableIni, (content) => {
                         return {
                             name: content['Desktop Entry'].Name,
                             icon: content['Desktop Entry'].Icon,
-                            exec: content['Desktop Entry'].Exec, // Directly use the validated string
+                            exec: content['Desktop Entry'].Exec,
                         };
                     });
                 }),
