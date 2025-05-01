@@ -755,9 +755,10 @@ Type=Scalable
                 ).not.toBeVisible({ timeout: 10000 }); // Increased timeout for suggestion loading
 
                 // Locate the button by its role and the text it contains
+                // Use exact match or regex for text to avoid strict mode violation
                 const suggestedAppButton = selectDialog
                     .getByRole('button')
-                    .filter({ hasText: uniqueAppName });
+                    .filter({ hasText: new RegExp(`^${uniqueAppName}$`) }); // Use regex for exact match
 
                 await expect(
                     suggestedAppButton,
@@ -767,7 +768,7 @@ Type=Scalable
                 await expect(
                     suggestedAppButton,
                     `Suggested app button should contain text "${uniqueAppName}"`,
-                ).toContainText(uniqueAppName);
+                ).toContainText(uniqueAppName); // containText is fine here after filtering
 
                 const iconImage = suggestedAppButton.locator('img');
                 await expect(
@@ -884,16 +885,16 @@ Type=Scalable
                 'Page 2 link should not be marked as active',
             ).not.toHaveAttribute('aria-current', 'page');
 
-            // Verify apps on Page 1 (assuming default sort is somewhat stable, check first and last expected)
+            // Verify apps on Page 1 (Use regex for exact match)
             const app1Button = selectDialog
                 .getByRole('button')
-                .filter({ hasText: `${appBaseName} 1` });
+                .filter({ hasText: new RegExp(`^${appBaseName} 1$`) });
             const app16Button = selectDialog
                 .getByRole('button')
-                .filter({ hasText: `${appBaseName} 16` });
+                .filter({ hasText: new RegExp(`^${appBaseName} 16$`) });
             const app17Button = selectDialog
                 .getByRole('button')
-                .filter({ hasText: `${appBaseName} 17` });
+                .filter({ hasText: new RegExp(`^${appBaseName} 17$`) });
 
             await expect(
                 app1Button,
@@ -931,7 +932,7 @@ Type=Scalable
                 'Page 2 link should be active on page 2',
             ).toHaveAttribute('aria-current', 'page');
 
-            // Verify apps on Page 2
+            // Verify apps on Page 2 (Use regex for exact match)
             await expect(
                 app1Button,
                 'App 1 should NOT be visible on page 2',
@@ -941,12 +942,12 @@ Type=Scalable
                 'App 16 should NOT be visible on page 2',
             ).not.toBeVisible();
             await expect(
-                app17Button,
+                app17Button, // Re-use locator from above
                 'App 17 should be visible on page 2',
             ).toBeVisible();
             const app20Button = selectDialog
                 .getByRole('button')
-                .filter({ hasText: `${appBaseName} 20` });
+                .filter({ hasText: new RegExp(`^${appBaseName} 20$`) });
             await expect(
                 app20Button,
                 'App 20 should be visible on page 2',
@@ -975,26 +976,26 @@ Type=Scalable
                 'Page 2 link should not be active again',
             ).not.toHaveAttribute('aria-current', 'page');
 
-            // Verify apps back on Page 1
+            // Verify apps back on Page 1 (Use regex for exact match)
             await expect(
-                app1Button,
+                app1Button, // Re-use locator
                 'App 1 should be visible again on page 1',
             ).toBeVisible();
             await expect(
-                app17Button,
+                app17Button, // Re-use locator
                 'App 17 should NOT be visible again on page 1',
             ).not.toBeVisible();
 
             // Click Page 2 link directly
             await page2Link.click();
 
-            // Verify apps on Page 2 again
+            // Verify apps on Page 2 again (Use regex for exact match)
             await expect(
-                app1Button,
+                app1Button, // Re-use locator
                 'App 1 should NOT be visible after clicking page 2 link',
             ).not.toBeVisible();
             await expect(
-                app17Button,
+                app17Button, // Re-use locator
                 'App 17 should be visible after clicking page 2 link',
             ).toBeVisible();
             await expect(
