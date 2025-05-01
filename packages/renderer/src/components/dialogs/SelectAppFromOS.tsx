@@ -85,16 +85,16 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                 {app.icon ? (
                                     <>
                                         {console.log(
-                                            `[renderer][SelectAppFromOS] Rendering img for ${app.name} with icon: ${app.icon}`,
+                                            `[renderer][SelectAppFromOS] Rendering img for ${app.name} with icon data URL (length: ${app.icon.length})`,
                                         )}
                                         <img
-                                            src={`file://${app.icon.slice(1)}`} // Use file protocol for absolute paths
+                                            src={app.icon} // Use data URL directly
                                             alt={`${app.name} icon`}
                                             className="h-8 w-8 mb-1 object-contain" // Ensure icon fits
                                             onError={(e) => {
                                                 // Fallback or hide if image fails to load
                                                 console.warn(
-                                                    `[renderer][SelectAppFromOS] Failed to load icon: ${app.icon}`,
+                                                    `[renderer][SelectAppFromOS] Failed to load icon from data URL for ${app.name}`,
                                                     e,
                                                 );
                                                 (
