@@ -179,7 +179,6 @@ describe('getDesktopEntries', () => {
     it('should find desktop entries in deeply nested directories', async () => {
         const customDataHome = path.join(MOCK_HOME, 'custom-data');
         const optShare = '/opt/share';
-        const usrShare = '/usr/share'; // Will be overridden by XDG_DATA_DIRS but tested implicitly
 
         vi.stubEnv('XDG_DATA_DIRS', `${optShare}:${USR_SHARE_APPS}`); // Use USR_SHARE_APPS directly
         vi.stubEnv('XDG_DATA_HOME', customDataHome);
@@ -216,10 +215,7 @@ describe('getDesktopEntries', () => {
                 MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Usr Nested App'),
             // XDG_DATA_HOME location, top level
             [path.join(customDataHomeApps, 'app-custom-home.desktop')]:
-                MOCK_DESKTOP_FILE_VALID.replace(
-                    'Valid App',
-                    'Custom Home App',
-                ),
+                MOCK_DESKTOP_FILE_VALID.replace('Valid App', 'Custom Home App'),
             // XDG_DATA_HOME location, nested
             [path.join(
                 customDataHomeAppsNested,
