@@ -1,8 +1,8 @@
-import { Effect, pipe, Stream, Schema, Data, Exit } from 'effect';
+import { Effect, pipe, Stream, Schema, Data, Exit, Option } from 'effect';
 import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
-import { readdirEffect } from '#src/fs/index.js';
+import { readdirEffect, readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
 import { FsError } from '#src/fs/errors.js';
 
@@ -135,14 +135,25 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
         Stream.map((filePathEffect) => {
             return pipe(
                 filePathEffect,
+                Effect.flatMap(readFileEffect),
+                Effect.map((bufOrString) => bufOrString.toString('utf-8')),
                 Effect.flatMap(parseIniEffect),
                 Effect.flatMap(Schema.decodeUnknown(DesktopEntryIniSchema)),
                 Effect.map((parsedIni) => {
-                    return {
-                        name: parsedIni['Desktop Entry'].Name,
-                        icon: parsedIni['Desktop Entry'].Icon,
-                        exec: parsedIni['Desktop Entry'].Exec,
-                    };
+                    const noDisplay = parsedIni['Desktop Entry'].NoDisplay;
+                    if (noDisplay || noDisplay === 'true') {
+                        return Option.none();
+                    }
+                    return Option.some(parsedIni);
+                }),
+                Effect.map((parsedIni) => {
+                    return Option.map(parsedIni, (content) => {
+                        return {
+                            name: content['Desktop Entry'].Name,
+                            icon: content['Desktop Entry'].Icon,
+                            exec: content['Desktop Entry'].Exec,
+                        };
+                    });
                 }),
             );
         }),
@@ -161,10 +172,14 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                     `Failed to process item when collecting desktop entries: ${error}`,
                 );
             },
-            onSuccess: (item) => item,
+            onSuccess: (item) => {
+                if (Option.isSome(item)) {
+                    return item;
+                }
+            },
         });
         if (matched) {
-            desktopEntries.push(matched);
+            desktopEntries.push(matched.value);
         }
     }
     return desktopEntries;
