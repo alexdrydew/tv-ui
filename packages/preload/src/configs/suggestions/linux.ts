@@ -159,7 +159,7 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                         return {
                             name: content['Desktop Entry'].Name,
                             icon: content['Desktop Entry'].Icon,
-                            exec: content['Desktop Entry'].Exec,
+                            exec: exec, // Use the validated exec command
                         };
                     });
                 }),
