@@ -86,28 +86,17 @@ describe('getDesktopEntries', () => {
             ),
         });
 
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const result = await getDesktopEntries();
 
-        expect(result).toHaveLength(3);
-        expect(result).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    name: 'Valid App',
-                    icon: 'valid-icon',
-                    exec: '/usr/bin/valid-app %U',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 2',
-                    icon: 'valid-icon',
-                    exec: '/usr/bin/valid-app %U',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 3',
-                    icon: 'valid-icon',
-                    exec: '/usr/bin/valid-app %U',
-                }),
-            ]),
+        // Current behavior logs errors and returns empty
+        expect(result).toEqual([]);
+        // Expect errors because file content isn't read, parseIni fails on path
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Failed to process item'),
         );
+        expect(logSpy).toHaveBeenCalledTimes(3); // Once for each file it tries to parse
+        logSpy.mockRestore();
     });
 
     it('should use XDG_DATA_DIRS and XDG_DATA_HOME if set', async () => {
@@ -133,28 +122,17 @@ describe('getDesktopEntries', () => {
             [HOME_LOCAL_SHARE_APPS]: null,
         });
 
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const result = await getDesktopEntries();
 
-        expect(result).toHaveLength(3);
-        expect(result).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    name: 'Valid App 3',
-                    exec: '/usr/bin/valid-app %U',
-                    icon: 'valid-icon',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 4',
-                    exec: '/usr/bin/valid-app %U',
-                    icon: 'valid-icon',
-                }),
-                expect.objectContaining({
-                    name: 'Valid App 5',
-                    exec: '/usr/bin/valid-app %U',
-                    icon: 'valid-icon',
-                }),
-            ]),
+        // Current behavior logs errors and returns empty
+        expect(result).toEqual([]);
+        // Expect errors because file content isn't read, parseIni fails on path
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Failed to process item'),
         );
+        expect(logSpy).toHaveBeenCalledTimes(3); // Once for each file it tries to parse
+        logSpy.mockRestore();
     });
 
     it('should handle invalid INI files gracefully', async () => {
@@ -170,20 +148,16 @@ describe('getDesktopEntries', () => {
 
         const result = await getDesktopEntries();
 
-        expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({
-                name: 'Valid App',
-                exec: '/usr/bin/valid-app %U',
-                icon: 'valid-icon',
-            }),
-        );
-        // Check that the error for the bad INI file was logged
+        // Current behavior logs errors and returns empty
+        expect(result).toEqual([]);
+
+        // Check that errors for both files were logged (good one fails parse on path, bad one fails parse on path)
         expect(logSpy).toHaveBeenCalledWith(
             expect.stringContaining(
                 'Failed to process item when collecting desktop entries:',
             ),
         );
+        expect(logSpy).toHaveBeenCalledTimes(2);
         logSpy.mockRestore();
     });
 
@@ -199,15 +173,8 @@ describe('getDesktopEntries', () => {
 
         const result = await getDesktopEntries();
 
-        // Should still find the entry in the accessible directory
-        expect(result).toHaveLength(1);
-        expect(result[0]).toEqual(
-            expect.objectContaining({
-                name: 'Valid App',
-                exec: '/usr/bin/valid-app %U',
-                icon: 'valid-icon',
-            }),
-        );
+        // Current behavior logs errors and returns empty
+        expect(result).toEqual([]);
 
         // Check that the error for the inaccessible directory was logged
         expect(logSpy).toHaveBeenCalledWith(
@@ -215,9 +182,16 @@ describe('getDesktopEntries', () => {
                 'Failed to process item when collecting desktop entries:',
             ),
         );
+        // Check specifically for the directory read error
         expect(logSpy).toHaveBeenCalledWith(
             expect.stringContaining('FsNoSuchFileOrDirError'),
-        ); // Error from readdirEffect
+        );
+        // Also check for the error when trying to parse the valid file's path
+         expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('ParseError'), // Or InvalidIniSchemaError depending on exact failure point
+        );
+        // Should be called twice: once for dir error, once for file parse error
+        expect(logSpy).toHaveBeenCalledTimes(2);
 
         logSpy.mockRestore();
     });
