@@ -8,9 +8,13 @@ async function pathIsFile(filePath: string): Promise<boolean> {
     try {
         const stats = await fs.stat(filePath);
         return stats.isFile();
-    } catch (error: any) {
+    } catch (error: unknown) {
         // ENOENT means file/dir doesn't exist, treat as not a file
-        if (error.code === 'ENOENT') {
+        if (
+            error instanceof Error &&
+            'code' in error &&
+            error.code === 'ENOENT'
+        ) {
             return false;
         }
         // Log other errors but still return false

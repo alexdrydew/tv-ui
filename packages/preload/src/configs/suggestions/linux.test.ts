@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { vol, fs } from 'memfs';
+import { vol } from 'memfs';
 import path from 'node:path';
 import { getDesktopEntries } from './linux.js'; // Changed import path
 
@@ -33,13 +33,6 @@ Exec=/usr/bin/hidden-app
 Type=Application
 NoDisplay=true
 `;
-const MOCK_DESKTOP_FILE_NOT_APP = `
-[Desktop Entry]
-Name=Link File
-Type=Link
-URL=https://example.com
-`;
-// Syntactically valid INI, but missing the required [Desktop Entry] section for schema validation
 const MOCK_DESKTOP_FILE_INVALID_SCHEMA = `
 [Some Other Section]
 Name=Invalid Schema App
@@ -333,7 +326,8 @@ describe('getDesktopEntries', () => {
         vol.fromJSON({
             [path.join(USR_SHARE_APPS, 'good.desktop')]:
                 MOCK_DESKTOP_FILE_VALID,
-            [path.join(USR_SHARE_APPS, 'badschema.desktop')]: // Use the schema-invalid file
+            // Use the schema-invalid file
+            [path.join(USR_SHARE_APPS, 'badschema.desktop')]:
                 MOCK_DESKTOP_FILE_INVALID_SCHEMA,
             [USR_LOCAL_SHARE_APPS]: null,
             [HOME_LOCAL_SHARE_APPS]: null,
