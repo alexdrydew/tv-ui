@@ -156,6 +156,10 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
         path.join(xdgDataHome, 'applications'),
     ];
 
+    console.log(
+        `Searching for desktop entries in directories: ${searchDirs.join(', ')}`,
+    );
+
     const dirsStream = Stream.fromIterable(
         new Set(searchDirs.map((dir) => path.resolve(dir))),
     );
