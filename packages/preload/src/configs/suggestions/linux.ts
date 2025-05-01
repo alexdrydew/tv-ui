@@ -9,7 +9,7 @@ import { FsError } from '#src/fs/errors.js';
 const DesktopEntryIniSchema = Schema.Struct({
     'Desktop Entry': Schema.Struct({
         Name: Schema.String,
-        Exec: Schema.String,
+        Exec: Schema.optional(Schema.String), // Make Exec optional
         Type: Schema.optional(Schema.String), // Optional because we need to check its value
         NoDisplay: Schema.optional(Schema.Union(Schema.String, Schema.Boolean)), // Optional and can be string or boolean
         Icon: Schema.optional(Schema.String),
@@ -146,8 +146,16 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
                     }
                     return Option.some(parsedIni);
                 }),
-                Effect.map((parsedIni) => {
-                    return Option.map(parsedIni, (content) => {
+                // Filter out entries without a valid Exec command
+                Effect.map(Option.filter((parsedIni) => {
+                    const exec = parsedIni['Desktop Entry'].Exec;
+                    return !!exec && exec.trim().length > 0;
+                })),
+                Effect.map((parsedIniOpt) => {
+                    // Map the Option<ParsedIni> to Option<DesktopEntryInternal>
+                    return Option.map(parsedIniOpt, (content) => {
+                        // We can now safely access Exec as it's guaranteed by the filter
+                        const exec = content['Desktop Entry'].Exec as string;
                         return {
                             name: content['Desktop Entry'].Name,
                             icon: content['Desktop Entry'].Icon,
