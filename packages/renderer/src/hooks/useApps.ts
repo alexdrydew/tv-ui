@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { error, debug } from '@/api/logging';
 import {
     App,
@@ -19,9 +19,14 @@ export function useAppConfigs(configFileName: string): {
     configs: AppConfig[] | undefined;
     configFilePath: string | undefined;
 } {
-    const configFilePath =
-        getEnv('TV_UI_CONFIG_PATH') ??
-        `/Users/alexdrydew/.config/tv-ui/${configFileName}`;
+    const configFilePath = useMemo(() => {
+        const envPath = getEnv('TV_UI_CONFIG_PATH');
+        if (envPath) {
+            return envPath;
+        }
+
+        return `${getEnv('HOME')}/.config/tv-ui/${configFileName}`;
+    }, [configFileName]);
 
     const [configs, setConfig] = useState<AppConfig[] | undefined>();
 
@@ -144,68 +149,68 @@ export function useApps(): {
         });
     }, [appConfigs]);
 
-    const updateApps = useCallback(
-        (stateInfo: AppStateInfo) => {
-            setApps((currentApps) => {
-                if (currentApps === undefined) {
-                    error(
-                        `Received app update for ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId}) but current apps state is undefined.`,
-                    );
-                    return undefined;
-                }
-
-                const targetAppIndex = currentApps.findIndex(
-                    (app) => app.config.id === stateInfo.configId,
+    const updateApps = useCallback((stateInfo: AppStateInfo) => {
+        setApps((currentApps) => {
+            if (currentApps === undefined) {
+                error(
+                    `Received app update for ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId}) but current apps state is undefined.`,
                 );
+                return undefined;
+            }
 
-                if (targetAppIndex === -1) {
-                    // This might happen if the config was removed just before the update arrived
-                    error(
-                        `Received app update for unknown/removed configId: ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId})`,
-                    );
-                    return currentApps;
-                }
+            const targetAppIndex = currentApps.findIndex(
+                (app) => app.config.id === stateInfo.configId,
+            );
 
-                const newApps = [...currentApps];
-                const targetApp = { ...newApps[targetAppIndex] }; // Shallow copy app
-                const currentInstances = [...targetApp.instances];
-
-                const instanceIndex = currentInstances.findIndex(
-                    (instance) =>
-                        instance.launchInstanceId === stateInfo.launchInstanceId,
+            if (targetAppIndex === -1) {
+                // This might happen if the config was removed just before the update arrived
+                error(
+                    `Received app update for unknown/removed configId: ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId})`,
                 );
+                return currentApps;
+            }
 
-                const updatedInstanceState: AppState = {
-                    configId: stateInfo.configId,
-                    launchInstanceId: stateInfo.launchInstanceId,
-                    pid: stateInfo.pid,
-                    exitResult: stateInfo.exitResult,
-                };
+            const newApps = [...currentApps];
+            const targetApp = { ...newApps[targetAppIndex] }; // Shallow copy app
+            const currentInstances = [...targetApp.instances];
 
-                if (instanceIndex === -1) {
-                    debug(
-                        `Adding new instance (Instance: ${stateInfo.launchInstanceId}, PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
-                    );
-                    targetApp.instances = [...currentInstances, updatedInstanceState];
-                } else {
-                    debug(
-                        `Updating instance (Instance: ${stateInfo.launchInstanceId}, PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
-                    );
-                    const newInstances = [...currentInstances];
-                    newInstances[instanceIndex] = updatedInstanceState;
-                    targetApp.instances = newInstances;
-                }
+            const instanceIndex = currentInstances.findIndex(
+                (instance) =>
+                    instance.launchInstanceId === stateInfo.launchInstanceId,
+            );
 
-                newApps[targetAppIndex] = targetApp;
+            const updatedInstanceState: AppState = {
+                configId: stateInfo.configId,
+                launchInstanceId: stateInfo.launchInstanceId,
+                pid: stateInfo.pid,
+                exitResult: stateInfo.exitResult,
+            };
 
+            if (instanceIndex === -1) {
                 debug(
-                    `Updated apps state: ${JSON.stringify(newApps.map((a) => ({ id: a.config.id, instances: a.instances.map((i) => i.launchInstanceId) })))}`,
+                    `Adding new instance (Instance: ${stateInfo.launchInstanceId}, PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
                 );
-                return newApps;
-            });
-        },
-        [],
-    );
+                targetApp.instances = [
+                    ...currentInstances,
+                    updatedInstanceState,
+                ];
+            } else {
+                debug(
+                    `Updating instance (Instance: ${stateInfo.launchInstanceId}, PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
+                );
+                const newInstances = [...currentInstances];
+                newInstances[instanceIndex] = updatedInstanceState;
+                targetApp.instances = newInstances;
+            }
+
+            newApps[targetAppIndex] = targetApp;
+
+            debug(
+                `Updated apps state: ${JSON.stringify(newApps.map((a) => ({ id: a.config.id, instances: a.instances.map((i) => i.launchInstanceId) })))}`,
+            );
+            return newApps;
+        });
+    }, []);
     useAppStateUpdateEventsSubscription(updateApps);
 
     return { apps, configFilePath };
