@@ -112,10 +112,23 @@ export async function suggestAppConfigs(): Promise<AppConfig[]> {
             suggestions.push(suggestion);
         }
 
+        // Deduplicate suggestions by name
+        const uniqueSuggestionsMap = new Map<string, AppConfig>();
+        for (const suggestion of suggestions) {
+            if (!uniqueSuggestionsMap.has(suggestion.name)) {
+                uniqueSuggestionsMap.set(suggestion.name, suggestion);
+            } else {
+                console.log(
+                    `Duplicate suggestion found for name "${suggestion.name}". Keeping the first one encountered.`,
+                );
+            }
+        }
+        const deduplicatedSuggestions = Array.from(uniqueSuggestionsMap.values());
+
         console.info(
-            `Returning ${suggestions.length} processed Linux suggestions after single icon batch processing.`,
+            `Returning ${deduplicatedSuggestions.length} processed and deduplicated Linux suggestions.`,
         );
-        return suggestions;
+        return deduplicatedSuggestions;
     }
 
     console.info(
