@@ -21,6 +21,11 @@ interface SelectAppFromOSProps {
 
 const ITEMS_PER_PAGE = 16; // Define how many apps per page
 
+// Helper function for sorting AppConfig by name (case-insensitive)
+const sortAppsByName = (a: AppConfig, b: AppConfig) => {
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+};
+
 export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
     const [suggestions, setSuggestions] = useState<AppConfig[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +39,9 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
             setCurrentPage(1); // Reset to first page on new fetch
             try {
                 const result = await getSuggestedAppConfigs();
-                setSuggestions(result);
+                // Sort the results alphabetically by name before setting state
+                const sortedResult = result.sort(sortAppsByName);
+                setSuggestions(sortedResult);
             } catch (err) {
                 console.error('Failed to fetch app suggestions:', err);
                 setError(
@@ -54,6 +61,7 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
     };
 
     // --- Pagination Logic ---
+    // Suggestions are now guaranteed to be sorted before this logic runs
     const totalPages = Math.ceil(suggestions.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
