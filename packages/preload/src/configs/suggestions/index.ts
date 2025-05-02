@@ -30,10 +30,27 @@ async function getIconDataUrlsFromMain(
             undefined,
             256,
         );
-        console.log(
-            `Received data URL map from main process for ${Object.keys(dataUrlMap).length} identifiers.`,
-        );
-        return dataUrlMap || {}; // Ensure we return an object even if main returns null/undefined
+
+        // Normalize the result: If only one identifier was requested and a string is returned,
+        // wrap it in a map. Otherwise, assume it's already a map (or null/undefined).
+        let normalizedMap: Record<string, string | null> = {};
+        if (iconIdentifiers.length === 1 && typeof dataUrlMap === 'string') {
+            normalizedMap[iconIdentifiers[0]] = dataUrlMap;
+            console.log(
+                `Received single data URL string from main process for identifier: ${iconIdentifiers[0]}`,
+            );
+        } else if (typeof dataUrlMap === 'object' && dataUrlMap !== null) {
+            normalizedMap = dataUrlMap;
+            console.log(
+                `Received data URL map from main process for ${Object.keys(normalizedMap).length} identifiers.`,
+            );
+        } else {
+            console.log(
+                'Received null or unexpected data type from main process for icon data.',
+            );
+        }
+
+        return normalizedMap;
     } catch (error) {
         console.error(
             `Error invoking 'get-freedesktop-icon' for multiple identifiers:`,
