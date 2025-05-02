@@ -31,7 +31,7 @@ export function AppGrid<T extends App>({
     const { focusedIndex, setFocusedIndex } = useFocusNavigation(apps.length);
 
     return (
-        <div className="flex gap-8 p-4">
+        <div className="flex flex-wrap gap-8 p-4">
             {apps.map((app, index) =>
                 renderItem({
                     app,
