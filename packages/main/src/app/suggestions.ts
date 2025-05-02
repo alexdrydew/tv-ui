@@ -1,19 +1,20 @@
+import {
+    GET_FREEDESKTOP_ICONS_CHANNEL,
+    GetFreedesktopIconsChannel,
+} from '@app/types';
 import { ipcMain, nativeImage } from 'electron';
 import { findIconPaths } from '@app/native-freedesktop-icons';
+
 export function registerSuggestionHandlers() {
     ipcMain.handle(
-        'get-freedesktop-icons',
+        GET_FREEDESKTOP_ICONS_CHANNEL,
         async (
             _event,
-            iconNames: string[],
-            themes?: string | string[],
-            size?: number,
-            scale?: number,
-        ): Promise<Record<string, string | undefined>> => {
-            // TODO: instead add message type and validate the message
+            { iconNames, themes, size, scale },
+        ): ReturnType<GetFreedesktopIconsChannel['handle']> => {
             if (!Array.isArray(iconNames) || iconNames.length === 0) {
                 console.warn(
-                    '[main][get-freedesktop-icons] Received invalid or empty iconNames array.',
+                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Received invalid or empty iconNames array.`,
                 );
                 return {};
             }

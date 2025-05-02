@@ -7,6 +7,12 @@ import os from 'os';
 import { getDesktopEntries, ValidDesktopEntry } from './linux.js';
 import { dropDuplicates } from '#src/lib/utils.js';
 
+import {
+    GET_FREEDESKTOP_ICONS_CHANNEL,
+    GetFreedesktopIconsArgs,
+    GetFreedesktopIconsReturn,
+} from '@app/types';
+
 /**
  * Fetches data URLs for a list of icon identifiers using a single IPC call.
  * @param iconIdentifiers An array of icon names or absolute paths.
@@ -14,7 +20,7 @@ import { dropDuplicates } from '#src/lib/utils.js';
  */
 async function getIconDataUrlsFromMain(
     iconIdentifiers: string[],
-): Promise<Record<string, string | undefined>> {
+): Promise<GetFreedesktopIconsReturn> {
     if (iconIdentifiers.length === 0) {
         console.log('No icon identifiers provided, skipping IPC call.');
         return {};
@@ -23,17 +29,18 @@ async function getIconDataUrlsFromMain(
         `Requesting data URLs for ${iconIdentifiers.length} icon identifiers from main process...`,
     );
     try {
-        const dataUrlMap: Record<string, string | undefined> =
-            await ipcRenderer.invoke(
-                'get-freedesktop-icons',
-                iconIdentifiers,
-                undefined,
-                256,
-            );
+        const args: GetFreedesktopIconsArgs = {
+            iconNames: iconIdentifiers,
+            size: 256, // Default size, can be parameterized if needed
+        };
+        const dataUrlMap: GetFreedesktopIconsReturn = await ipcRenderer.invoke(
+            GET_FREEDESKTOP_ICONS_CHANNEL,
+            args,
+        );
         return dataUrlMap;
     } catch (error) {
         console.error(
-            `Error invoking 'get-freedesktop-icons' for multiple identifiers:`,
+            `Error invoking '${GET_FREEDESKTOP_ICONS_CHANNEL}' for multiple identifiers:`,
             error,
         );
         return {};

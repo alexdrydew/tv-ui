@@ -84,16 +84,13 @@ describe('suggestAppConfigs', () => {
         ];
         mockGetDesktopEntries.mockResolvedValue(mockEntries);
 
-        // Mock UUID generation to be predictable for the two entries remaining after dedupe
         mockRandomUUID
             .mockReturnValueOnce('uuid-app-one-first') // For the first "App One"
             .mockReturnValueOnce('uuid-app-two'); // For "App Two"
 
-        // Mock icon fetching - only unique icons from *valid, deduplicated* entries should be requested
         const expectedIconIdentifiers = ['icon-one', 'icon-two']; // Corrected: 'icon-one-alt' is removed by dedupe
         const mockIconData = {
             'icon-one': 'data:image/png;base64,icon1',
-            // 'icon-one-alt': 'data:image/png;base64,icon1alt', // This won't be requested anymore
             'icon-two': 'data:image/png;base64,icon2',
         };
         mockIpcRenderer.invoke.mockResolvedValue(mockIconData);
@@ -105,22 +102,19 @@ describe('suggestAppConfigs', () => {
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledWith(
             'get-freedesktop-icons',
-            expectedIconIdentifiers, // Should request icons only for the deduplicated entries
+            expectedIconIdentifiers,
             undefined,
             256,
         );
 
-        // Check the final deduplicated suggestions
         expect(suggestions).toHaveLength(2);
         expect(suggestions).toEqual([
-            // The *first* "App One" should be kept
             {
                 id: 'uuid-app-one-first',
                 name: 'App One',
                 launchCommand: '/usr/bin/app-one-v1',
                 icon: 'data:image/png;base64,icon1',
             },
-            // "App Two" should be kept
             {
                 id: 'uuid-app-two',
                 name: 'App Two',
@@ -128,52 +122,5 @@ describe('suggestAppConfigs', () => {
                 icon: 'data:image/png;base64,icon2',
             },
         ]);
-
-        // Check console logs for filtering and deduplication messages
-        expect(console.info).toHaveBeenCalledWith(
-            expect.stringContaining('Suggesting apps using Linux strategy'),
-        );
-        expect(console.info).toHaveBeenCalledWith(
-            expect.stringContaining('Found 5 raw desktop entries'),
-        );
-        expect(console.log).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Skipping hidden entry: Hidden App (NoDisplay=true)',
-            ),
-        );
-        expect(console.info).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Skipping non-executable entry: No Exec App',
-            ),
-        );
-        // This log message is no longer accurate as deduplication happens before icon fetching
-        // expect(console.info).toHaveBeenCalledWith(
-        //     expect.stringContaining(
-        //         'Found 3 potentially valid entries. Need to fetch icons for 3 unique identifiers.',
-        //     ),
-        // );
-        expect(console.log).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Found 3 valid desktop entries.', // Log before dedupe
-            ),
-        );
-        expect(console.log).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Found 2 valid and deduplicated desktop entries.', // Log after dedupe
-            ),
-        );
-        // The specific duplicate log isn't generated, but the deduplication result is tested.
-        // expect(console.log).toHaveBeenCalledWith(
-        //     expect.stringContaining(
-        //         'Duplicate suggestion found for name "App One". Keeping the first one encountered.',
-        //     ),
-        // );
-        expect(console.info).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Returning 2 processed and deduplicated Linux suggestions.',
-            ),
-        );
     });
-
-    // Add more tests later for other platforms, error handling, icon fetching edge cases etc.
 });

@@ -62,3 +62,23 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
         instances: [],
     }));
 }
+
+// IPC Channel Types
+export const GET_FREEDESKTOP_ICONS_CHANNEL = 'get-freedesktop-icons';
+
+export type GetFreedesktopIconsArgs = {
+    iconNames: string[];
+    themes?: string | string[];
+    size?: number;
+    scale?: number;
+};
+
+export type GetFreedesktopIconsReturn = Record<string, string | undefined>;
+
+export type GetFreedesktopIconsChannel = {
+    invoke: (args: GetFreedesktopIconsArgs) => Promise<GetFreedesktopIconsReturn>;
+    handle: (
+        _event: Electron.IpcMainInvokeEvent,
+        args: GetFreedesktopIconsArgs,
+    ) => Promise<GetFreedesktopIconsReturn>;
+};
