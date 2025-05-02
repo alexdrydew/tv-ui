@@ -26,8 +26,15 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
         Object.entries(resolvedIconsPaths).map(([iconName, iconPath]) => {
             let iconUrl: string | undefined = undefined;
             if (iconPath) {
-                const image = nativeImage.createFromPath(iconPath);
-                iconUrl = image.toDataURL();
+                const ext = iconPath.split('.').pop();
+                if (ext === 'png' || ext === 'jpg' || ext === 'jpeg') {
+                    const image = nativeImage.createFromPath(iconPath);
+                    iconUrl = image.toDataURL();
+                } else {
+                    console.warn(
+                        `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName}. Supported formats are PNG and JPEG.`,
+                    );
+                }
             }
             return [iconName, iconUrl];
         }),
