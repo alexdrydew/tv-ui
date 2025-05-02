@@ -325,14 +325,20 @@ MaxSize=512
 
             // --- SVG Specific Assertion ---
             const expectedIconSrcPrefix = 'data:image/svg+xml;base64,';
-            await expect(
-                iconImage,
-                `Icon image src should start with "${expectedIconSrcPrefix}" for SVG icon`,
-            ).toHaveAttribute('src', new RegExp(`^${expectedIconSrcPrefix}`));
+            const actualSrc = await iconImage.getAttribute('src'); // Get the attribute value first
 
-            const actualSrc = await iconImage.getAttribute('src');
             expect(
-                actualSrc?.length ?? 0,
+                actualSrc,
+                `Icon image src attribute should not be null`,
+            ).not.toBeNull(); // Ensure src is not null
+
+            expect(
+                actualSrc,
+                `Icon image src "${actualSrc}" should start with "${expectedIconSrcPrefix}" for SVG icon`,
+            ).toMatch(new RegExp(`^${expectedIconSrcPrefix}`)); // Use toMatch for the pattern check
+
+            expect(
+                actualSrc?.length ?? 0, // Keep the length check
                 'Icon data URL should have content',
             ).toBeGreaterThan(expectedIconSrcPrefix.length);
         },
