@@ -84,11 +84,10 @@ describe('suggestAppConfigs', () => {
         ];
         mockGetDesktopEntries.mockResolvedValue(mockEntries);
 
-        // Mock UUID generation to be predictable
+        // Mock UUID generation to be predictable for the two entries remaining after dedupe
         mockRandomUUID
-            .mockReturnValueOnce('uuid-app-one-first')
-            .mockReturnValueOnce('uuid-app-one-second-ignored') // This one should be ignored due to dedupe
-            .mockReturnValueOnce('uuid-app-two');
+            .mockReturnValueOnce('uuid-app-one-first') // For the first "App One"
+            .mockReturnValueOnce('uuid-app-two'); // For "App Two"
 
         // Mock icon fetching - only unique icons from *valid, deduplicated* entries should be requested
         const expectedIconIdentifiers = ['icon-one', 'icon-two']; // Corrected: 'icon-one-alt' is removed by dedupe
