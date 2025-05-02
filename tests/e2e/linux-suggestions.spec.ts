@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { test, expect, type ElectronApplication } from './base';
+import { test, expect, type ElectronApplication } from './base.js';
 
 // Minimal valid PNG data (1x1 transparent pixel)
 const MINIMAL_PNG_DATA = Buffer.from(

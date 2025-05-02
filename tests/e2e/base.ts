@@ -1,7 +1,7 @@
 import type { ElectronApplication } from 'playwright';
 import { _electron as electron } from 'playwright';
 import { expect, test as base } from '@playwright/test';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { globSync } from 'glob';

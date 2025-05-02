@@ -1,4 +1,4 @@
-import { test, expect } from './base';
+import { test, expect } from './base.js';
 
 test('Launch app via UI click', async ({ page }) => {
     const appName = 'Test App';

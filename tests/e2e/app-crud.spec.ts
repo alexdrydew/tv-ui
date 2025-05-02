@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { AppConfig } from '@app/types';
-import { test, expect } from './base';
+import { test, expect } from './base.js';
 
 test('App tile is rendered when config has an app', async ({ page }) => {
     // Using data-testid for more robust selection
