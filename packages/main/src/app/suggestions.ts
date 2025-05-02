@@ -33,16 +33,25 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
                     iconUrl = image.toDataURL();
                     return [iconName, iconUrl];
                 }
-                const fileContent = (
-                    await Effect.runPromise(readFileEffect(iconPath))
-                ).toString();
+                // Read as Buffer instead of string
+                const fileContentBuffer = await Effect.runPromise(
+                    readFileEffect(iconPath),
+                );
 
-                if (fileContent.slice(0, 256).includes('<svg ')) {
-                    iconUrl = `data:image/svg+xml;base64,${fileContent}`;
+                // Check if the start of the buffer looks like SVG
+                if (
+                    fileContentBuffer
+                        .slice(0, 256)
+                        .toString('utf-8') // Decode only the part we inspect
+                        .includes('<svg ')
+                ) {
+                    // Correctly encode the *entire* buffer content as base64
+                    const base64Content = fileContentBuffer.toString('base64');
+                    iconUrl = `data:image/svg+xml;base64,${base64Content}`;
                     return [iconName, iconUrl];
                 }
                 console.warn(
-                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName}. Supported formats are PNG and JPEG.`,
+                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName}. Supported formats are PNG, JPEG, and SVG.`, // Updated warning message
                 );
             }
             return [iconName, iconUrl];
