@@ -132,7 +132,8 @@ const test = base.extend<TestFixtures>({
             }
         });
 
-        await page.waitForLoadState('load');
+        // Increase wait time to allow app initialization, potentially fixing config read issues
+        await page.waitForLoadState('load', { timeout: 10000 }); // Increased from default
         // eslint-disable-next-line react-hooks/rules-of-hooks
         await use(page);
     },
