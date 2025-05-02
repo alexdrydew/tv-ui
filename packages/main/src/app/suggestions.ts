@@ -24,56 +24,33 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
         scale,
     });
 
-    console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] findIconPaths resolved:`, JSON.stringify(resolvedIconsPaths)); // Added logging
-
     const entries = Object.entries(resolvedIconsPaths).map(
         async ([iconName, iconPath]) => {
-            console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Processing icon: ${iconName}, Path: ${iconPath}`); // Added logging
             let iconUrl: string | undefined = undefined;
             if (iconPath) {
-                console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Attempting nativeImage for: ${iconPath}`); // Added logging
                 const image = nativeImage.createFromPath(iconPath);
                 if (!image.isEmpty()) {
-                    console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] nativeImage succeeded for: ${iconPath}`); // Added logging
                     iconUrl = image.toDataURL();
                     return [iconName, iconUrl];
                 }
-                console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] nativeImage failed (isEmpty=true) for: ${iconPath}. Checking for SVG...`); // Added logging
-                // Read as Buffer instead of string
-                let fileContentBuffer: Buffer;
-                try {
-                    fileContentBuffer = await Effect.runPromise(
-                        readFileEffect(iconPath),
-                    );
-                    console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Successfully read file: ${iconPath}`); // Added logging
-                } catch (error) {
-                    console.error(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Error reading file ${iconPath}:`, error); // Added logging
-                    return [iconName, undefined]; // Return undefined if read fails
-                }
+                const fileContentBuffer = await Effect.runPromise(
+                    readFileEffect(iconPath),
+                );
+                const fileContent = fileContentBuffer.toString('utf-8');
 
-
-                // Check if the start of the buffer looks like SVG
-                if (
-                    fileContentBuffer
-                        .slice(0, 256)
-                        .toString('utf-8') // Decode only the part we inspect
-                        .includes('<svg ')
-                ) {
-                    console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Detected SVG for: ${iconPath}. Encoding...`); // Added logging
-                    // Correctly encode the *entire* buffer content as base64
-                    const base64Content = fileContentBuffer.toString('base64');
+                if (fileContent.includes('<svg ')) {
+                    const base64Content = Buffer.from(
+                        fileContent,
+                        'utf-8',
+                    ).toString('base64');
                     iconUrl = `data:image/svg+xml;base64,${base64Content}`;
-                    console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Encoded SVG data URL for: ${iconName}`); // Added logging
                     return [iconName, iconUrl];
                 }
                 console.warn(
-                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName} at path ${iconPath}. Supported formats are PNG, JPEG, and SVG.`, // Updated warning message with path
+                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName} at path ${iconPath}. Supported formats are PNG, JPEG, and SVG.`,
                 );
-            } else {
-                 console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] No iconPath found for icon: ${iconName}`); // Added logging
             }
-            console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Returning undefined URL for icon: ${iconName}`); // Added logging
-            return [iconName, iconUrl]; // iconUrl will be undefined here
+            return [iconName, iconUrl];
         },
     );
     return Object.fromEntries(await Promise.all(entries));

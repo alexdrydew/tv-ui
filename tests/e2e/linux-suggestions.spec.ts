@@ -254,7 +254,7 @@ MaxSize=512
     // --- Test for SVG Icon ---
     linuxEnvTest(
         'Suggest app from OS shows SVG icon from .desktop file',
-        async ({ page, electronApp, setupEnv, tempDir }) => {
+        async ({ page, electronApp, setupEnv }) => {
             // --- Test Setup ---
             const xdgDataHome = setupEnv['XDG_DATA_HOME'];
             const xdgDataDirShare = setupEnv['XDG_DATA_DIRS'];
@@ -335,7 +335,7 @@ MaxSize=512
             expect(
                 actualSrc,
                 `Icon image src "${actualSrc}" should start with "${expectedIconSrcPrefix}" for SVG icon`,
-            ).toMatch(new RegExp(`^${expectedIconSrcPrefix}`)); // Use toMatch for the pattern check
+            ).toMatch(new RegExp(`^data:image/svg\\+xml;base64,`)); // Use toMatch for the pattern check
 
             expect(
                 actualSrc?.length ?? 0, // Keep the length check

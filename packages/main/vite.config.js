@@ -1,4 +1,5 @@
 import { getNodeMajorVersion } from '@app/electron-versions';
+import tsconfigPaths from 'vite-tsconfig-paths';
 import { spawn } from 'child_process';
 import electronPath from 'electron';
 
@@ -42,7 +43,7 @@ export default /**
         emptyOutDir: true,
         reportCompressedSize: false,
     },
-    plugins: [handleHotReload()],
+    plugins: [tsconfigPaths(), handleHotReload()],
 });
 
 /**
