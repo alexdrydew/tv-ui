@@ -88,12 +88,19 @@ NoDisplay=false
 [Icon Theme]
 Name=Hicolor
 Comment=Fallback theme for icons
-Directories=48x48/apps
+Directories=48x48/apps,scalable/apps
 
 [48x48/apps]
 Size=48
 Context=Applications
+Type=Fixed
+
+[scalable/apps]
+Size=48
+Context=Applications
 Type=Scalable
+MinSize=1
+MaxSize=512
 `;
         // Write index.theme only if it doesn't exist to avoid race conditions in parallel tests
         try {
