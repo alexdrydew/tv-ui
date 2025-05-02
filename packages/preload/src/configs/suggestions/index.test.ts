@@ -106,7 +106,7 @@ describe('suggestAppConfigs', () => {
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledWith(
             'get-freedesktop-icon',
-            expectedIconIdentifiers, // Should request icons for both "App One" initially
+            expectedIconIdentifiers, // Should request icons only for the deduplicated entries
             undefined,
             256,
         );
@@ -145,9 +145,20 @@ describe('suggestAppConfigs', () => {
         expect(console.info).toHaveBeenCalledWith(
             expect.stringContaining('Skipping non-executable entry: No Exec App'),
         );
-        expect(console.info).toHaveBeenCalledWith(
+        // This log message is no longer accurate as deduplication happens before icon fetching
+        // expect(console.info).toHaveBeenCalledWith(
+        //     expect.stringContaining(
+        //         'Found 3 potentially valid entries. Need to fetch icons for 3 unique identifiers.',
+        //     ),
+        // );
+        expect(console.log).toHaveBeenCalledWith(
             expect.stringContaining(
-                'Found 3 potentially valid entries. Need to fetch icons for 3 unique identifiers.',
+                'Found 3 valid desktop entries.', // Log before dedupe
+            ),
+        );
+        expect(console.log).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Found 2 valid and deduplicated desktop entries.', // Log after dedupe
             ),
         );
         expect(console.log).toHaveBeenCalledWith(
