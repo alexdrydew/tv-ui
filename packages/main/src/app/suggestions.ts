@@ -57,7 +57,6 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
                     fileContentBuffer
                         .slice(0, 256)
                         .toString('utf-8') // Decode only the part we inspect
-                        .toString('utf-8') // Decode only the part we inspect
                         .includes('<svg ')
                 ) {
                     console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Detected SVG for: ${iconPath}. Encoding...`); // Added logging
