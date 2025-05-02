@@ -1,6 +1,6 @@
 import type { JSHandle } from 'playwright';
 import type { BrowserWindow } from 'electron';
-import { test, expect } from './e2e/base';
+import { test, expect } from './base';
 
 test('Main window state', async ({ electronApp, page }) => {
     const window: JSHandle<BrowserWindow> =
