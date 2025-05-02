@@ -90,11 +90,11 @@ describe('suggestAppConfigs', () => {
             .mockReturnValueOnce('uuid-app-one-second-ignored') // This one should be ignored due to dedupe
             .mockReturnValueOnce('uuid-app-two');
 
-        // Mock icon fetching - only unique icons from *valid* entries should be requested
-        const expectedIconIdentifiers = ['icon-one', 'icon-one-alt', 'icon-two'];
+        // Mock icon fetching - only unique icons from *valid, deduplicated* entries should be requested
+        const expectedIconIdentifiers = ['icon-one', 'icon-two']; // Corrected: 'icon-one-alt' is removed by dedupe
         const mockIconData = {
             'icon-one': 'data:image/png;base64,icon1',
-            'icon-one-alt': 'data:image/png;base64,icon1alt',
+            // 'icon-one-alt': 'data:image/png;base64,icon1alt', // This won't be requested anymore
             'icon-two': 'data:image/png;base64,icon2',
         };
         mockIpcRenderer.invoke.mockResolvedValue(mockIconData);
