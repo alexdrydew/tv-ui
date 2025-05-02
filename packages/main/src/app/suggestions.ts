@@ -4,6 +4,8 @@ import {
 } from '@app/types';
 import { ipcMain, nativeImage } from 'electron';
 import { findIconPaths } from '@app/native-freedesktop-icons';
+import { readFileEffect } from '@app/lib/src/fs/index.js';
+import { Effect } from 'effect';
 
 const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
     _event,
@@ -22,22 +24,31 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
         scale,
     });
 
-    return Object.fromEntries(
-        Object.entries(resolvedIconsPaths).map(([iconName, iconPath]) => {
+    const entries = Object.entries(resolvedIconsPaths).map(
+        async ([iconName, iconPath]) => {
             let iconUrl: string | undefined = undefined;
             if (iconPath) {
                 const image = nativeImage.createFromPath(iconPath);
                 if (!image.isEmpty()) {
                     iconUrl = image.toDataURL();
-                } else {
-                    console.warn(
-                        `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName}. Supported formats are PNG and JPEG.`,
-                    );
+                    return [iconName, iconUrl];
                 }
+                const fileContent = (
+                    await Effect.runPromise(readFileEffect(iconPath))
+                ).toString();
+
+                if (fileContent.slice(0, 256).includes('<svg ')) {
+                    iconUrl = `data:image/svg+xml;base64,${fileContent}`;
+                    return [iconName, iconUrl];
+                }
+                console.warn(
+                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName}. Supported formats are PNG and JPEG.`,
+                );
             }
             return [iconName, iconUrl];
-        }),
+        },
     );
+    return Object.fromEntries(await Promise.all(entries));
 };
 
 export function registerSuggestionHandlers() {
