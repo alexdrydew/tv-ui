@@ -7,6 +7,31 @@ import { findIconPaths } from '@app/native-freedesktop-icons';
 import { readFileEffect } from '@app/lib/src/fs/index.js';
 import { Effect } from 'effect';
 
+async function tryGetIconUrl(
+    iconName: string,
+    iconPath: string,
+): Promise<string | undefined> {
+    const image = nativeImage.createFromPath(iconPath);
+    if (!image.isEmpty()) {
+        return image.toDataURL();
+    }
+
+    const fileContentBuffer = await Effect.runPromise(readFileEffect(iconPath));
+    const fileContent = fileContentBuffer.toString('utf-8');
+
+    if (fileContent.includes('<svg')) {
+        const base64Content = Buffer.from(fileContent, 'utf-8').toString(
+            'base64',
+        );
+        return `data:image/svg+xml;base64,${base64Content}`;
+    }
+
+    console.warn(
+        `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName} at path ${iconPath}. Supported formats are PNG, JPEG, and SVG.`,
+    );
+    return undefined;
+}
+
 const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
     _event,
     { iconNames, themes, size, scale },
@@ -26,30 +51,10 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
 
     const entries = Object.entries(resolvedIconsPaths).map(
         async ([iconName, iconPath]) => {
-            let iconUrl: string | undefined = undefined;
-            if (iconPath) {
-                const image = nativeImage.createFromPath(iconPath);
-                if (!image.isEmpty()) {
-                    iconUrl = image.toDataURL();
-                    return [iconName, iconUrl];
-                }
-                const fileContentBuffer = await Effect.runPromise(
-                    readFileEffect(iconPath),
-                );
-                const fileContent = fileContentBuffer.toString('utf-8');
-
-                if (fileContent.includes('<svg ')) {
-                    const base64Content = Buffer.from(
-                        fileContent,
-                        'utf-8',
-                    ).toString('base64');
-                    iconUrl = `data:image/svg+xml;base64,${base64Content}`;
-                    return [iconName, iconUrl];
-                }
-                console.warn(
-                    `[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Unsupported image format for icon: ${iconName} at path ${iconPath}. Supported formats are PNG, JPEG, and SVG.`,
-                );
+            if (!iconPath) {
+                return [iconName, undefined];
             }
+            const iconUrl = await tryGetIconUrl(iconName, iconPath);
             return [iconName, iconUrl];
         },
     );
