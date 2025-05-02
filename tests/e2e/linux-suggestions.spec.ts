@@ -3,9 +3,11 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { test, expect, type ElectronApplication } from './base.js';
 
-// Minimal valid PNG data (1x1 transparent pixel)
-
-import { MINIMAL_PNG_DATA, SINGLE_APP } from './data.js';
+import {
+    MINIMAL_PNG_DATA,
+    MINIMAL_SVG_DATA,
+    SINGLE_APP,
+} from './data.js';
 
 test.use({ initialApps: SINGLE_APP });
 
@@ -103,7 +105,12 @@ Type=Scalable
         } catch {
             await writeFile(indexThemePath, indexThemeContent, 'utf-8');
         }
-        await writeFile(iconFilePath, MINIMAL_PNG_DATA);
+        // Write PNG or SVG based on file extension
+        if (iconFilePath.endsWith('.svg')) {
+            await writeFile(iconFilePath, MINIMAL_SVG_DATA, 'utf-8');
+        } else {
+            await writeFile(iconFilePath, MINIMAL_PNG_DATA);
+        }
     };
 
     // Define scenarios for testing icon specification in .desktop files
@@ -239,7 +246,95 @@ Type=Scalable
                 ).toBeGreaterThan(expectedIconSrcPrefix.length);
             },
         );
-    } // End of loop for scenarios
+    } // End of loop for PNG/Full Path scenarios
+
+    // --- Test for SVG Icon ---
+    linuxEnvTest(
+        'Suggest app from OS shows SVG icon from .desktop file',
+        async ({ page, electronApp, setupEnv, tempDir }) => {
+            // --- Test Setup ---
+            const xdgDataHome = setupEnv['XDG_DATA_HOME'];
+            const xdgDataDirShare = setupEnv['XDG_DATA_DIRS'];
+            const appDir = join(xdgDataHome, 'applications');
+            const iconDir = join(
+                xdgDataDirShare,
+                'icons',
+                'hicolor',
+                'scalable', // SVG icons often go in 'scalable'
+                'apps',
+            );
+            const iconFileName = 'test-app-icon.svg'; // SVG icon file
+            const iconFilePath = join(iconDir, iconFileName); // Full path to SVG icon
+            const iconValueForDesktopFile = 'test-app-icon'; // Use name reference
+            const uniqueAppName = 'Test SVG Icon App';
+            const uniqueDesktopFileName = 'test-svg-icon-app.desktop';
+
+            await mkdir(appDir, { recursive: true });
+            // Use the updated createIconFile which handles SVG
+            await createIconFile(iconDir, iconFileName, iconFilePath);
+            await createDesktopFile(
+                appDir,
+                uniqueAppName,
+                uniqueDesktopFileName,
+                iconValueForDesktopFile,
+            );
+
+            // --- Page Load ---
+            page = await electronApp.firstWindow();
+            await page.waitForLoadState('load', { timeout: 15000 });
+
+            // --- UI Navigation ---
+            await page.getByRole('button', { name: 'Add App' }).click();
+            const initialDialog = page.getByRole('dialog', {
+                name: 'Add New App',
+            });
+            await expect(initialDialog).toBeVisible();
+            await initialDialog
+                .getByRole('button', { name: 'Select from OS' })
+                .click();
+
+            // --- Verify Suggestion and Icon ---
+            const selectDialog = page.getByRole('dialog', {
+                name: 'Select App from System',
+            });
+            await expect(selectDialog).toBeVisible();
+            await expect(
+                selectDialog.getByText('Loading suggestions...'),
+            ).not.toBeVisible({ timeout: 10000 });
+
+            const suggestedAppButton = selectDialog
+                .getByRole('button')
+                .filter({ hasText: new RegExp(`^${uniqueAppName}$`) });
+            await expect(
+                suggestedAppButton,
+                `Suggested app button for ${uniqueAppName} should be visible`,
+            ).toBeVisible();
+            await expect(
+                suggestedAppButton,
+                `Suggested app button should contain text "${uniqueAppName}"`,
+            ).toContainText(uniqueAppName);
+
+            const iconImage = suggestedAppButton.locator('img');
+            await expect(
+                iconImage,
+                `Icon image within button for ${uniqueAppName} should be visible`,
+            ).toBeVisible({ timeout: 5000 });
+
+            // --- SVG Specific Assertion ---
+            const expectedIconSrcPrefix = 'data:image/svg+xml;base64,';
+            await expect(
+                iconImage,
+                `Icon image src should start with "${expectedIconSrcPrefix}" for SVG icon`,
+            ).toHaveAttribute('src', new RegExp(`^${expectedIconSrcPrefix}`));
+
+            const actualSrc = await iconImage.getAttribute('src');
+            expect(
+                actualSrc?.length ?? 0,
+                'Icon data URL should have content',
+            ).toBeGreaterThan(expectedIconSrcPrefix.length);
+        },
+    );
+    // --- End of SVG Icon Test ---
 
     linuxEnvTest(
         'Suggest app from OS pagination works correctly',
