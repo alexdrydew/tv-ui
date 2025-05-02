@@ -87,7 +87,12 @@ async function suggestLinuxAppConfigs(): Promise<AppConfig[]> {
         })
         .filter((el) => el !== undefined);
 
+    console.log(`Found ${validEntries.length} valid desktop entries.`);
     validEntries = dropDuplicates(validEntries, 'entry.name');
+    console.log(
+        `Found ${validEntries.length} valid and deduplicated desktop entries.`,
+    );
+
     const iconDataUrlMap = await getIconDataUrlsFromMain(
         validEntries
             .map((entry) => entry.entry.icon)
@@ -116,7 +121,7 @@ async function suggestLinuxAppConfigs(): Promise<AppConfig[]> {
             id: randomUUID(),
             name: entry.entry.name,
             launchCommand: command,
-            icon: iconDataUrl, // Assign found data URL or undefined
+            icon: iconDataUrl,
         };
     });
 

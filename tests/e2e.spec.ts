@@ -13,7 +13,7 @@ import { platform as nodePlatform } from 'node:process';
 process.env.PLAYWRIGHT_TEST = 'true';
 
 // Minimal valid PNG data (1x1 transparent pixel)
-const minimalPngData = Buffer.from(
+const MINIMAL_PNG_DATA = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
     'base64',
 );
@@ -666,7 +666,7 @@ Type=Scalable
         } catch {
             await writeFile(indexThemePath, indexThemeContent, 'utf-8');
         }
-        await writeFile(iconFilePath, minimalPngData);
+        await writeFile(iconFilePath, MINIMAL_PNG_DATA);
     };
 
     // Define scenarios for testing icon specification in .desktop files
