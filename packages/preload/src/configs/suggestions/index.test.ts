@@ -101,10 +101,12 @@ describe('suggestAppConfigs', () => {
         expect(getDesktopEntries).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledWith(
-            'get-freedesktop-icons',
-            expectedIconIdentifiers,
-            undefined,
-            256,
+            'get-freedesktop-icons', // Use the constant if preferred: GET_FREEDESKTOP_ICONS_CHANNEL
+            {
+                iconNames: expectedIconIdentifiers,
+                size: 256,
+                // themes and scale are optional and weren't provided in the original call
+            },
         );
 
         expect(suggestions).toHaveLength(2);

@@ -42,9 +42,6 @@ export interface AppState extends AppStateInfo {
     process?: ChildProcess; // This seems unused after Fiber refactor
 }
 
-export const APP_UPDATE_EVENT = 'app-updated';
-export const CONFIG_UPDATE_EVENT = 'config-updated';
-
 // Frontend representation of an App configuration and its running/exited instances
 export interface App {
     config: AppConfig;
@@ -63,7 +60,6 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
     }));
 }
 
-// IPC Channel Types
 export const GET_FREEDESKTOP_ICONS_CHANNEL = 'get-freedesktop-icons';
 
 export type GetFreedesktopIconsArgs = {
@@ -76,9 +72,11 @@ export type GetFreedesktopIconsArgs = {
 export type GetFreedesktopIconsReturn = Record<string, string | undefined>;
 
 export type GetFreedesktopIconsChannel = {
-    invoke: (args: GetFreedesktopIconsArgs) => Promise<GetFreedesktopIconsReturn>;
+    invoke: (
+        args: GetFreedesktopIconsArgs,
+    ) => Promise<GetFreedesktopIconsReturn>;
     handle: (
-        _event: Electron.IpcMainInvokeEvent,
+        _event: unknown,
         args: GetFreedesktopIconsArgs,
     ) => Promise<GetFreedesktopIconsReturn>;
 };

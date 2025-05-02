@@ -12,16 +12,16 @@
     }
   },
   "dependencies": {
+    "@app/native-freedesktop-icons": "*",
     "@app/preload": "*",
     "@app/renderer": "*",
-    "@app/native-freedesktop-icons": "*",
+    "@app/types": "*",
     "electron-updater": "6.6.2"
   },
   "devDependencies": {
     "@app/electron-versions": "*",
-    "@app/types": "*",
     "electron-devtools-installer": "3.2.0",
     "typescript": "5.8.3",
-    "vite": "6.3.2"
+    "vite": "^6.3.4"
   }
 }
