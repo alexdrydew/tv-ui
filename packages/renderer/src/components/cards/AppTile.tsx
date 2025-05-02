@@ -2,7 +2,7 @@ import { AppWindow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/appButton';
 import { useRef, useLayoutEffect } from 'react';
-import { AppConfigId, LaunchInstanceId } from '@app/types'; // Import LaunchInstanceId
+import { AppConfigId, LaunchInstanceId } from '@app/types';
 import {
     ContextMenu,
     ContextMenuContent,
@@ -14,11 +14,11 @@ interface AppTileProps {
     name: string;
     icon: string | undefined;
     isFocused: boolean;
-    isRunning: boolean; // Indicates if *any* instance is running
-    runningInstanceIds: LaunchInstanceId[]; // Pass the IDs of running instances
+    isRunning: boolean;
+    runningInstanceIds: LaunchInstanceId[];
     onSelect: () => void;
     onFocus: () => void;
-    onKill: (launchInstanceId: LaunchInstanceId) => void; // Changed: Expects instance ID
+    onKill: (launchInstanceId: LaunchInstanceId) => void;
     onRemove: () => void;
     onEdit: () => void;
     id: AppConfigId;
@@ -30,7 +30,7 @@ export function AppTile({
     icon,
     isFocused,
     isRunning,
-    runningInstanceIds, // Receive running instance IDs
+    runningInstanceIds,
     onSelect,
     onFocus,
     onKill,
@@ -47,13 +47,9 @@ export function AppTile({
 
     const focusSelf = (e: { currentTarget: { focus: () => void } }) => {
         onFocus();
-        // we need to explicitly focus self here in case the component
-        // lost focus but isFocused it still true
         e.currentTarget.focus();
     };
 
-    // Handler for the Kill menu item. Kills the first running instance.
-    // A more complex UI could allow choosing which instance to kill.
     const handleKill = () => {
         if (runningInstanceIds.length > 0) {
             onKill(runningInstanceIds[0]);
@@ -82,7 +78,7 @@ export function AppTile({
                             <img
                                 src={icon}
                                 alt={name}
-                                className="object-contain"
+                                className="object-contain size-full"
                             />
                         ) : (
                             <AppWindow
@@ -94,13 +90,15 @@ export function AppTile({
                             <div
                                 data-testid="running-indicator"
                                 className="absolute bottom-2 right-2 w-3 h-3 bg-green-500 rounded-full"
-                                title={`Running (${runningInstanceIds.length} instance${runningInstanceIds.length === 1 ? '' : 's'})`} // Add tooltip
+                                title={`Running (${runningInstanceIds.length} instance${runningInstanceIds.length === 1 ? '' : 's'})`}
                             />
                         )}
                     </div>
-                    <h2 className="text-xl md:text-2xl font-bold mt-4">
-                        {name}
-                    </h2>
+                    <div className="flex items-center justify-center">
+                        <h2 className="flex-1 text-xl md:text-2xl font-bold">
+                            {name}
+                        </h2>
+                    </div>
                 </Button>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-64">
@@ -108,12 +106,10 @@ export function AppTile({
                     Edit
                 </ContextMenuItem>
                 <ContextMenuItem
-                    // Disable Kill if no instances are running
                     disabled={!isRunning || runningInstanceIds.length === 0}
-                    onClick={handleKill} // Use the new handler
+                    onClick={handleKill}
                     variant="destructive"
                 >
-                    {/* TODO: Improve text if multiple instances? "Kill Instance"? */}
                     Kill
                 </ContextMenuItem>
                 <ContextMenuItem

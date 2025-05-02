@@ -1,13 +1,16 @@
 import { readFile } from 'node:fs/promises';
 import type { AppConfig } from '@app/types';
 import { test, expect } from './base.js';
+import { SINGLE_APP } from './data.js';
+
+test.use({ initialApps: SINGLE_APP });
 
 test('App tile is rendered when config has an app', async ({ page }) => {
-    const appTile = page.getByTestId('app-tile-test-app-1');
+    const appTile = page.getByRole('button', { name: SINGLE_APP[0].name });
 
     await expect(
         appTile,
-        'The AppTile for "Test App" (ID: test-app-1) should be visible',
+        'The AppTile for "Test App" should be visible',
     ).toBeVisible();
     await expect(appTile).toContainText('Test App');
 });
@@ -15,6 +18,7 @@ test('App tile is rendered when config has an app', async ({ page }) => {
 test('Add new app config via UI', async ({ page, configFilePath }) => {
     await page.getByRole('button', { name: 'Add App' }).click();
     const initialDialog = page.getByRole('dialog', { name: 'Add New App' });
+
     await expect(
         initialDialog,
         'The "Add New App" initial choice dialog should appear',

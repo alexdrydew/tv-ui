@@ -1,4 +1,7 @@
 import { test, expect } from './base.js';
+import { SINGLE_APP } from './data.js';
+
+test.use({ initialApps: SINGLE_APP });
 
 test('Launch app via UI click', async ({ page }) => {
     const appName = 'Test App';

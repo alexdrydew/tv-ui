@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { test, expect, type ElectronApplication } from './base.js';
 
 // Minimal valid PNG data (1x1 transparent pixel)
-const MINIMAL_PNG_DATA = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-    'base64',
-);
+
+import { MINIMAL_PNG_DATA, SINGLE_APP } from './data.js';
+
+test.use({ initialApps: SINGLE_APP });
 
 type LinuxTestFixtures = {
     tempDir: string;

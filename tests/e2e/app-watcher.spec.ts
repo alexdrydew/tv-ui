@@ -2,6 +2,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 import type { AppConfig } from '@app/types';
 import { test, expect } from './base.js';
 
+import { SINGLE_APP } from './data.js';
+
+test.use({ initialApps: SINGLE_APP });
+
 test('Config file watcher updates UI on external change', async ({
     page,
     configFilePath,
