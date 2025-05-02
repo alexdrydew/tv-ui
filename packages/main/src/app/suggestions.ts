@@ -24,10 +24,14 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
         scale,
     });
 
+    console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] findIconPaths resolved:`, JSON.stringify(resolvedIconsPaths)); // Added logging
+
     const entries = Object.entries(resolvedIconsPaths).map(
         async ([iconName, iconPath]) => {
+            console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Processing icon: ${iconName}, Path: ${iconPath}`); // Added logging
             let iconUrl: string | undefined = undefined;
             if (iconPath) {
+                console.log(`[main][${GET_FREEDESKTOP_ICONS_CHANNEL}] Attempting nativeImage for: ${iconPath}`); // Added logging
                 const image = nativeImage.createFromPath(iconPath);
                 if (!image.isEmpty()) {
                     iconUrl = image.toDataURL();
