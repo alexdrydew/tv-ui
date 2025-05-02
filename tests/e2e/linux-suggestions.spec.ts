@@ -321,7 +321,7 @@ MaxSize=512
             await expect(
                 iconImage,
                 `Icon image within button for ${uniqueAppName} should be visible`,
-            ).toBeVisible({ timeout: 50000 });
+            ).toBeVisible({ timeout: 5000 });
 
             // --- SVG Specific Assertion ---
             const expectedIconSrcPrefix = 'data:image/svg+xml;base64,';
