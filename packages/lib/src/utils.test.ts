@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dropDuplicates } from '../lib/utils.js';
+import { dropDuplicates } from './utils.js';
 
 describe('dropDuplicates', () => {
     it('should remove duplicate objects based on a specified key', () => {

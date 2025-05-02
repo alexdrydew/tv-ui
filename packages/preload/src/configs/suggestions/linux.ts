@@ -3,8 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
 import { UnknownException } from 'effect/Cause';
-import { FsError, FsNoSuchFileOrDirError } from '#src/lib/fs/errors.js';
-import { readdirEffect, readFileEffect } from '#src/lib/fs/index.js';
+
+import { FsError, FsNoSuchFileOrDirError } from '@app/lib/src/fs/errors.js';
+import { readdirEffect, readFileEffect } from '@app/lib/src/fs/index.js';
 
 const DesktopEntryIniSchema = Schema.Struct({
     'Desktop Entry': Schema.Struct({

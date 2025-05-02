@@ -23,8 +23,8 @@ import {
     insertGlobalStateAndNotify,
     getRunningAppsByConfigId,
 } from './state.js';
-import { killProcessEffect } from '#src/lib/process/index.js';
-import { ProcessNotFoundError } from '#src/lib/process/errors.js';
+import { killProcessEffect } from '@app/lib/src/process/index.js';
+import { ProcessNotFoundError } from '@app/lib/src/process/errors.js';
 
 const createProcessWatcherEffect = (
     appState: AppState,

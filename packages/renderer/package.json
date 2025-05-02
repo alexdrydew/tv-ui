@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "@app/preload": "*",
+        "@app/lib": "*",
         "@app/types": "*",
         "@hookform/resolvers": "^5.0.1",
         "@radix-ui/react-context-menu": "^2.2.7",

@@ -1,9 +1,9 @@
 import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
 import { Data, Effect, pipe, Schema } from 'effect';
 import { UnknownException } from 'effect/Cause';
-import { FsError } from '#src/lib/fs/errors.js';
+import { FsError } from '@app/lib/src/fs/errors.js';
 import { ParseError } from 'effect/ParseResult';
-import { readFileEffect, writeFileEffect } from '#src/lib/fs/index.js';
+import { readFileEffect, writeFileEffect } from '@app/lib/src/fs/index.js';
 export class JsonParseError extends Data.TaggedError('JsonParseError')<{
     readonly cause?: unknown;
     readonly message?: string;

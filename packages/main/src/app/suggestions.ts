@@ -26,9 +26,8 @@ const getFreeDesktopIconsHandler: GetFreedesktopIconsChannel['handle'] = async (
         Object.entries(resolvedIconsPaths).map(([iconName, iconPath]) => {
             let iconUrl: string | undefined = undefined;
             if (iconPath) {
-                const ext = iconPath.split('.').pop();
-                if (ext === 'png' || ext === 'jpg' || ext === 'jpeg') {
-                    const image = nativeImage.createFromPath(iconPath);
+                const image = nativeImage.createFromPath(iconPath);
+                if (!image.isEmpty()) {
                     iconUrl = image.toDataURL();
                 } else {
                     console.warn(

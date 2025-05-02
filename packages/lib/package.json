@@ -1,5 +1,5 @@
 {
-    "name": "@app/preload",
+    "name": "@app/lib",
     "type": "module",
     "scripts": {
         "build": "vite build",
@@ -7,19 +7,12 @@
         "test": "vitest run",
         "test:watch": "vitest"
     },
-    "exports": {
-        ".": {
-            "types": "./src/index.ts",
-            "default": "./dist/_virtual_browser.mjs"
-        },
-        "./exposed.mjs": {
-            "types": "./src/exposed.d.ts",
-            "default": "./dist/exposed.mjs"
-        }
-    },
-    "imports": {
-        "#src/*": "./src/*"
-    },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
     "devDependencies": {
         "@app/electron-versions": "*",
         "@types/ini": "^4.1.1",
@@ -32,7 +25,6 @@
     },
     "dependencies": {
         "@app/types": "*",
-        "@app/lib": "*",
         "effect": "^3.14.11",
         "electron": "35.1.5",
         "ini": "^5.0.0"

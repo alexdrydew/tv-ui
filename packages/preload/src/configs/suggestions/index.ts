@@ -1,12 +1,12 @@
-import { isNodePlatform } from '#src/lib/platform.js';
 import { AppConfig } from '@app/types';
 import { randomUUID } from 'crypto';
 import { Match } from 'effect';
 import { ipcRenderer } from 'electron';
 import os from 'os';
 import { getDesktopEntries, ValidDesktopEntry } from './linux.js';
-import { dropDuplicates } from '#src/lib/utils.js';
 
+import { dropDuplicates } from '@app/lib/src/utils.js';
+import { isNodePlatform } from '@app/lib/src/platform.js';
 import {
     GET_FREEDESKTOP_ICONS_CHANNEL,
     GetFreedesktopIconsArgs,
