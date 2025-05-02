@@ -121,19 +121,15 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
 
         // Calculate range of pages to show around current page
         let startPage = Math.max(2, currentPage - halfVisible);
-        let endPage = Math.min(
-            totalPages - 1,
-            currentPage + halfVisible,
-        );
+        let endPage = Math.min(totalPages - 1, currentPage + halfVisible);
 
         // Adjust range if near the beginning or end
-         if (currentPage <= halfVisible + 1) {
-             endPage = Math.min(totalPages - 1, maxVisiblePages + 1);
-         }
-         if (currentPage >= totalPages - halfVisible) {
-             startPage = Math.max(2, totalPages - maxVisiblePages);
-         }
-
+        if (currentPage <= halfVisible + 1) {
+            endPage = Math.min(totalPages - 1, maxVisiblePages + 1);
+        }
+        if (currentPage >= totalPages - halfVisible) {
+            startPage = Math.max(2, totalPages - maxVisiblePages);
+        }
 
         // Render page numbers in the calculated range
         for (let i = startPage; i <= endPage; i++) {
@@ -232,24 +228,20 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                 data-testid={`suggested-app-${app.id}`}
                             >
                                 {app.icon ? (
-                                    <>
-                                        {/* Removed console log for cleaner output */}
-                                        <img
-                                            src={app.icon}
-                                            alt={`${app.name} icon`}
-                                            className="h-8 w-8 mb-1 object-contain"
-                                            onError={(e) => {
-                                                console.warn(
-                                                    `[renderer][SelectAppFromOS] Failed to load icon from data URL for ${app.name}`,
-                                                    e,
-                                                );
-                                                (
-                                                    e.target as HTMLImageElement
-                                                ).style.display = 'none';
-                                                // Optionally show a fallback icon here
-                                            }}
-                                        />
-                                    </>
+                                    <img
+                                        src={app.icon}
+                                        alt={`${app.name} icon`}
+                                        className="h-8 w-8 mb-1 object-contain"
+                                        onError={(e) => {
+                                            console.error(
+                                                `Failed to load icon for ${app.name}`,
+                                                e,
+                                            );
+                                            (
+                                                e.target as HTMLImageElement
+                                            ).style.display = 'none';
+                                        }}
+                                    />
                                 ) : (
                                     <PackageIcon className="h-8 w-8 mb-1 text-muted-foreground" />
                                 )}
@@ -262,8 +254,7 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                         {currentSuggestions.length < ITEMS_PER_PAGE &&
                             Array.from({
                                 length:
-                                    ITEMS_PER_PAGE -
-                                    currentSuggestions.length,
+                                    ITEMS_PER_PAGE - currentSuggestions.length,
                             }).map((_, index) => (
                                 <div
                                     key={`placeholder-${index}`}
@@ -294,7 +285,9 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                                     <PaginationNext
                                         href="#"
                                         onClick={handleNextPage}
-                                        aria-disabled={currentPage === totalPages}
+                                        aria-disabled={
+                                            currentPage === totalPages
+                                        }
                                         className={
                                             currentPage === totalPages
                                                 ? 'pointer-events-none opacity-50'

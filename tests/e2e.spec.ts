@@ -594,7 +594,8 @@ const linuxEnvTest = test.extend<LinuxTestFixtures>({
         { scope: 'test' },
     ],
     setupEnv: [
-        async ({ tempDir }, use) => { // Correctly use tempDir here
+        async ({ tempDir }, use) => {
+            // Correctly use tempDir here
             const xdgDataHome = join(tempDir, 'home', '.local', 'share');
             const xdgDataDirShare = join(tempDir, 'usr', 'share');
             const testConfigPath = join(tempDir, 'test-config.json');
