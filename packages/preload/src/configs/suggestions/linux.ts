@@ -2,9 +2,9 @@ import { Effect, pipe, Stream, Schema, Data, Exit } from 'effect';
 import os from 'node:os';
 import path from 'node:path';
 import ini from 'ini';
-import { readdirEffect, readFileEffect } from '#src/fs/index.js';
 import { UnknownException } from 'effect/Cause';
-import { FsError, FsNoSuchFileOrDirError } from '#src/fs/errors.js';
+import { FsError, FsNoSuchFileOrDirError } from '#src/lib/fs/errors.js';
+import { readdirEffect, readFileEffect } from '#src/lib/fs/index.js';
 
 const DesktopEntryIniSchema = Schema.Struct({
     'Desktop Entry': Schema.Struct({
@@ -16,14 +16,23 @@ const DesktopEntryIniSchema = Schema.Struct({
     }),
 });
 
-type DesktopEntryInternal =
+export type ValidDesktopEntry = {
+    entry: {
+        name: string;
+        icon?: string;
+        exec: string;
+    };
+    status: 'valid';
+};
+export type DesktopEntryInternal =
+    | ValidDesktopEntry
     | {
           entry: {
               name: string;
               icon?: string;
               exec: string;
           };
-          status: 'hidden' | 'valid';
+          status: 'hidden';
       }
     | {
           entry: {

@@ -13,7 +13,9 @@ export type FsError =
     | FsOperationNotPermittedError
     | UnknownFSError;
 
-export class FsFileNotFoundError extends Data.TaggedError('FsFileNotFoundError')<{
+export class FsFileNotFoundError extends Data.TaggedError(
+    'FsFileNotFoundError',
+)<{
     readonly cause?: unknown;
     readonly path?: string;
     readonly syscall?: string;
@@ -45,7 +47,9 @@ export class FsNoSuchFileOrDirError extends Data.TaggedError(
     readonly message?: string;
 }> {}
 
-export class FsNotDirectoryError extends Data.TaggedError('FsNotDirectoryError')<{
+export class FsNotDirectoryError extends Data.TaggedError(
+    'FsNotDirectoryError',
+)<{
     readonly cause?: unknown;
     readonly path?: string;
     readonly syscall?: string;

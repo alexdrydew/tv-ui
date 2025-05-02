@@ -1,7 +1,5 @@
-import { versions } from './versions.js';
 import type { LaunchInstanceId } from '@app/types';
 
-export { versions };
 export {
     getAppConfigs,
     upsertAppConfig,

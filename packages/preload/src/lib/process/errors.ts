@@ -47,7 +47,9 @@ export class SignalSendFailedError extends Data.TaggedError(
     }
 }
 
-export class UnknownProcessError extends Data.TaggedError('UnknownProcessError')<{
+export class UnknownProcessError extends Data.TaggedError(
+    'UnknownProcessError',
+)<{
     readonly cause?: unknown;
     readonly code?: string;
     readonly pid?: number;

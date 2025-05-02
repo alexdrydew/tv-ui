@@ -1,8 +1,11 @@
+import { isNodePlatform } from '#src/lib/platform.js';
 import { AppConfig } from '@app/types';
-import os from 'node:os';
-import { ipcRenderer } from 'electron';
-import { getDesktopEntries } from './linux.js';
 import { randomUUID } from 'crypto';
+import { Match } from 'effect';
+import { ipcRenderer } from 'electron';
+import os from 'os';
+import { getDesktopEntries, ValidDesktopEntry } from './linux.js';
+import { dropDuplicates } from '#src/lib/utils.js';
 
 /**
  * Fetches data URLs for a list of icon identifiers using a single IPC call.
@@ -40,99 +43,101 @@ async function getIconDataUrlsFromMain(
     }
 }
 
-export async function suggestAppConfigs(): Promise<AppConfig[]> {
-    const platform = process.env['E2E_TEST_PLATFORM'] ?? os.platform();
-
-    if (platform === 'linux') {
-        console.info('Suggesting apps using Linux strategy...');
-        const entries = await getDesktopEntries();
-        console.info(`Found ${entries.length} raw desktop entries.`);
-
-        const validEntries = [];
-        const iconIdentifiersToFetch: string[] = [];
-
-        // First pass: Filter valid entries and collect icon identifiers
-        for (const entry of entries) {
-            if (entry.status === 'non-executable') {
-                console.info(
-                    `Skipping non-executable entry: ${entry.entry.name}`,
-                );
-                continue;
-            } else if (entry.status === 'hidden') {
-                console.log(
-                    `Skipping hidden entry: ${entry.entry.name} (NoDisplay=true)`,
-                );
-                continue;
-            } else {
-                // Entry is 'valid'
-                validEntries.push(entry);
-                if (entry.entry.icon) {
-                    // Avoid adding duplicates if multiple entries use the same icon
-                    if (!iconIdentifiersToFetch.includes(entry.entry.icon)) {
-                        iconIdentifiersToFetch.push(entry.entry.icon);
-                    }
-                }
-            }
-        }
-
-        console.info(
-            `Found ${validEntries.length} potentially valid entries. Need to fetch icons for ${iconIdentifiersToFetch.length} unique identifiers.`,
-        );
-
-        // Fetch all required icon data URLs in a single batch
-        const iconDataUrlMap =
-            await getIconDataUrlsFromMain(iconIdentifiersToFetch);
-
-        // Second pass: Construct AppConfig objects using the fetched icons
-        const suggestions: AppConfig[] = [];
-        for (const entry of validEntries) {
-            const command = entry.entry.exec;
-            let iconDataUrl: string | undefined = undefined;
-
-            if (entry.entry.icon) {
-                const fetchedUrl = iconDataUrlMap[entry.entry.icon];
-                if (fetchedUrl) {
-                    iconDataUrl = fetchedUrl;
-                    console.log(
-                        `Found data URL for icon "${entry.entry.icon}" (Entry: ${entry.entry.name})`,
-                    );
-                } else {
-                    console.log(
-                        `Data URL not found or invalid for icon "${entry.entry.icon}" (Entry: ${entry.entry.name})`,
-                    );
-                }
-            }
-
-            const suggestion: AppConfig = {
-                id: randomUUID(),
-                name: entry.entry.name,
-                launchCommand: command,
-                icon: iconDataUrl, // Assign found data URL or undefined
-            };
-            suggestions.push(suggestion);
-        }
-
-        // Deduplicate suggestions by name
-        const uniqueSuggestionsMap = new Map<string, AppConfig>();
-        for (const suggestion of suggestions) {
-            if (!uniqueSuggestionsMap.has(suggestion.name)) {
-                uniqueSuggestionsMap.set(suggestion.name, suggestion);
-            } else {
-                console.log(
-                    `Duplicate suggestion found for name "${suggestion.name}". Keeping the first one encountered.`,
-                );
-            }
-        }
-        const deduplicatedSuggestions = Array.from(uniqueSuggestionsMap.values());
-
-        console.info(
-            `Returning ${deduplicatedSuggestions.length} processed and deduplicated Linux suggestions.`,
-        );
-        return deduplicatedSuggestions;
+function getPlatform(): NodeJS.Platform {
+    const envPlatform = process.env['E2E_TEST_PLATFORM'];
+    if (!envPlatform) {
+        return os.platform();
     }
 
-    console.info(
-        `App suggestion not implemented or skipped for platform: ${platform}`,
+    if (!isNodePlatform(envPlatform)) {
+        throw new Error(
+            `Invalid platform detected: ${envPlatform}. Expected a NodeJS platform.`,
+        );
+    }
+    return envPlatform;
+}
+
+async function suggestLinuxAppConfigs(): Promise<AppConfig[]> {
+    console.info('Suggesting apps using Linux strategy...');
+    const entries = await getDesktopEntries();
+    console.info(`Found ${entries.length} raw desktop entries.`);
+
+    let validEntries = entries
+        .map((entry) => {
+            return Match.value(entry.status).pipe(
+                Match.withReturnType<ValidDesktopEntry | undefined>(),
+                Match.when('non-executable', (): undefined => {
+                    console.info(
+                        `Skipping non-executable entry: ${entry.entry.name}`,
+                    );
+                }),
+                Match.when('hidden', (): undefined => {
+                    console.log(
+                        `Skipping hidden entry: ${entry.entry.name} (NoDisplay=true)`,
+                    );
+                }),
+                Match.when('valid', () => {
+                    // this is needed due to a limitation of matching typings
+                    if (entry.status === 'valid') {
+                        return entry;
+                    }
+                }),
+                Match.exhaustive,
+            );
+        })
+        .filter((el) => el !== undefined);
+
+    validEntries = dropDuplicates(validEntries, 'entry.name');
+    const iconDataUrlMap = await getIconDataUrlsFromMain(
+        validEntries
+            .map((entry) => entry.entry.icon)
+            .filter((value) => value !== undefined),
     );
-    return [];
+
+    const suggestions = validEntries.map((entry) => {
+        const command = entry.entry.exec;
+        let iconDataUrl: string | undefined = undefined;
+
+        if (entry.entry.icon) {
+            const fetchedUrl = iconDataUrlMap[entry.entry.icon];
+            if (fetchedUrl) {
+                iconDataUrl = fetchedUrl;
+                console.log(
+                    `Found data URL for icon "${entry.entry.icon}" (Entry: ${entry.entry.name})`,
+                );
+            } else {
+                console.log(
+                    `Data URL not found or invalid for icon "${entry.entry.icon}" (Entry: ${entry.entry.name})`,
+                );
+            }
+        }
+
+        return {
+            id: randomUUID(),
+            name: entry.entry.name,
+            launchCommand: command,
+            icon: iconDataUrl, // Assign found data URL or undefined
+        };
+    });
+
+    console.info(
+        `Returning ${suggestions.length} processed and deduplicated Linux suggestions.`,
+    );
+    return suggestions;
+}
+
+export async function suggestAppConfigs(
+    platform?: NodeJS.Platform,
+): Promise<AppConfig[]> {
+    return Match.value(platform || getPlatform()).pipe(
+        Match.when('linux', async () => {
+            return suggestLinuxAppConfigs();
+        }),
+        Match.orElse(() => {
+            console.log(
+                `App suggestion not implemented or skipped for platform: ${platform}`,
+            );
+            return [];
+        }),
+    );
 }
