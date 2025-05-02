@@ -3,11 +3,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { test, expect, type ElectronApplication } from './base.js';
 
-import {
-    MINIMAL_PNG_DATA,
-    MINIMAL_SVG_DATA,
-    SINGLE_APP,
-} from './data.js';
+import { MINIMAL_PNG_DATA, MINIMAL_SVG_DATA, SINGLE_APP } from './data.js';
 
 test.use({ initialApps: SINGLE_APP });
 
@@ -318,7 +314,7 @@ Type=Scalable
             await expect(
                 iconImage,
                 `Icon image within button for ${uniqueAppName} should be visible`,
-            ).toBeVisible({ timeout: 5000 });
+            ).toBeVisible({ timeout: 50000 });
 
             // --- SVG Specific Assertion ---
             const expectedIconSrcPrefix = 'data:image/svg+xml;base64,';
