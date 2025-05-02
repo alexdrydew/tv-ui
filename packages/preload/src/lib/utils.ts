@@ -12,7 +12,11 @@ export const dropDuplicates = <T extends object>(
             value = value[k];
         }
 
-        return seen.has(value) ? (seen.add(value), true) : false;
+        const isDuplicate = seen.has(value);
+        if (!isDuplicate) {
+            seen.add(value);
+        }
+        return !isDuplicate;
     });
 };
 
