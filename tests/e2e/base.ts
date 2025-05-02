@@ -8,8 +8,6 @@ import { globSync } from 'glob';
 import type { AppConfig } from '@app/types';
 import { platform as nodePlatform } from 'node:process';
 
-process.env.PLAYWRIGHT_TEST = 'true';
-
 type TestFixtures = {
     electronApp: ElectronApplication;
     configFilePath: string;
@@ -74,31 +72,38 @@ const test = base.extend<TestFixtures>({
     ],
     electronApp: [
         async ({ configFilePath, setupEnv }, use) => {
-            let executablePattern = 'dist/*/root{,.*}';
-            if (nodePlatform === 'darwin') {
-                executablePattern += '/Contents/*/root';
-            } else if (nodePlatform === 'win32') {
-                executablePattern = 'dist/*/*.exe'; // Adjust for Windows if needed
-            } else {
-                executablePattern = 'dist/*/root'; // Default for Linux
-            }
+            let executablePath: string | undefined = undefined;
+            let baseArgs: string[] = [];
 
-            const [executablePath] = globSync(executablePattern);
-            if (!executablePath) {
-                throw new Error(
-                    `App Executable path not found using pattern: ${executablePattern}`,
-                );
+            if (process.env['E2E_TEST_COMPILED'] === 'true') {
+                let executablePattern = 'dist/*/root{,.*}';
+                if (nodePlatform === 'darwin') {
+                    executablePattern += '/Contents/*/root';
+                } else if (nodePlatform === 'win32') {
+                    executablePattern = 'dist/*/*.exe'; // Adjust for Windows if needed
+                } else {
+                    executablePattern = 'dist/*/root'; // Default for Linux
+                }
+
+                [executablePath] = globSync(executablePattern);
+                if (!executablePath) {
+                    throw new Error(
+                        `App Executable path not found using pattern: ${executablePattern}`,
+                    );
+                }
+                console.log(`Found compiled executable at: ${executablePath}`);
+            } else {
+                baseArgs = ['packages/entry-point.mjs'];
             }
-            console.log(`Found executable at: ${executablePath}`);
 
             const electronApp = await electron.launch({
                 executablePath: executablePath,
-                args: ['--no-sandbox'],
-                // Pass environment variables from the test fixture's 'options' or defaults
+                args: baseArgs.concat(['--no-sandbox']),
                 env: {
                     ...process.env, // Pass existing env vars
                     TV_UI_CONFIG_PATH: configFilePath, // Standard config path
                     ...setupEnv,
+                    PLAYWRIGHT_TEST: 'true',
                 },
             });
 

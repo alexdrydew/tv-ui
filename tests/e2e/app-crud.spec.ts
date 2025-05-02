@@ -3,7 +3,6 @@ import type { AppConfig } from '@app/types';
 import { test, expect } from './base.js';
 
 test('App tile is rendered when config has an app', async ({ page }) => {
-    // Using data-testid for more robust selection
     const appTile = page.getByTestId('app-tile-test-app-1');
 
     await expect(

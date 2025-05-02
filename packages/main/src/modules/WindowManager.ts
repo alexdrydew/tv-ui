@@ -7,6 +7,7 @@ class WindowManager implements AppModule {
     readonly #preload: { path: string };
     readonly #renderer: { path: string } | URL;
     readonly #openDevTools;
+    readonly #isDev: boolean;
 
     constructor({
         initConfig,
@@ -18,6 +19,7 @@ class WindowManager implements AppModule {
         this.#preload = initConfig.preload;
         this.#renderer = initConfig.renderer;
         this.#openDevTools = openDevTools;
+        this.#isDev = initConfig.isDev;
     }
 
     async enable({ app }: ModuleContext): Promise<void> {
@@ -71,7 +73,9 @@ class WindowManager implements AppModule {
             window?.webContents.openDevTools();
         }
 
-        window.focus();
+        if (!this.#isDev) {
+            window.focus();
+        }
 
         return window;
     }

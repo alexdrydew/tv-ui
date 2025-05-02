@@ -36,4 +36,5 @@ initApp({
     preload: {
         path: fileURLToPath(import.meta.resolve('@app/preload/exposed.mjs')),
     },
+    isDev: process.env.NODE_ENV === 'development' || process.env.PLAYWRIGHT_TEST === 'true',
 });
