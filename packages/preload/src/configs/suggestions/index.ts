@@ -14,7 +14,7 @@ import { dropDuplicates } from '#src/lib/utils.js';
  */
 async function getIconDataUrlsFromMain(
     iconIdentifiers: string[],
-): Promise<Record<string, string | null>> {
+): Promise<Record<string, string | undefined>> {
     if (iconIdentifiers.length === 0) {
         console.log('No icon identifiers provided, skipping IPC call.');
         return {};
@@ -23,40 +23,20 @@ async function getIconDataUrlsFromMain(
         `Requesting data URLs for ${iconIdentifiers.length} icon identifiers from main process...`,
     );
     try {
-        // Pass the array of identifiers as the first argument.
-        const dataUrlMap = await ipcRenderer.invoke(
-            'get-freedesktop-icon',
-            iconIdentifiers, // Pass the array here
-            undefined,
-            256,
-        );
-
-        // Normalize the result: If only one identifier was requested and a string is returned,
-        // wrap it in a map. Otherwise, assume it's already a map (or null/undefined).
-        let normalizedMap: Record<string, string | null> = {};
-        if (iconIdentifiers.length === 1 && typeof dataUrlMap === 'string') {
-            normalizedMap[iconIdentifiers[0]] = dataUrlMap;
-            console.log(
-                `Received single data URL string from main process for identifier: ${iconIdentifiers[0]}`,
+        const dataUrlMap: Record<string, string | undefined> =
+            await ipcRenderer.invoke(
+                'get-freedesktop-icons',
+                iconIdentifiers,
+                undefined,
+                256,
             );
-        } else if (typeof dataUrlMap === 'object' && dataUrlMap !== null) {
-            normalizedMap = dataUrlMap;
-            console.log(
-                `Received data URL map from main process for ${Object.keys(normalizedMap).length} identifiers.`,
-            );
-        } else {
-            console.log(
-                'Received null or unexpected data type from main process for icon data.',
-            );
-        }
-
-        return normalizedMap;
+        return dataUrlMap;
     } catch (error) {
         console.error(
-            `Error invoking 'get-freedesktop-icon' for multiple identifiers:`,
+            `Error invoking 'get-freedesktop-icons' for multiple identifiers:`,
             error,
         );
-        return {}; // Return empty map on error
+        return {};
     }
 }
 

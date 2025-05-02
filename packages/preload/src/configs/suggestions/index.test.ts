@@ -104,7 +104,7 @@ describe('suggestAppConfigs', () => {
         expect(getDesktopEntries).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledWith(
-            'get-freedesktop-icon',
+            'get-freedesktop-icons',
             expectedIconIdentifiers, // Should request icons only for the deduplicated entries
             undefined,
             256,
@@ -142,7 +142,9 @@ describe('suggestAppConfigs', () => {
             ),
         );
         expect(console.info).toHaveBeenCalledWith(
-            expect.stringContaining('Skipping non-executable entry: No Exec App'),
+            expect.stringContaining(
+                'Skipping non-executable entry: No Exec App',
+            ),
         );
         // This log message is no longer accurate as deduplication happens before icon fetching
         // expect(console.info).toHaveBeenCalledWith(
