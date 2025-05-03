@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { AppConfig } from '@app/types';
 import { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter, // Keep DialogFooter for potential use in manual view if needed later
     DialogHeader,
     DialogTitle,
 } from '../ui/dialog';
