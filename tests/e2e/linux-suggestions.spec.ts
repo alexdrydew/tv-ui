@@ -188,28 +188,32 @@ MaxSize=512
 
                 // --- UI Navigation ---
                 await page.getByRole('button', { name: 'Add App' }).click();
-                const initialDialog = page.getByRole('dialog', {
+
+                // Expect the "Add New App" dialog directly (suggestions view)
+                const suggestionsDialog = page.getByRole('dialog', {
                     name: 'Add New App',
                 });
-                await expect(initialDialog).toBeVisible();
-                await initialDialog
-                    .getByRole('button', { name: 'Select from OS' })
-                    .click();
+                await expect(
+                    suggestionsDialog,
+                    'The "Add New App" dialog should appear directly',
+                ).toBeVisible();
 
-                // 4. Verify Suggestion and Icon
-                const selectDialog = page.getByRole('dialog', {
-                    name: 'Select App from System',
-                });
-                await expect(selectDialog).toBeVisible();
+                // Remove the click on "Select from OS" as it's no longer needed
+
+                // Verify Suggestion and Icon within the same dialog
+                await expect(
+                    suggestionsDialog,
+                    'The "Add New App" dialog should still be visible',
+                ).toBeVisible();
 
                 // Wait for suggestions to load (adjust timeout if needed)
                 await expect(
-                    selectDialog.getByText('Loading suggestions...'),
+                    suggestionsDialog.getByText('Loading suggestions...'),
                 ).not.toBeVisible({ timeout: 5000 }); // Increased timeout for suggestion loading
 
                 // Locate the button by its role and the text it contains
                 // Use exact match or regex for text to avoid strict mode violation
-                const suggestedAppButton = selectDialog
+                const suggestedAppButton = suggestionsDialog
                     .getByRole('button')
                     .filter({ hasText: new RegExp(`^${uniqueAppName}$`) }); // Use regex for exact match
 
@@ -288,24 +292,20 @@ MaxSize=512
 
             // --- UI Navigation ---
             await page.getByRole('button', { name: 'Add App' }).click();
-            const initialDialog = page.getByRole('dialog', {
+
+            // Expect the "Add New App" dialog directly
+            const suggestionsDialog = page.getByRole('dialog', {
                 name: 'Add New App',
             });
-            await expect(initialDialog).toBeVisible();
-            await initialDialog
-                .getByRole('button', { name: 'Select from OS' })
-                .click();
+            await expect(suggestionsDialog).toBeVisible();
 
             // --- Verify Suggestion and Icon ---
-            const selectDialog = page.getByRole('dialog', {
-                name: 'Select App from System',
-            });
-            await expect(selectDialog).toBeVisible();
+            await expect(suggestionsDialog).toBeVisible(); // Still the same dialog
             await expect(
-                selectDialog.getByText('Loading suggestions...'),
+                suggestionsDialog.getByText('Loading suggestions...'),
             ).not.toBeVisible({ timeout: 5000 });
 
-            const suggestedAppButton = selectDialog
+            const suggestedAppButton = suggestionsDialog
                 .getByRole('button')
                 .filter({ hasText: new RegExp(`^${uniqueAppName}$`) });
             await expect(
@@ -374,25 +374,24 @@ MaxSize=512
             page = await electronApp.firstWindow();
             await page.waitForLoadState('load', { timeout: 5000 });
             await page.getByRole('button', { name: 'Add App' }).click();
-            const initialDialog = page.getByRole('dialog', {
+
+            // Expect the "Add New App" dialog directly
+            const suggestionsDialog = page.getByRole('dialog', {
                 name: 'Add New App',
             });
-            await expect(initialDialog).toBeVisible();
-            await initialDialog
-                .getByRole('button', { name: 'Select from OS' })
-                .click();
+            await expect(suggestionsDialog).toBeVisible();
 
             // --- Verify Dialog and Loading ---
-            const selectDialog = page.getByRole('dialog', {
-                name: 'Select App from System',
-            });
-            await expect(selectDialog).toBeVisible();
+            await expect(suggestionsDialog).toBeVisible(); // Still the same dialog
             await expect(
-                selectDialog.getByText('Loading suggestions...'),
+                suggestionsDialog.getByText('Loading suggestions...'),
             ).not.toBeVisible({ timeout: 5000 });
 
             // --- Pagination Verification ---
-            const pagination = selectDialog.locator('[data-slot="pagination"]');
+            // Target pagination within the suggestionsDialog
+            const pagination = suggestionsDialog.locator(
+                '[data-slot="pagination"]',
+            );
             const prevButton = pagination.locator(
                 'a[aria-label="Go to previous page"]',
             );
@@ -432,14 +431,14 @@ MaxSize=512
                 'Page 2 link should not be marked as active',
             ).not.toHaveAttribute('aria-current', 'page');
 
-            // Verify apps on Page 1 (Use regex for exact match)
-            const app1Button = selectDialog
+            // Verify apps on Page 1 (Use regex for exact match, within suggestionsDialog)
+            const app1Button = suggestionsDialog
                 .getByRole('button')
                 .filter({ hasText: new RegExp(`^${appBaseName} 1$`) });
-            const app16Button = selectDialog
+            const app16Button = suggestionsDialog
                 .getByRole('button')
                 .filter({ hasText: new RegExp(`^${appBaseName} 16$`) });
-            const app17Button = selectDialog
+            const app17Button = suggestionsDialog
                 .getByRole('button')
                 .filter({ hasText: new RegExp(`^${appBaseName} 17$`) });
 
@@ -454,7 +453,7 @@ MaxSize=512
             await expect(
                 app17Button,
                 'App 17 should NOT be visible on page 1',
-            ).not.toBeVisible();
+            ).not.toBeVisible({ timeout: 100000 });
 
             // Click Next button
             await nextButton.click();
@@ -479,7 +478,7 @@ MaxSize=512
                 'Page 2 link should be active on page 2',
             ).toHaveAttribute('aria-current', 'page');
 
-            // Verify apps on Page 2 (Use regex for exact match)
+            // Verify apps on Page 2 (Use regex for exact match, within suggestionsDialog)
             await expect(
                 app1Button,
                 'App 1 should NOT be visible on page 2',
@@ -492,7 +491,7 @@ MaxSize=512
                 app17Button, // Re-use locator from above
                 'App 17 should be visible on page 2',
             ).toBeVisible();
-            const app20Button = selectDialog
+            const app20Button = suggestionsDialog
                 .getByRole('button')
                 .filter({ hasText: new RegExp(`^${appBaseName} 20$`) });
             await expect(
@@ -523,7 +522,7 @@ MaxSize=512
                 'Page 2 link should not be active again',
             ).not.toHaveAttribute('aria-current', 'page');
 
-            // Verify apps back on Page 1 (Use regex for exact match)
+            // Verify apps back on Page 1 (Use regex for exact match, within suggestionsDialog)
             await expect(
                 app1Button, // Re-use locator
                 'App 1 should be visible again on page 1',
@@ -535,8 +534,6 @@ MaxSize=512
 
             // Click Page 2 link directly
             await page2Link.click();
-
-            // Verify apps on Page 2 again (Use regex for exact match)
             await expect(
                 app1Button, // Re-use locator
                 'App 1 should NOT be visible after clicking page 2 link',

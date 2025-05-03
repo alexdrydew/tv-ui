@@ -13,7 +13,7 @@ interface SelectAppFromOSProps {
     scrollThreshold?: number; // How close to the bottom (in px) to trigger loading more
 }
 
-const DEFAULT_INITIAL_VISIBLE_COUNT = 32; // Load more items than the old page size
+const DEFAULT_INITIAL_VISIBLE_COUNT = 12; // Load more items than the old page size
 const DEFAULT_SCROLL_THRESHOLD = 100; // Pixels from bottom
 
 const sortAppsByName = (a: AppConfig, b: AppConfig) => {
@@ -83,10 +83,7 @@ export function SelectAppFromOS({
             const isNearBottom =
                 scrollHeight - scrollTop - clientHeight < scrollThreshold;
 
-            if (
-                isNearBottom &&
-                visibleCount < suggestions.suggestions.length
-            ) {
+            if (isNearBottom && visibleCount < suggestions.suggestions.length) {
                 setVisibleCount((prevCount) =>
                     Math.min(
                         prevCount + initialVisibleCount, // Load another batch
