@@ -28,19 +28,17 @@ const AppConfigFormSchema = Schema.Struct({
 type FormValues = Schema.Schema.Type<typeof AppConfigFormSchema>;
 
 interface ManualAppConfigFormProps {
-    appToEdit?: AppConfig | null;
+    appToEdit?: AppConfig | null; // If provided, form is in "edit" mode
     onSave: (config: AppConfig) => Promise<void>;
     onCancel: () => void; // Callback to handle cancellation/going back
-    mode: 'add' | 'edit';
 }
 
 export function ManualAppConfigForm({
     appToEdit = null,
     onSave,
     onCancel,
-    mode,
 }: ManualAppConfigFormProps) {
-    const isEditing = mode === 'edit' && appToEdit !== null;
+    const isEditing = appToEdit !== null;
 
     const form = useForm<FormValues>({
         resolver: effectTsResolver(AppConfigFormSchema),
@@ -51,7 +49,8 @@ export function ManualAppConfigForm({
         },
     });
 
-    // Reset form when appToEdit changes or mode switches
+    // Reset form when appToEdit changes (e.g., when opening edit dialog)
+    // or reset to empty for adding
     useEffect(() => {
         if (isEditing) {
             form.reset({
@@ -76,7 +75,7 @@ export function ManualAppConfigForm({
             launchCommand: values.launchCommand,
         };
         await onSave(configToUpsert);
-        // Parent (AppConfigDialog) is responsible for closing
+        // Parent dialog is responsible for closing
     }
 
     return (
@@ -153,4 +152,3 @@ export function ManualAppConfigForm({
         </Form>
     );
 }
-
