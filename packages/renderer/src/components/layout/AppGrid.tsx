@@ -1,6 +1,9 @@
-import { useFocusNavigation } from '@/hooks/useFocusNavigation';
 import { App } from '@app/types';
-import React from 'react';
+import {
+    FocusContext,
+    useFocusable,
+} from '@noriginmedia/norigin-spatial-navigation';
+import React, { useEffect } from 'react';
 
 interface AppGridProps<T extends App> {
     apps: T[];
@@ -11,8 +14,6 @@ interface AppGridProps<T extends App> {
     renderItem: (props: {
         app: T;
         index: number;
-        isFocused: boolean;
-        setFocusedIndex: (index: number) => void;
         onLaunchApp: (app: T) => void;
         onKillApp: (app: T) => void;
         onRemoveApp: (app: T) => void;
@@ -28,22 +29,26 @@ export function AppGrid<T extends App>({
     onEditApp,
     renderItem,
 }: AppGridProps<T>) {
-    const { focusedIndex, setFocusedIndex } = useFocusNavigation(apps.length);
+    const { ref, focusKey, focusSelf } = useFocusable({ forceFocus: true });
+
+    useEffect(() => {
+        focusSelf();
+    }, [focusSelf]);
 
     return (
-        <div className="flex flex-wrap gap-8 p-4">
-            {apps.map((app, index) =>
-                renderItem({
-                    app,
-                    index,
-                    isFocused: focusedIndex === index,
-                    setFocusedIndex,
-                    onLaunchApp,
-                    onKillApp,
-                    onRemoveApp,
-                    onEditApp,
-                }),
-            )}
-        </div>
+        <FocusContext.Provider value={focusKey}>
+            <div ref={ref} className="flex flex-wrap gap-8 p-4">
+                {apps.map((app, index) =>
+                    renderItem({
+                        app,
+                        index,
+                        onLaunchApp,
+                        onKillApp,
+                        onRemoveApp,
+                        onEditApp,
+                    }),
+                )}
+            </div>
+        </FocusContext.Provider>
     );
 }

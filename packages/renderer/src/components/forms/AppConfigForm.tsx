@@ -27,62 +27,57 @@ const AppConfigFormSchema = Schema.Struct({
 });
 type FormValues = Schema.Schema.Type<typeof AppConfigFormSchema>;
 
-interface ManualAppConfigFormProps {
-    appToEdit?: AppConfig | null; // If provided, form is in "edit" mode
+interface AppConfigFormProps {
+    initial?: Readonly<AppConfig | undefined>;
     onSave: (config: AppConfig) => Promise<void>;
     onCancel: () => void; // Callback to handle cancellation/going back
 }
 
-export function ManualAppConfigForm({
-    appToEdit = null,
+export function AppConfigForm({
+    initial = undefined,
     onSave,
     onCancel,
-}: ManualAppConfigFormProps) {
-    const isEditing = appToEdit !== null;
+}: AppConfigFormProps) {
+    const isEditing = initial !== undefined;
 
     const form = useForm<FormValues>({
         resolver: effectTsResolver(AppConfigFormSchema),
         defaultValues: {
             name: '',
-            icon: undefined,
             launchCommand: '',
         },
     });
 
-    // Reset form when appToEdit changes (e.g., when opening edit dialog)
-    // or reset to empty for adding
     useEffect(() => {
         if (isEditing) {
             form.reset({
-                name: appToEdit.name,
-                icon: appToEdit.icon ?? '',
-                launchCommand: appToEdit.launchCommand,
+                name: initial.name,
+                icon: initial.icon,
+                launchCommand: initial.launchCommand,
             });
         } else {
             form.reset({
                 name: '',
-                icon: '',
                 launchCommand: '',
             });
         }
-    }, [isEditing, appToEdit, form]);
+    }, [isEditing, initial, form]);
 
     async function onSubmit(values: FormValues) {
         const configToUpsert: AppConfig = {
-            id: appToEdit?.id ?? nanoid(),
+            id: initial?.id ?? nanoid(),
             name: values.name,
-            icon: values.icon?.trim() ? values.icon.trim() : undefined,
+            icon: initial?.icon,
             launchCommand: values.launchCommand,
         };
         await onSave(configToUpsert);
-        // Parent dialog is responsible for closing
     }
 
     return (
         <Form {...form}>
             <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="grid gap-4 py-4"
+                className="py-4 grid gap-4"
             >
                 <FormField
                     control={form.control}
@@ -91,31 +86,10 @@ export function ManualAppConfigForm({
                         <FormItem>
                             <FormLabel>App Name</FormLabel>
                             <FormControl>
-                                <Input placeholder="My Awesome App" {...field} />
+                                <Input placeholder="My App" {...field} />
                             </FormControl>
                             <FormDescription>
                                 The display name for the application.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="icon"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Icon Path (Optional)</FormLabel>
-                            <FormControl>
-                                <Input
-                                    placeholder="/path/to/icon.png"
-                                    {...field}
-                                    value={field.value ?? ''}
-                                />
-                            </FormControl>
-                            <FormDescription>
-                                Path to the application icon file. Leave empty
-                                for default icon.
                             </FormDescription>
                             <FormMessage />
                         </FormItem>

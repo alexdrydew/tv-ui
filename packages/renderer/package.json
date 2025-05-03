@@ -10,10 +10,11 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "@app/preload": "*",
         "@app/lib": "*",
+        "@app/preload": "*",
         "@app/types": "*",
         "@hookform/resolvers": "^5.0.1",
+        "@noriginmedia/norigin-spatial-navigation": "^2.3.0",
         "@radix-ui/react-context-menu": "^2.2.7",
         "@radix-ui/react-dialog": "^1.1.7",
         "@radix-ui/react-label": "^2.1.3",

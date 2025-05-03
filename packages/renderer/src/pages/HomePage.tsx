@@ -1,7 +1,10 @@
 import { error, info, debug } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
 import { CreateAppDialog } from '@/components/dialogs/CreateAppDialog'; // Changed import
-import { EditAppDialog } from '@/components/dialogs/EditAppDialog'; // Changed import
+import {
+    EditAppDialog,
+    EditAppDialogState,
+} from '@/components/dialogs/EditAppDialog'; // Changed import
 import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
@@ -59,14 +62,16 @@ const handleKillApp = async (launchInstanceId: LaunchInstanceId) => {
 
 export const HomePage: React.FC = () => {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
-    const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
-    const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
+    const [editingDialogState, setEditingDialogState] =
+        useState<EditAppDialogState>({ isOpen: false });
 
     const { apps, configFilePath } = useApps();
 
     const handleEditApp = (app: App) => {
-        setEditingApp(app.config);
-        setIsEditAppDialogOpen(true);
+        setEditingDialogState({
+            isOpen: true,
+            appToEdit: app.config,
+        });
     };
 
     const handleRemoveApp = async (app: App) => {
@@ -111,8 +116,7 @@ export const HomePage: React.FC = () => {
             toast.success(`${config.name} saved successfully`);
             debug(`App config saved: ${config.id}`);
             setIsAddAppDialogOpen(false);
-            setIsEditAppDialogOpen(false);
-            setEditingApp(null);
+            setEditingDialogState({ isOpen: false });
         } catch (err) {
             const errorMessage =
                 err instanceof Error ? err.message : String(err);
@@ -177,21 +181,16 @@ export const HomePage: React.FC = () => {
                 />
             </main>
             <Toaster />
-            {/* Use CreateAppDialog for adding */}
             <CreateAppDialog
                 isOpen={isAddAppDialogOpen}
                 onOpenChange={setIsAddAppDialogOpen}
                 onSave={handleSaveAppConfig}
             />
-            {/* Use EditAppDialog for editing */}
-            {editingApp && ( // Conditionally render EditAppDialog only when editingApp is not null
-                <EditAppDialog
-                    isOpen={isEditAppDialogOpen}
-                    onOpenChange={setIsEditAppDialogOpen}
-                    appToEdit={editingApp}
-                    onSave={handleSaveAppConfig}
-                />
-            )}
+            <EditAppDialog
+                state={editingDialogState}
+                onOpenChange={() => setEditingDialogState({ isOpen: false })}
+                onSave={handleSaveAppConfig}
+            />
         </TvAppLayout>
     );
 };
