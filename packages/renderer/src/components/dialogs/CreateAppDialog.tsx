@@ -9,8 +9,8 @@ import {
 } from '../ui/dialog';
 import { SelectAppFromOS } from './SelectAppFromOS';
 import { AppConfigForm } from '../forms/AppConfigForm';
+import { assertNever } from '@/lib/utils';
 
-// Define the possible views within the dialog
 type DialogView = 'select-suggestion' | 'manual';
 
 interface CreateAppDialogProps {
@@ -24,10 +24,8 @@ export function CreateAppDialog({
     onOpenChange,
     onSave,
 }: CreateAppDialogProps) {
-    // Default view is now 'select-suggestion'
     const [view, setView] = useState<DialogView>('select-suggestion');
 
-    // Reset view to 'select-suggestion' when dialog is opened or closed
     useEffect(() => {
         if (isOpen) {
             setView('select-suggestion');
@@ -36,21 +34,17 @@ export function CreateAppDialog({
 
     const handleSave = async (config: AppConfig) => {
         await onSave(config);
-        // Optionally close the dialog on successful save, handled by onSave implementation in parent
     };
 
-    // This function is called when cancelling from the manual form
-    const handleBackToSelect = () => {
-        setView('select-suggestion');
-    };
-
-    // This function is called when cancelling from the select form, or closing the dialog
     const handleCloseDialog = () => {
         onOpenChange(false);
     };
 
-    // This function is passed to SelectAppFromOS to switch to manual mode
-    const handleSwitchToManual = () => {
+    const switchToSelect = () => {
+        setView('select-suggestion');
+    };
+
+    const switchToManual = () => {
         setView('manual');
     };
 
@@ -60,16 +54,16 @@ export function CreateAppDialog({
                 return (
                     <AppConfigForm
                         onSave={handleSave}
-                        onCancel={handleBackToSelect} // Go back to select view
+                        onCancel={switchToSelect}
                     />
                 );
             case 'select-suggestion':
             default:
                 return (
                     <SelectAppFromOS
-                        onSelect={handleSave} // Selecting an app saves it
-                        onCancel={handleCloseDialog} // 'Back' button closes dialog
-                        onSwitchToManual={handleSwitchToManual} // Add button to switch
+                        onSelect={handleSave}
+                        onCancel={handleCloseDialog}
+                        onSwitchToManual={switchToManual}
                     />
                 );
         }
@@ -80,8 +74,9 @@ export function CreateAppDialog({
             case 'manual':
                 return 'Add App Manually';
             case 'select-suggestion':
+                return 'Add New App';
             default:
-                return 'Add New App'; // Keep title generic or specific like 'Select App from System'
+                assertNever(view);
         }
     };
 
@@ -90,8 +85,9 @@ export function CreateAppDialog({
             case 'manual':
                 return 'Enter the details for the new application configuration.';
             case 'select-suggestion':
-            default:
                 return 'Select an application detected on your system, or choose to create one manually.';
+            default:
+                assertNever(view);
         }
     };
 
@@ -103,7 +99,6 @@ export function CreateAppDialog({
                     <DialogDescription>{getDescription()}</DialogDescription>
                 </DialogHeader>
                 {renderContent()}
-                {/* Footer is now handled within SelectAppFromOS and AppConfigForm */}
             </DialogContent>
         </Dialog>
     );

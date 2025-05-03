@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { invokeConfigUpdateListeners } from '../events.js';
 import { ConfigNotFoundError } from './errors.js';
 import { readConfigsFromFile, writeConfigsToFileEffect } from './fs.js';
-import { suggestAppConfigs } from './suggestions/index.js'; // Import the effect
+import { suggestAppConfigs, SuggestionResult } from './suggestions/index.js'; // Import the effect
 
 let configWatcher: fs.FSWatcher | null = null;
 let debounceTimeout: NodeJS.Timeout | null = null;
@@ -142,6 +142,6 @@ export async function removeAppConfig(
     return Effect.runPromise(effect);
 }
 
-export async function getSuggestedAppConfigs(): Promise<AppConfig[]> {
+export async function getSuggestedAppConfigs(): Promise<SuggestionResult> {
     return await suggestAppConfigs();
 }

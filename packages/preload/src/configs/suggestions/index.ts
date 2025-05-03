@@ -135,18 +135,58 @@ async function suggestLinuxAppConfigs(): Promise<AppConfig[]> {
     return suggestions;
 }
 
+type SuggestionResultSuccess = {
+    status: 'success';
+    suggestions: AppConfig[];
+};
+type SuggestionResultError = {
+    status: 'error';
+    error: string;
+};
+type SuggestionResultNotSupported = {
+    status: 'not-supported';
+};
+
+export type SuggestionResult =
+    | SuggestionResultSuccess
+    | SuggestionResultError
+    | SuggestionResultNotSupported;
+
 export async function suggestAppConfigs(
     platform?: NodeJS.Platform,
-): Promise<AppConfig[]> {
+): Promise<SuggestionResult> {
     return Match.value(platform || getPlatform()).pipe(
-        Match.when('linux', async () => {
-            return suggestLinuxAppConfigs();
-        }),
-        Match.orElse(() => {
+        Match.when(
+            'linux',
+            async (): Promise<
+                SuggestionResultSuccess | SuggestionResultError
+            > => {
+                try {
+                    const configs = await suggestLinuxAppConfigs();
+                    return {
+                        status: 'success',
+                        suggestions: configs,
+                    };
+                } catch (e) {
+                    console.error(
+                        `Error suggesting Linux app configs: ${e}`,
+                        e,
+                    );
+
+                    return {
+                        status: 'error',
+                        error: e instanceof Error ? e.message : 'Unknown error',
+                    };
+                }
+            },
+        ),
+        Match.orElse((): SuggestionResultNotSupported => {
             console.log(
                 `App suggestion not implemented or skipped for platform: ${platform}`,
             );
-            return [];
+            return {
+                status: 'not-supported',
+            };
         }),
     );
 }

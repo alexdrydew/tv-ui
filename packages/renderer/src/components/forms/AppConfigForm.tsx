@@ -30,7 +30,7 @@ type FormValues = Schema.Schema.Type<typeof AppConfigFormSchema>;
 interface AppConfigFormProps {
     initial?: Readonly<AppConfig | undefined>;
     onSave: (config: AppConfig) => Promise<void>;
-    onCancel: () => void; // Callback to handle cancellation/going back
+    onCancel: () => void;
 }
 
 export function AppConfigForm({

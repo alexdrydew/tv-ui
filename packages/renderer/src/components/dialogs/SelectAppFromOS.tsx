@@ -1,7 +1,7 @@
 import { AppConfig } from '@app/types';
 import { Button } from '../ui/button';
 import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { assertNever, cn } from '@/lib/utils';
 import { Loader2Icon, PackageIcon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
 
@@ -26,6 +26,9 @@ type SuggestionsStore =
     | {
           state: 'ready';
           suggestions: AppConfig[];
+      }
+    | {
+          state: 'not-supported';
       };
 
 export function SelectAppFromOS({
@@ -41,11 +44,29 @@ export function SelectAppFromOS({
         const fetchSuggestions = async () => {
             try {
                 const result = await getSuggestedAppConfigs();
-                const sortedResult = result.sort(sortAppsByName);
-                setSuggestions({
-                    state: 'ready',
-                    suggestions: sortedResult,
-                });
+                if (result.status === 'error') {
+                    console.error(
+                        'Error fetching app suggestions:',
+                        result.error,
+                    );
+                    setSuggestions({ state: 'error' });
+                } else if (result.status === 'not-supported') {
+                    console.warn(
+                        'App suggestion feature not supported on this OS.',
+                    );
+                    setSuggestions({
+                        state: 'not-supported',
+                    });
+                } else if (result.status === 'success') {
+                    const sortedResult =
+                        result.suggestions.sort(sortAppsByName);
+                    setSuggestions({
+                        state: 'ready',
+                        suggestions: sortedResult,
+                    });
+                } else {
+                    assertNever(result);
+                }
             } catch (err) {
                 console.error('Failed to fetch app suggestions:', err);
                 setSuggestions({
@@ -57,9 +78,10 @@ export function SelectAppFromOS({
         fetchSuggestions();
     }, []);
 
-    const handleSelectApp = (app: AppConfig) => {
-        onSelect(app);
-    };
+    const isEmptyOrNotSupported =
+        (suggestions.state === 'ready' &&
+            suggestions.suggestions.length === 0) ||
+        suggestions.state === 'not-supported';
 
     return (
         <div className="py-4">
@@ -76,22 +98,22 @@ export function SelectAppFromOS({
                 </div>
             )}
 
-            {suggestions.state === 'ready' &&
-                suggestions.suggestions.length === 0 && (
-                    <div className="h-80 flex flex-col items-center justify-center text-muted-foreground text-center px-4">
-                        <span>
-                            No applications found or suggestion feature not
-                            available on this OS.
-                        </span>
-                        <Button
-                            variant="link"
-                            onClick={onSwitchToManual}
-                            className="mt-2"
-                        >
-                            Create Manually Instead?
-                        </Button>
-                    </div>
-                )}
+            {isEmptyOrNotSupported && (
+                <div className="h-80 flex flex-col items-center justify-center text-muted-foreground text-center px-4">
+                    <span>
+                        {suggestions.state === 'not-supported'
+                            ? 'App suggestion feature not supported on this OS.'
+                            : 'No applications found.'}
+                    </span>
+                    <Button
+                        variant="link"
+                        onClick={onSwitchToManual}
+                        className="mt-2"
+                    >
+                        Create Manually Instead?
+                    </Button>
+                </div>
+            )}
 
             {suggestions.state === 'ready' &&
                 suggestions.suggestions.length > 0 && (
@@ -103,7 +125,7 @@ export function SelectAppFromOS({
                             {suggestions.suggestions.map((app) => (
                                 <button
                                     key={app.id}
-                                    onClick={() => handleSelectApp(app)}
+                                    onClick={() => onSelect(app)}
                                     className={cn(
                                         'flex flex-col items-center justify-center p-2 rounded-md border border-transparent hover:border-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors text-center h-24', // Fixed height for grid items
                                     )}
@@ -122,20 +144,7 @@ export function SelectAppFromOS({
                                                 );
                                                 (
                                                     e.target as HTMLImageElement
-                                                ).style.display = 'none'; // Hide broken image
-                                                // Optionally replace with placeholder icon
-                                                const placeholder =
-                                                    document.createElement(
-                                                        'div',
-                                                    );
-                                                placeholder.innerHTML =
-                                                    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package h-8 w-8 mb-1 text-muted-foreground"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>';
-                                                (
-                                                    e.target as HTMLImageElement
-                                                ).parentNode?.insertBefore(
-                                                    placeholder.firstChild!,
-                                                    e.target as Node,
-                                                );
+                                                ).style.display = 'none';
                                             }}
                                         />
                                     ) : (
