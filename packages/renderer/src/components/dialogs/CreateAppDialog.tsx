@@ -9,8 +9,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '../ui/dialog';
-import { ManualAppConfigForm } from './ManualAppConfigForm';
 import { SelectAppFromOS } from './SelectAppFromOS';
+import { AppConfigForm } from '../forms/AppConfigForm';
 
 type DialogView = 'initial' | 'manual' | 'selectOS';
 
@@ -53,7 +53,7 @@ export function CreateAppDialog({
         switch (view) {
             case 'manual':
                 return (
-                    <ManualAppConfigForm
+                    <AppConfigForm
                         // No appToEdit passed, so it's in "add" mode
                         onSave={handleSave}
                         onCancel={handleCancelForm} // Go back to initial view
@@ -124,7 +124,10 @@ export function CreateAppDialog({
                 {/* Footer only needed for the initial view's cancel button */}
                 {view === 'initial' && (
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                        <Button
+                            variant="ghost"
+                            onClick={() => onOpenChange(false)}
+                        >
                             Cancel
                         </Button>
                     </DialogFooter>

@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom/client';
 import { StrictMode, Suspense, lazy } from 'react';
 import './index.css';
+import { init } from '@noriginmedia/norigin-spatial-navigation';
 
 const delay = import.meta.env.MODE === 'development' ? 500 : 0;
 const App = lazy(() => {
@@ -8,6 +9,11 @@ const App = lazy(() => {
         // @ts-expect-error App type is lazy
         setTimeout(() => resolve(import('./App.tsx')), delay);
     });
+});
+
+init({
+    debug: import.meta.env.DEV,
+    shouldFocusDOMNode: true,
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

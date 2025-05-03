@@ -6,47 +6,54 @@ import {
     DialogHeader,
     DialogTitle,
 } from '../ui/dialog';
-import { ManualAppConfigForm } from './ManualAppConfigForm';
+import { AppConfigForm } from '../forms/AppConfigForm';
+
+export type EditAppDialogState =
+    | {
+          isOpen: false;
+      }
+    | {
+          isOpen: true;
+          appToEdit: Readonly<AppConfig>;
+      };
 
 interface EditAppDialogProps {
-    isOpen: boolean;
+    state: EditAppDialogState;
     onOpenChange: (open: boolean) => void;
-    appToEdit: AppConfig; // App to edit is required
     onSave: (config: AppConfig) => Promise<void>;
 }
 
 export function EditAppDialog({
-    isOpen,
+    state,
     onOpenChange,
-    appToEdit,
     onSave,
 }: EditAppDialogProps) {
     const handleSave = async (config: AppConfig) => {
         await onSave(config);
-        // Assuming onSave handles closing the dialog on success
-        // If not, uncomment the next line:
-        // onOpenChange(false);
     };
 
     const handleCancel = () => {
-        onOpenChange(false); // Close the dialog on cancel
+        onOpenChange(false);
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <Dialog open={state.isOpen} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Edit App</DialogTitle>
                     <DialogDescription>
-                        Update the details for {appToEdit.name}.
+                        {state.isOpen && (
+                            <div>
+                                Update the details for {state.appToEdit.name}.
+                            </div>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
-                <ManualAppConfigForm
-                    appToEdit={appToEdit} // Pass the app to edit
+                <AppConfigForm
+                    initial={state.isOpen ? state.appToEdit : undefined}
                     onSave={handleSave}
-                    onCancel={handleCancel} // Close dialog on cancel
+                    onCancel={handleCancel}
                 />
-                {/* Footer is now part of ManualAppConfigForm */}
             </DialogContent>
         </Dialog>
     );

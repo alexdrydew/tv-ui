@@ -1,7 +1,6 @@
 import { AppWindow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/appButton';
-import { useEffect, useId, useMemo, useRef } from 'react';
 import { AppConfigId, LaunchInstanceId } from '@app/types';
 import {
     ContextMenu,
@@ -11,7 +10,6 @@ import {
 } from '../ui/context-menu';
 import {
     getCurrentFocusKey,
-    setFocus,
     useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
 import { useFocusKey } from '@/hooks/useFocusKey';
@@ -29,7 +27,7 @@ interface AppTileProps {
     id: AppConfigId;
 }
 
-export function AppTile({
+export const AppTile: React.FC<AppTileProps> = ({
     id,
     name,
     icon,
@@ -39,11 +37,10 @@ export function AppTile({
     onKill,
     onRemove,
     onEdit,
-}: AppTileProps) {
-    const componentId = useFocusKey('app-tile');
-
+}: AppTileProps) => {
+    const focusKey = useFocusKey('app-tile');
     const { ref, focusSelf } = useFocusable({
-        focusKey: componentId,
+        focusKey,
     });
 
     console.log(getCurrentFocusKey());
@@ -120,4 +117,4 @@ export function AppTile({
             </ContextMenuContent>
         </ContextMenu>
     );
-}
+};
