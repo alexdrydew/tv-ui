@@ -14,6 +14,7 @@ import {
     setFocus,
     useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusKey } from '@/hooks/useFocusKey';
 
 interface AppTileProps {
     name: string;
@@ -39,8 +40,7 @@ export function AppTile({
     onRemove,
     onEdit,
 }: AppTileProps) {
-    const uniqueId = useId();
-    const componentId = useMemo(() => `app-tile-${uniqueId}`, [uniqueId]);
+    const componentId = useFocusKey('app-tile');
 
     const { ref, focusSelf } = useFocusable({
         focusKey: componentId,
