@@ -25,10 +25,19 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
         'The "Add New App" dialog (suggestions view) should appear',
     ).toBeVisible();
 
-    // Click the "Create Manually" button within the suggestions dialog footer
-    await suggestionsDialog
-        .getByRole('button', { name: 'Create Manually', exact: true }) // Use exact match
-        .click();
+    // Wait for loading to finish (either suggestions load, show empty, show not-supported, or error)
+    // A good indicator that loading is done is the presence of the "Create Manually" button/link.
+    const createManuallyButton = suggestionsDialog.getByRole('button', {
+        name: /Create Manually/i, // Use regex to match "Create Manually" or "Create Manually Instead?"
+    });
+
+    await expect(
+        createManuallyButton,
+        'The "Create Manually" button/link should become visible',
+    ).toBeVisible({ timeout: 10000 }); // Increased timeout for suggestion loading/checking
+
+    // Click the "Create Manually" button/link (works whether suggestions are shown or not)
+    await createManuallyButton.click();
 
     // Now expect the dialog title/content to change for the manual form
     const manualDialog = page.getByRole('dialog', { name: 'Add App Manually' });
