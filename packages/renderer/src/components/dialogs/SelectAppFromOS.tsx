@@ -1,9 +1,10 @@
 import { AppConfig } from '@app/types';
 import { Button } from '../ui/button';
 import { useEffect, useState } from 'react';
-import { assertNever, cn } from '@/lib/utils';
-import { Loader2Icon, PackageIcon } from 'lucide-react';
+import { assertNever } from '@/lib/utils';
+import { Loader2Icon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
+import { AppSuggestion } from '../cards/AppSuggestion';
 
 interface SelectAppFromOSProps {
     onSelect: (config: AppConfig) => Promise<void>;
