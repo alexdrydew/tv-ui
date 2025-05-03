@@ -171,7 +171,7 @@ MaxSize=512
 
                 // Wait for the page to load, potentially longer timeout if needed
                 try {
-                    await page.waitForLoadState('load', { timeout: 15000 }); // Increased timeout
+                    await page.waitForLoadState('load', { timeout: 5000 }); // Increased timeout
                     console.log('[testSpecificApp] Page loaded.');
                 } catch (e) {
                     console.error(
@@ -205,7 +205,7 @@ MaxSize=512
                 // Wait for suggestions to load (adjust timeout if needed)
                 await expect(
                     selectDialog.getByText('Loading suggestions...'),
-                ).not.toBeVisible({ timeout: 10000 }); // Increased timeout for suggestion loading
+                ).not.toBeVisible({ timeout: 5000 }); // Increased timeout for suggestion loading
 
                 // Locate the button by its role and the text it contains
                 // Use exact match or regex for text to avoid strict mode violation
@@ -284,7 +284,7 @@ MaxSize=512
 
             // --- Page Load ---
             page = await electronApp.firstWindow();
-            await page.waitForLoadState('load', { timeout: 15000 });
+            await page.waitForLoadState('load', { timeout: 5000 });
 
             // --- UI Navigation ---
             await page.getByRole('button', { name: 'Add App' }).click();
@@ -303,7 +303,7 @@ MaxSize=512
             await expect(selectDialog).toBeVisible();
             await expect(
                 selectDialog.getByText('Loading suggestions...'),
-            ).not.toBeVisible({ timeout: 10000 });
+            ).not.toBeVisible({ timeout: 5000 });
 
             const suggestedAppButton = selectDialog
                 .getByRole('button')
@@ -372,7 +372,7 @@ MaxSize=512
 
             // --- Page Load & Navigation ---
             page = await electronApp.firstWindow();
-            await page.waitForLoadState('load', { timeout: 15000 });
+            await page.waitForLoadState('load', { timeout: 5000 });
             await page.getByRole('button', { name: 'Add App' }).click();
             const initialDialog = page.getByRole('dialog', {
                 name: 'Add New App',
@@ -389,7 +389,7 @@ MaxSize=512
             await expect(selectDialog).toBeVisible();
             await expect(
                 selectDialog.getByText('Loading suggestions...'),
-            ).not.toBeVisible({ timeout: 10000 });
+            ).not.toBeVisible({ timeout: 5000 });
 
             // --- Pagination Verification ---
             const pagination = selectDialog.locator('[data-slot="pagination"]');
