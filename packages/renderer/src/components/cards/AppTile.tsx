@@ -1,7 +1,7 @@
 import { AppWindow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/appButton';
-import { useRef, useLayoutEffect } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import { AppConfigId, LaunchInstanceId } from '@app/types';
 import {
     ContextMenu,
@@ -9,15 +9,19 @@ import {
     ContextMenuItem,
     ContextMenuTrigger,
 } from '../ui/context-menu';
+import {
+    getCurrentFocusKey,
+    setFocus,
+    useFocusable,
+} from '@noriginmedia/norigin-spatial-navigation';
 
 interface AppTileProps {
     name: string;
     icon: string | undefined;
-    isFocused: boolean;
     isRunning: boolean;
     runningInstanceIds: LaunchInstanceId[];
     onSelect: () => void;
-    onFocus: () => void;
+    onFocus?: () => void;
     onKill: (launchInstanceId: LaunchInstanceId) => void;
     onRemove: () => void;
     onEdit: () => void;
@@ -28,27 +32,21 @@ export function AppTile({
     id,
     name,
     icon,
-    isFocused,
     isRunning,
     runningInstanceIds,
     onSelect,
-    onFocus,
     onKill,
     onRemove,
     onEdit,
 }: AppTileProps) {
-    const buttonRef = useRef<HTMLButtonElement>(null);
+    const uniqueId = useId();
+    const componentId = useMemo(() => `app-tile-${uniqueId}`, [uniqueId]);
 
-    useLayoutEffect(() => {
-        if (isFocused && buttonRef.current) {
-            buttonRef.current.focus();
-        }
-    }, [isFocused]);
+    const { ref, focusSelf } = useFocusable({
+        focusKey: componentId,
+    });
 
-    const focusSelf = (e: { currentTarget: { focus: () => void } }) => {
-        onFocus();
-        e.currentTarget.focus();
-    };
+    console.log(getCurrentFocusKey());
 
     const handleKill = () => {
         if (runningInstanceIds.length > 0) {
@@ -64,14 +62,13 @@ export function AppTile({
         <ContextMenu>
             <ContextMenuTrigger>
                 <Button
-                    ref={buttonRef}
+                    ref={ref}
                     data-testid={`app-tile-${id}`}
                     className={cn(
                         'flex flex-col items-center w-64 h-64 relative',
                     )}
                     onClick={onSelect}
-                    onMouseOver={focusSelf}
-                    onFocus={focusSelf}
+                    onMouseEnter={focusSelf}
                 >
                     <div className="flex-1 w-48 h-48 items-center justify-center">
                         {icon ? (
