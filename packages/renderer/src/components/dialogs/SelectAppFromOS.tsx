@@ -1,6 +1,6 @@
 import { AppConfig } from '@app/types';
 import { Button } from '../ui/button';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2Icon, PackageIcon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
@@ -15,49 +15,60 @@ import {
 } from '@/components/ui/pagination';
 
 interface SelectAppFromOSProps {
-    onSelect: (config: AppConfig) => Promise<void>; // Callback when an app is selected
-    onCancel: () => void; // Callback to handle cancellation/closing the dialog
-    onSwitchToManual: () => void; // Callback to switch to manual entry mode
+    onSelect: (config: AppConfig) => Promise<void>;
+    onCancel: () => void;
+    onSwitchToManual: () => void;
+    itemsPerPage?: number;
 }
 
-const ITEMS_PER_PAGE = 16; // Define how many apps per page
+const DEFAULT_ITEMS_PER_PAGE = 16; // Define how many apps per page
 
-// Helper function for sorting AppConfig by name (case-insensitive, natural numeric sort)
 const sortAppsByName = (a: AppConfig, b: AppConfig) => {
     return a.name.localeCompare(b.name, undefined, {
         sensitivity: 'base',
-        numeric: true, // Enable natural numeric sorting
+        numeric: true,
     });
 };
+
+type SuggestionsStore =
+    | {
+          state: 'loading' | 'error';
+          suggestions?: undefined;
+      }
+    | {
+          state: 'ready';
+          suggestions: AppConfig[];
+      };
 
 export function SelectAppFromOS({
     onSelect,
     onCancel,
     onSwitchToManual,
+    itemsPerPage,
 }: SelectAppFromOSProps) {
-    const [suggestions, setSuggestions] = useState<AppConfig[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(1); // Add state for current page
+    const pageSize = itemsPerPage || DEFAULT_ITEMS_PER_PAGE;
+
+    const [suggestions, setSuggestions] = useState<SuggestionsStore>({
+        state: 'loading',
+    });
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
-            setIsLoading(true);
-            setError(null);
-            setCurrentPage(1); // Reset to first page on new fetch
+            setCurrentPage(1);
+
             try {
                 const result = await getSuggestedAppConfigs();
-                // Sort the results alphabetically by name before setting state
                 const sortedResult = result.sort(sortAppsByName);
-                setSuggestions(sortedResult);
+                setSuggestions({
+                    state: 'ready',
+                    suggestions: sortedResult,
+                });
             } catch (err) {
                 console.error('Failed to fetch app suggestions:', err);
-                setError(
-                    'Failed to load suggestions. Please check the console for details.',
-                );
-                setSuggestions([]); // Clear suggestions on error
-            } finally {
-                setIsLoading(false);
+                setSuggestions({
+                    state: 'error',
+                });
             }
         };
 
@@ -68,12 +79,12 @@ export function SelectAppFromOS({
         onSelect(app);
     };
 
-    // --- Pagination Logic ---
-    // Suggestions are now guaranteed to be sorted before this logic runs
-    const totalPages = Math.ceil(suggestions.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const currentSuggestions = suggestions.slice(startIndex, endIndex);
+    const totalPages = useMemo(() => {
+        if (suggestions.state === 'ready') {
+            return Math.ceil(suggestions.suggestions.length / pageSize);
+        }
+        return undefined;
+    }, [suggestions, pageSize]);
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
@@ -92,15 +103,18 @@ export function SelectAppFromOS({
         e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
     ) => {
         e.preventDefault(); // Prevent default anchor behavior
+        if (!totalPages) {
+            return;
+        }
+
         if (currentPage < totalPages) {
             setCurrentPage(currentPage + 1);
         }
     };
 
-    // Helper to generate pagination links with ellipsis
     const renderPaginationLinks = () => {
         const pageLinks = [];
-        const maxVisiblePages = 3; // Max page numbers to show directly (excluding first/last)
+        const maxVisiblePages = 3;
         const halfVisible = Math.floor(maxVisiblePages / 2);
 
         // Always show first page
@@ -119,16 +133,17 @@ export function SelectAppFromOS({
             </PaginationItem>,
         );
 
-        // Ellipsis after first page?
+        if (!totalPages) {
+            return;
+        }
+
         if (currentPage > halfVisible + 2 && totalPages > maxVisiblePages + 2) {
             pageLinks.push(<PaginationEllipsis key="start-ellipsis" />);
         }
 
-        // Calculate range of pages to show around current page
         let startPage = Math.max(2, currentPage - halfVisible);
         let endPage = Math.min(totalPages - 1, currentPage + halfVisible);
 
-        // Adjust range if near the beginning or end
         if (currentPage <= halfVisible + 1) {
             endPage = Math.min(totalPages - 1, maxVisiblePages + 1);
         }
@@ -182,13 +197,10 @@ export function SelectAppFromOS({
 
         return pageLinks;
     };
-    // --- End Pagination Logic ---
 
     return (
         <div className="py-4">
-            {/* Description moved to DialogHeader in parent */}
-
-            {isLoading && (
+            {suggestions.state === 'loading' && (
                 <div className="h-80 flex items-center justify-center text-muted-foreground">
                     {' '}
                     {/* Adjusted height */}
@@ -197,121 +209,124 @@ export function SelectAppFromOS({
                 </div>
             )}
 
-            {error && (
+            {suggestions.state === 'error' && (
                 <div className="h-80 flex items-center justify-center text-destructive">
                     {' '}
                     {/* Adjusted height */}
-                    {error}
+                    Failed to load app suggestions
                 </div>
             )}
 
-            {!isLoading && !error && suggestions.length === 0 && (
-                <div className="h-80 flex flex-col items-center justify-center text-muted-foreground text-center px-4">
-                    {' '}
-                    {/* Adjusted height */}
-                    <span>
-                        No applications found or suggestion feature not
-                        available on this OS.
-                    </span>
-                    <Button
-                        variant="link"
-                        onClick={onSwitchToManual}
-                        className="mt-2"
-                    >
-                        Create Manually Instead?
-                    </Button>
-                </div>
-            )}
-
-            {!isLoading && !error && suggestions.length > 0 && (
-                <>
-                    {/* Grid for App Suggestions */}
-                    <div className="grid grid-cols-4 gap-4 min-h-72 max-h-72 overflow-y-auto p-1 border rounded-md mb-4">
+            {suggestions.state === 'ready' &&
+                suggestions.suggestions.length === 0 && (
+                    <div className="h-80 flex flex-col items-center justify-center text-muted-foreground text-center px-4">
                         {' '}
-                        {/* Fixed height */}
-                        {currentSuggestions.map((app) => (
-                            <button
-                                key={app.id}
-                                onClick={() => handleSelectApp(app)}
-                                className={cn(
-                                    'flex flex-col items-center justify-center p-2 rounded-md border border-transparent hover:border-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors text-center h-24', // Fixed height for grid items
-                                )}
-                                title={app.name}
-                                data-testid={`suggested-app-${app.id}`}
-                            >
-                                {app.icon ? (
-                                    <img
-                                        src={app.icon}
-                                        alt={`${app.name} icon`}
-                                        className="h-8 w-8 mb-1 object-contain"
-                                        onError={(e) => {
-                                            console.error(
-                                                `Failed to load icon for ${app.name}`,
-                                                e,
-                                            );
-                                            (
-                                                e.target as HTMLImageElement
-                                            ).style.display = 'none';
-                                        }}
-                                    />
-                                ) : (
-                                    <PackageIcon className="h-8 w-8 mb-1 text-muted-foreground" />
-                                )}
-                                <span className="text-xs truncate w-full">
-                                    {app.name}
-                                </span>
-                            </button>
-                        ))}
-                        {/* Add placeholders if the last page isn't full, to maintain grid structure */}
-                        {currentSuggestions.length < ITEMS_PER_PAGE &&
-                            Array.from({
-                                length:
-                                    ITEMS_PER_PAGE - currentSuggestions.length,
-                            }).map((_, index) => (
-                                <div
-                                    key={`placeholder-${index}`}
-                                    className="h-24" // Match item height
-                                    aria-hidden="true"
-                                ></div>
-                            ))}
+                        {/* Adjusted height */}
+                        <span>
+                            No applications found or suggestion feature not
+                            available on this OS.
+                        </span>
+                        <Button
+                            variant="link"
+                            onClick={onSwitchToManual}
+                            className="mt-2"
+                        >
+                            Create Manually Instead?
+                        </Button>
                     </div>
+                )}
 
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <Pagination className="mt-4">
-                            <PaginationContent>
-                                <PaginationItem>
-                                    <PaginationPrevious
-                                        href="#"
-                                        onClick={handlePreviousPage}
-                                        aria-disabled={currentPage === 1}
-                                        className={
-                                            currentPage === 1
-                                                ? 'pointer-events-none opacity-50'
-                                                : undefined
-                                        }
-                                    />
-                                </PaginationItem>
-                                {renderPaginationLinks()}
-                                <PaginationItem>
-                                    <PaginationNext
-                                        href="#"
-                                        onClick={handleNextPage}
-                                        aria-disabled={
-                                            currentPage === totalPages
-                                        }
-                                        className={
-                                            currentPage === totalPages
-                                                ? 'pointer-events-none opacity-50'
-                                                : undefined
-                                        }
-                                    />
-                                </PaginationItem>
-                            </PaginationContent>
-                        </Pagination>
-                    )}
-                </>
-            )}
+            {suggestions.state === 'ready' &&
+                suggestions.suggestions.length > 0 && (
+                    <>
+                        {/* Grid for App Suggestions */}
+                        <div className="grid grid-cols-4 gap-4 min-h-72 max-h-72 overflow-y-auto p-1 border rounded-md mb-4">
+                            {' '}
+                            {/* Fixed height */}
+                            {suggestions.suggestions.map((app) => (
+                                <button
+                                    key={app.id}
+                                    onClick={() => handleSelectApp(app)}
+                                    className={cn(
+                                        'flex flex-col items-center justify-center p-2 rounded-md border border-transparent hover:border-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors text-center h-24', // Fixed height for grid items
+                                    )}
+                                    title={app.name}
+                                    data-testid={`suggested-app-${app.id}`}
+                                >
+                                    {app.icon ? (
+                                        <img
+                                            src={app.icon}
+                                            alt={`${app.name} icon`}
+                                            className="h-8 w-8 mb-1 object-contain"
+                                            onError={(e) => {
+                                                console.error(
+                                                    `Failed to load icon for ${app.name}`,
+                                                    e,
+                                                );
+                                                (
+                                                    e.target as HTMLImageElement
+                                                ).style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <PackageIcon className="h-8 w-8 mb-1 text-muted-foreground" />
+                                    )}
+                                    <span className="text-xs truncate w-full">
+                                        {app.name}
+                                    </span>
+                                </button>
+                            ))}
+                            {/* Add placeholders if the last page isn't full, to maintain grid structure */}
+                            {suggestions.suggestions.length < pageSize &&
+                                Array.from({
+                                    length:
+                                        pageSize -
+                                        suggestions.suggestions.length,
+                                }).map((_, index) => (
+                                    <div
+                                        key={`placeholder-${index}`}
+                                        className="h-24" // Match item height
+                                        aria-hidden="true"
+                                    ></div>
+                                ))}
+                        </div>
+
+                        {/* Pagination Controls */}
+                        {totalPages! > 1 && (
+                            <Pagination className="mt-4">
+                                <PaginationContent>
+                                    <PaginationItem>
+                                        <PaginationPrevious
+                                            href="#"
+                                            onClick={handlePreviousPage}
+                                            aria-disabled={currentPage === 1}
+                                            className={
+                                                currentPage === 1
+                                                    ? 'pointer-events-none opacity-50'
+                                                    : undefined
+                                            }
+                                        />
+                                    </PaginationItem>
+                                    {renderPaginationLinks()}
+                                    <PaginationItem>
+                                        <PaginationNext
+                                            href="#"
+                                            onClick={handleNextPage}
+                                            aria-disabled={
+                                                currentPage === totalPages
+                                            }
+                                            className={
+                                                currentPage === totalPages
+                                                    ? 'pointer-events-none opacity-50'
+                                                    : undefined
+                                            }
+                                        />
+                                    </PaginationItem>
+                                </PaginationContent>
+                            </Pagination>
+                        )}
+                    </>
+                )}
 
             {/* Footer with Back and Create Manually buttons */}
             <div className="flex justify-between items-center mt-6">
@@ -321,7 +336,7 @@ export function SelectAppFromOS({
                     Back
                 </Button>
                 {/* Show Create Manually button only if not loading/error */}
-                {!isLoading && !error && (
+                {suggestions.state === 'ready' && (
                     <Button
                         type="button"
                         variant="secondary"
