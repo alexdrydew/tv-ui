@@ -1,6 +1,6 @@
 import { AppConfig } from '@app/types';
 import { Button } from '../ui/button';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2Icon, PackageIcon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
@@ -9,12 +9,7 @@ interface SelectAppFromOSProps {
     onSelect: (config: AppConfig) => Promise<void>;
     onCancel: () => void;
     onSwitchToManual: () => void;
-    initialVisibleCount?: number; // How many items to show initially and load per scroll
-    scrollThreshold?: number; // How close to the bottom (in px) to trigger loading more
 }
-
-const DEFAULT_INITIAL_VISIBLE_COUNT = 12; // Load more items than the old page size
-const DEFAULT_SCROLL_THRESHOLD = 100; // Pixels from bottom
 
 const sortAppsByName = (a: AppConfig, b: AppConfig) => {
     return a.name.localeCompare(b.name, undefined, {
@@ -37,18 +32,13 @@ export function SelectAppFromOS({
     onSelect,
     onCancel,
     onSwitchToManual,
-    initialVisibleCount = DEFAULT_INITIAL_VISIBLE_COUNT,
-    scrollThreshold = DEFAULT_SCROLL_THRESHOLD,
 }: SelectAppFromOSProps) {
     const [suggestions, setSuggestions] = useState<SuggestionsStore>({
         state: 'loading',
     });
-    const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
-            setVisibleCount(initialVisibleCount); // Reset visible count on new fetch
             try {
                 const result = await getSuggestedAppConfigs();
                 const sortedResult = result.sort(sortAppsByName);
@@ -65,50 +55,11 @@ export function SelectAppFromOS({
         };
 
         fetchSuggestions();
-    }, [initialVisibleCount]);
+    }, []);
 
     const handleSelectApp = (app: AppConfig) => {
         onSelect(app);
     };
-
-    // Effect for handling infinite scroll
-    useEffect(() => {
-        const container = scrollContainerRef.current;
-        if (!container || suggestions.state !== 'ready') {
-            return;
-        }
-
-        const handleScroll = () => {
-            const { scrollTop, scrollHeight, clientHeight } = container;
-            const isNearBottom =
-                scrollHeight - scrollTop - clientHeight < scrollThreshold;
-
-            if (isNearBottom && visibleCount < suggestions.suggestions.length) {
-                setVisibleCount((prevCount) =>
-                    Math.min(
-                        prevCount + initialVisibleCount, // Load another batch
-                        suggestions.suggestions.length,
-                    ),
-                );
-            }
-        };
-
-        container.addEventListener('scroll', handleScroll);
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, [
-        suggestions,
-        visibleCount,
-        initialVisibleCount,
-        scrollThreshold,
-        scrollContainerRef,
-    ]);
-
-    const visibleSuggestions = useMemo(() => {
-        if (suggestions.state === 'ready') {
-            return suggestions.suggestions.slice(0, visibleCount);
-        }
-        return [];
-    }, [suggestions, visibleCount]);
 
     return (
         <div className="py-4">
@@ -147,11 +98,10 @@ export function SelectAppFromOS({
                     <>
                         {/* Grid for App Suggestions - Now Scrollable */}
                         <div
-                            ref={scrollContainerRef}
                             className="grid grid-cols-4 gap-4 min-h-72 max-h-72 overflow-y-auto p-1 border rounded-md mb-4"
                             data-testid="suggestions-grid"
                         >
-                            {visibleSuggestions.map((app) => (
+                            {suggestions.suggestions.map((app) => (
                                 <button
                                     key={app.id}
                                     onClick={() => handleSelectApp(app)}
@@ -197,13 +147,6 @@ export function SelectAppFromOS({
                                     </span>
                                 </button>
                             ))}
-                            {/* Optional: Add a loading indicator when more items are being loaded */}
-                            {visibleCount < suggestions.suggestions.length && (
-                                <div className="col-span-4 flex justify-center items-center h-10 text-muted-foreground">
-                                    <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-                                    Loading more...
-                                </div>
-                            )}
                         </div>
                     </>
                 )}
