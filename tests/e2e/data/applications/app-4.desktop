@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-4
+Exec=sleep 4
+Terminal=false
+Categories=Utility;
+NoDisplay=false

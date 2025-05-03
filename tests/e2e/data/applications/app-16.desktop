@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-16
+Exec=sleep 16
+Terminal=false
+Categories=Utility;
+NoDisplay=false

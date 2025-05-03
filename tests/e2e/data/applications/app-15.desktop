@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-15
+Exec=sleep 15
+Terminal=false
+Categories=Utility;
+NoDisplay=false

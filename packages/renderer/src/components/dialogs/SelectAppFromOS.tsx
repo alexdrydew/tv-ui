@@ -96,7 +96,6 @@ export function SelectAppFromOS({
             {suggestions.state === 'ready' &&
                 suggestions.suggestions.length > 0 && (
                     <>
-                        {/* Grid for App Suggestions - Now Scrollable */}
                         <div
                             className="grid grid-cols-4 gap-4 min-h-72 max-h-72 overflow-y-auto p-1 border rounded-md mb-4"
                             data-testid="suggestions-grid"

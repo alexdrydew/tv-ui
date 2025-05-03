@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-10
+Exec=sleep 10
+Terminal=false
+Categories=Utility;
+NoDisplay=false

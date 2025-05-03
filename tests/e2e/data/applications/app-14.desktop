@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-14
+Exec=sleep 14
+Terminal=false
+Categories=Utility;
+NoDisplay=false

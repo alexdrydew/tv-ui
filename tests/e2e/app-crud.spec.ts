@@ -17,23 +17,24 @@ test('App tile is rendered when config has an app', async ({ page }) => {
 
 test('Add new app config via UI', async ({ page, configFilePath }) => {
     await page.getByRole('button', { name: 'Add App' }).click();
-    const initialDialog = page.getByRole('dialog', { name: 'Add New App' });
 
+    // Expect the dialog showing suggestions first
+    const suggestionsDialog = page.getByRole('dialog', { name: 'Add New App' });
     await expect(
-        initialDialog,
-        'The "Add New App" initial choice dialog should appear',
+        suggestionsDialog,
+        'The "Add New App" dialog (suggestions view) should appear',
     ).toBeVisible();
 
-    // Click the "Create Manually" button
-    await initialDialog
-        .getByRole('button', { name: 'Create Manually' })
+    // Click the "Create Manually" button within the suggestions dialog footer
+    await suggestionsDialog
+        .getByRole('button', { name: 'Create Manually', exact: true }) // Use exact match
         .click();
 
-    // Now expect the manual form dialog
+    // Now expect the dialog title/content to change for the manual form
     const manualDialog = page.getByRole('dialog', { name: 'Add App Manually' });
     await expect(
         manualDialog,
-        'The "Add App Manually" dialog should appear',
+        'The "Add App Manually" dialog view should appear',
     ).toBeVisible();
 
     // Fill in the form
@@ -47,8 +48,8 @@ test('Add new app config via UI', async ({ page, configFilePath }) => {
 
     // Wait for the dialog to close
     await expect(
-        manualDialog,
-        'The "Add App Manually" dialog should close after saving',
+        manualDialog, // Can check either dialog locator, as it should close
+        'The Add App dialog should close after saving',
     ).not.toBeVisible();
 
     // Verify config file update

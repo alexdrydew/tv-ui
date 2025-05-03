@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-12
+Exec=sleep 12
+Terminal=false
+Categories=Utility;
+NoDisplay=false

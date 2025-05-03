@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=App-2
+Exec=sleep 2
+Terminal=false
+Categories=Utility;
+NoDisplay=false
