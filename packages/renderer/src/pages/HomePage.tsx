@@ -5,54 +5,63 @@ import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
 import { useApps } from '@/hooks/useApps';
-import { killApp, launchApp, removeAppConfig, upsertAppConfig } from '@app/preload';
+import {
+    killApp,
+    launchApp,
+    removeAppConfig,
+    upsertAppConfig,
+} from '@app/preload';
 import { App, AppConfig, isLaunched, LaunchInstanceId } from '@app/types';
 import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { toast, Toaster } from 'sonner';
 
-export function HomePage() {
+const handleLaunchApp = async (app: App) => {
+    info(`Attempting to launch app: ${app.config.name}`);
+    try {
+        const appState = await launchApp(app.config);
+        toast.success(`${app.config.name} launched successfully`, {
+            description: `PID: ${appState.pid}`,
+        });
+        info(
+            `App ${app.config.name} (ID: ${app.config.id}) launched with PID: ${appState.pid}, InstanceID: ${appState.launchInstanceId}`,
+        );
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        toast.error(`Failed to launch app: ${app.config.name}`, {
+            description: errorMessage,
+        });
+        error(`Failed to launch app ${app.config.name}: ${errorMessage}`);
+    }
+};
+
+const handleKillApp = async (launchInstanceId: LaunchInstanceId) => {
+    info(`Attempting to kill app instance: ${launchInstanceId}`);
+    try {
+        await killApp(launchInstanceId);
+        toast.info(`Kill signal sent to instance ${launchInstanceId}`, {
+            description: 'Waiting for application to terminate.',
+        });
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        toast.error(
+            `Failed to send kill signal to instance ${launchInstanceId}`,
+            {
+                description: errorMessage,
+            },
+        );
+        error(
+            `Failed to send kill signal to instance ${launchInstanceId}: ${errorMessage}`,
+        );
+    }
+};
+
+export const HomePage: React.FC = () => {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
     const [isEditAppDialogOpen, setIsEditAppDialogOpen] = useState(false);
     const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
+
     const { apps, configFilePath } = useApps();
-
-    const handleLaunchApp = async (app: App) => {
-        info(`Attempting to launch app: ${app.config.name}`);
-        try {
-            const appState = await launchApp(app.config);
-            toast.success(`${app.config.name} launched successfully`, {
-                description: `PID: ${appState.pid}`,
-            });
-            info(
-                `App ${app.config.name} (ID: ${app.config.id}) launched with PID: ${appState.pid}, InstanceID: ${appState.launchInstanceId}`,
-            );
-        } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : String(e);
-            toast.error(`Failed to launch app: ${app.config.name}`, {
-                description: errorMessage,
-            });
-            error(`Failed to launch app ${app.config.name}: ${errorMessage}`);
-        }
-    };
-
-    const handleKillApp = async (launchInstanceId: LaunchInstanceId) => {
-        info(`Attempting to kill app instance: ${launchInstanceId}`);
-        try {
-            await killApp(launchInstanceId);
-            toast.info(`Kill signal sent to instance ${launchInstanceId}`, {
-                description: 'Waiting for application to terminate.',
-            });
-        } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : String(e);
-            toast.error(`Failed to send kill signal to instance ${launchInstanceId}`, {
-                description: errorMessage,
-            });
-            error(
-                `Failed to send kill signal to instance ${launchInstanceId}: ${errorMessage}`,
-            );
-        }
-    };
 
     const handleEditApp = (app: App) => {
         setEditingApp(app.config);
@@ -68,10 +77,13 @@ export function HomePage() {
             return;
         }
         if (isLaunched(app)) {
-             toast.error(`Cannot remove ${app.config.name}`, {
-                description: 'Application is currently running. Please kill it first.',
+            toast.error(`Cannot remove ${app.config.name}`, {
+                description:
+                    'Application is currently running. Please kill it first.',
             });
-            error(`Attempted to remove config for running app: ${app.config.id}`);
+            error(
+                `Attempted to remove config for running app: ${app.config.id}`,
+            );
             return;
         }
         try {
@@ -86,7 +98,7 @@ export function HomePage() {
         }
     };
 
-     const handleSaveAppConfig = async (config: AppConfig) => {
+    const handleSaveAppConfig = async (config: AppConfig) => {
         if (!configFilePath) {
             error('Cannot save app config: Config file path is not defined.');
             toast.error('Cannot save app config: Config path unknown');
@@ -101,7 +113,8 @@ export function HomePage() {
             setIsEditAppDialogOpen(false);
             setEditingApp(null);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
             error(`Failed to save app config ${config.name}: ${errorMessage}`);
             toast.error(`Failed to save ${config.name}`, {
                 description: errorMessage,
@@ -112,9 +125,9 @@ export function HomePage() {
     if (apps === undefined || configFilePath === undefined) {
         return (
             <TvAppLayout>
-                 <main className="py-8 px-8">
+                <main className="py-8 px-8">
                     <div>Loading applications...</div>
-                 </main>
+                </main>
             </TvAppLayout>
         );
     }
@@ -130,15 +143,14 @@ export function HomePage() {
                 <AppGrid<App>
                     apps={apps}
                     onLaunchApp={handleLaunchApp}
-                    onKillApp={() => { console.warn("AppGrid's onKillApp called, but logic is handled via AppTile's onKill"); }}
+                    onKillApp={() => {
+                        console.warn(
+                            "AppGrid's onKillApp called, but logic is handled via AppTile's onKill",
+                        );
+                    }}
                     onRemoveApp={handleRemoveApp}
                     onEditApp={handleEditApp}
-                    renderItem={({
-                        app,
-                        index,
-                        isFocused,
-                        setFocusedIndex,
-                    }) => {
+                    renderItem={({ app }) => {
                         const runningInstances = app.instances.filter(
                             (instance) => !instance.exitResult,
                         );
@@ -152,10 +164,8 @@ export function HomePage() {
                                 id={app.config.id}
                                 name={app.config.name}
                                 icon={app.config.icon}
-                                isFocused={isFocused}
                                 isRunning={isLaunched(app)}
                                 runningInstanceIds={runningInstanceIds}
-                                onFocus={() => setFocusedIndex(index)}
                                 onSelect={() => handleLaunchApp(app)}
                                 onKill={handleKillApp}
                                 onRemove={() => handleRemoveApp(app)}
@@ -181,4 +191,4 @@ export function HomePage() {
             />
         </TvAppLayout>
     );
-}
+};
