@@ -1,6 +1,7 @@
 import { error, info, debug } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
-import { AppConfigDialog } from '@/components/dialogs/AppConfigDialog';
+import { CreateAppDialog } from '@/components/dialogs/CreateAppDialog'; // Changed import
+import { EditAppDialog } from '@/components/dialogs/EditAppDialog'; // Changed import
 import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/appButton';
@@ -176,19 +177,21 @@ export const HomePage: React.FC = () => {
                 />
             </main>
             <Toaster />
-            <AppConfigDialog
+            {/* Use CreateAppDialog for adding */}
+            <CreateAppDialog
                 isOpen={isAddAppDialogOpen}
                 onOpenChange={setIsAddAppDialogOpen}
                 onSave={handleSaveAppConfig}
-                mode="add"
             />
-            <AppConfigDialog
-                isOpen={isEditAppDialogOpen}
-                onOpenChange={setIsEditAppDialogOpen}
-                appToEdit={editingApp}
-                onSave={handleSaveAppConfig}
-                mode="edit"
-            />
+            {/* Use EditAppDialog for editing */}
+            {editingApp && ( // Conditionally render EditAppDialog only when editingApp is not null
+                <EditAppDialog
+                    isOpen={isEditAppDialogOpen}
+                    onOpenChange={setIsEditAppDialogOpen}
+                    appToEdit={editingApp}
+                    onSave={handleSaveAppConfig}
+                />
+            )}
         </TvAppLayout>
     );
 };
