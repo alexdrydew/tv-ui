@@ -12,11 +12,12 @@ import {
     PaginationLink,
     PaginationNext,
     PaginationPrevious,
-} from '@/components/ui/pagination'; // Import pagination components
+} from '@/components/ui/pagination';
 
 interface SelectAppFromOSProps {
     onSelect: (config: AppConfig) => Promise<void>; // Callback when an app is selected
-    onCancel: () => void; // Callback to handle cancellation/going back
+    onCancel: () => void; // Callback to handle cancellation/closing the dialog
+    onSwitchToManual: () => void; // Callback to switch to manual entry mode
 }
 
 const ITEMS_PER_PAGE = 16; // Define how many apps per page
@@ -29,7 +30,11 @@ const sortAppsByName = (a: AppConfig, b: AppConfig) => {
     });
 };
 
-export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
+export function SelectAppFromOS({
+    onSelect,
+    onCancel,
+    onSwitchToManual,
+}: SelectAppFromOSProps) {
     const [suggestions, setSuggestions] = useState<AppConfig[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -181,33 +186,40 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
 
     return (
         <div className="py-4">
-            <p className="text-muted-foreground mb-4">
-                Select an application detected on your system.
-            </p>
+            {/* Description moved to DialogHeader in parent */}
 
             {isLoading && (
-                <div className="h-72 flex items-center justify-center text-muted-foreground">
+                <div className="h-80 flex items-center justify-center text-muted-foreground">
                     {' '}
-                    {/* Increased height slightly */}
+                    {/* Adjusted height */}
                     <Loader2Icon className="mr-2 h-6 w-6 animate-spin" />
                     Loading suggestions...
                 </div>
             )}
 
             {error && (
-                <div className="h-72 flex items-center justify-center text-destructive">
+                <div className="h-80 flex items-center justify-center text-destructive">
                     {' '}
-                    {/* Increased height slightly */}
+                    {/* Adjusted height */}
                     {error}
                 </div>
             )}
 
             {!isLoading && !error && suggestions.length === 0 && (
-                <div className="h-72 flex items-center justify-center text-muted-foreground">
+                <div className="h-80 flex flex-col items-center justify-center text-muted-foreground text-center px-4">
                     {' '}
-                    {/* Increased height slightly */}
-                    No applications found or suggestion feature not available on
-                    this OS.
+                    {/* Adjusted height */}
+                    <span>
+                        No applications found or suggestion feature not
+                        available on this OS.
+                    </span>
+                    <Button
+                        variant="link"
+                        onClick={onSwitchToManual}
+                        className="mt-2"
+                    >
+                        Create Manually Instead?
+                    </Button>
                 </div>
             )}
 
@@ -301,15 +313,23 @@ export function SelectAppFromOS({ onSelect, onCancel }: SelectAppFromOSProps) {
                 </>
             )}
 
-            {/* Removed old pagination message */}
-
-            <div className="flex justify-end gap-2 mt-6">
+            {/* Footer with Back and Create Manually buttons */}
+            <div className="flex justify-between items-center mt-6">
                 {' '}
-                {/* Added margin-top */}
+                {/* Use justify-between */}
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Back
                 </Button>
-                {/* Selection happens by clicking the grid item */}
+                {/* Show Create Manually button only if not loading/error */}
+                {!isLoading && !error && (
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={onSwitchToManual}
+                    >
+                        Create Manually
+                    </Button>
+                )}
             </div>
         </div>
     );

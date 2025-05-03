@@ -5,14 +5,15 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
+    DialogFooter, // Keep DialogFooter for potential use in manual view if needed later
     DialogHeader,
     DialogTitle,
 } from '../ui/dialog';
 import { SelectAppFromOS } from './SelectAppFromOS';
 import { AppConfigForm } from '../forms/AppConfigForm';
 
-type DialogView = 'initial' | 'manual' | 'select-suggestion';
+// Define the possible views within the dialog
+type DialogView = 'select-suggestion' | 'manual';
 
 interface CreateAppDialogProps {
     isOpen: boolean;
@@ -25,19 +26,34 @@ export function CreateAppDialog({
     onOpenChange,
     onSave,
 }: CreateAppDialogProps) {
-    const [view, setView] = useState<DialogView>('initial');
+    // Default view is now 'select-suggestion'
+    const [view, setView] = useState<DialogView>('select-suggestion');
 
-    // reset view on open/close
+    // Reset view to 'select-suggestion' when dialog is opened or closed
     useEffect(() => {
-        setView('initial');
+        if (isOpen) {
+            setView('select-suggestion');
+        }
     }, [isOpen]);
 
     const handleSave = async (config: AppConfig) => {
         await onSave(config);
+        // Optionally close the dialog on successful save, handled by onSave implementation in parent
     };
 
-    const handleCancelForm = () => {
-        setView('initial');
+    // This function is called when cancelling from the manual form
+    const handleBackToSelect = () => {
+        setView('select-suggestion');
+    };
+
+    // This function is called when cancelling from the select form, or closing the dialog
+    const handleCloseDialog = () => {
+        onOpenChange(false);
+    };
+
+    // This function is passed to SelectAppFromOS to switch to manual mode
+    const handleSwitchToManual = () => {
+        setView('manual');
     };
 
     const renderContent = () => {
@@ -46,35 +62,17 @@ export function CreateAppDialog({
                 return (
                     <AppConfigForm
                         onSave={handleSave}
-                        onCancel={handleCancelForm}
+                        onCancel={handleBackToSelect} // Go back to select view
                     />
                 );
             case 'select-suggestion':
-                return (
-                    <SelectAppFromOS
-                        onSelect={handleSave}
-                        onCancel={handleCancelForm}
-                    />
-                );
-            case 'initial':
             default:
                 return (
-                    <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Button
-                            variant="outline"
-                            onClick={() => setView('select-suggestion')}
-                            className="h-20 text-lg"
-                        >
-                            Select from OS
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setView('manual')}
-                            className="h-20 text-lg"
-                        >
-                            Create Manually
-                        </Button>
-                    </div>
+                    <SelectAppFromOS
+                        onSelect={handleSave} // Selecting an app saves it
+                        onCancel={handleCloseDialog} // 'Back' button closes dialog
+                        onSwitchToManual={handleSwitchToManual} // Add button to switch
+                    />
                 );
         }
     };
@@ -84,10 +82,8 @@ export function CreateAppDialog({
             case 'manual':
                 return 'Add App Manually';
             case 'select-suggestion':
-                return 'Select App from System';
-            case 'initial':
             default:
-                return 'Add New App';
+                return 'Add New App'; // Keep title generic or specific like 'Select App from System'
         }
     };
 
@@ -96,10 +92,8 @@ export function CreateAppDialog({
             case 'manual':
                 return 'Enter the details for the new application configuration.';
             case 'select-suggestion':
-                return 'Choose an application detected on your operating system.';
-            case 'initial':
             default:
-                return 'How would you like to add the new application?';
+                return 'Select an application detected on your system, or choose to create one manually.';
         }
     };
 
@@ -111,17 +105,7 @@ export function CreateAppDialog({
                     <DialogDescription>{getDescription()}</DialogDescription>
                 </DialogHeader>
                 {renderContent()}
-                {/* Footer only needed for the initial view's cancel button */}
-                {view === 'initial' && (
-                    <DialogFooter>
-                        <Button
-                            variant="ghost"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Cancel
-                        </Button>
-                    </DialogFooter>
-                )}
+                {/* Footer is now handled within SelectAppFromOS and AppConfigForm */}
             </DialogContent>
         </Dialog>
     );
