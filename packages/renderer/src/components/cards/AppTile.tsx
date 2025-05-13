@@ -1,6 +1,6 @@
 import { AppWindow } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '../ui/appButton';
+import { AppButton } from '../ui/appButton';
 import { AppConfigId, LaunchInstanceId } from '@app/types';
 import {
     ContextMenu,
@@ -8,10 +8,7 @@ import {
     ContextMenuItem,
     ContextMenuTrigger,
 } from '../ui/context-menu';
-import {
-    getCurrentFocusKey,
-    useFocusable,
-} from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { useFocusKey } from '@/hooks/useFocusKey';
 
 interface AppTileProps {
@@ -43,8 +40,6 @@ export const AppTile: React.FC<AppTileProps> = ({
         focusKey,
     });
 
-    console.log(getCurrentFocusKey());
-
     const handleKill = () => {
         if (runningInstanceIds.length > 0) {
             onKill(runningInstanceIds[0]);
@@ -58,7 +53,7 @@ export const AppTile: React.FC<AppTileProps> = ({
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <Button
+                <AppButton
                     ref={ref}
                     data-testid={`app-tile-${id}`}
                     className={cn(
@@ -66,6 +61,7 @@ export const AppTile: React.FC<AppTileProps> = ({
                     )}
                     onClick={onSelect}
                     onMouseEnter={focusSelf}
+                    onFocus={focusSelf}
                 >
                     <div className="flex-1 w-48 h-48 items-center justify-center">
                         {icon ? (
@@ -93,7 +89,7 @@ export const AppTile: React.FC<AppTileProps> = ({
                             {name}
                         </h2>
                     </div>
-                </Button>
+                </AppButton>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-64">
                 <ContextMenuItem disabled={isRunning} onClick={onEdit}>

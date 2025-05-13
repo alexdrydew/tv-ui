@@ -3,7 +3,7 @@ import {
     FocusContext,
     useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
-import React, { useEffect } from 'react';
+import React from 'react';
 
 interface AppGridProps<T extends App> {
     apps: T[];
@@ -29,11 +29,10 @@ export function AppGrid<T extends App>({
     onEditApp,
     renderItem,
 }: AppGridProps<T>) {
-    const { ref, focusKey, focusSelf } = useFocusable({ forceFocus: true });
-
-    useEffect(() => {
-        focusSelf();
-    }, [focusSelf]);
+    const { ref, focusKey } = useFocusable({
+        focusKey: 'sn:main-app-grid',
+        forceFocus: true,
+    });
 
     return (
         <FocusContext.Provider value={focusKey}>

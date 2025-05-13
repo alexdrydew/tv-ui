@@ -33,7 +33,7 @@ const buttonVariants = cva(
     },
 );
 
-function Button({
+function AppButton({
     className,
     variant,
     size,
@@ -55,4 +55,4 @@ function Button({
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export { Button, buttonVariants };
+export { AppButton, buttonVariants };

@@ -9,7 +9,7 @@ import { useId, useMemo } from 'react';
 export function useFocusKey(prefix: string): string {
     const uniqueId = useId();
     const componentId = useMemo(
-        () => `${prefix}-${uniqueId}`,
+        () => `sn:${prefix}-${uniqueId}`,
         [prefix, uniqueId],
     );
     return componentId;

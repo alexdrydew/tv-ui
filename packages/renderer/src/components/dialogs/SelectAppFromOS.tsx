@@ -5,6 +5,10 @@ import { assertNever } from '@/lib/utils';
 import { Loader2Icon } from 'lucide-react';
 import { getSuggestedAppConfigs } from '@app/preload';
 import { AppSuggestion } from '../cards/AppSuggestion';
+import {
+    useFocusable,
+    FocusContext,
+} from '@noriginmedia/norigin-spatial-navigation';
 
 interface SelectAppFromOSProps {
     onSelect: (config: AppConfig) => Promise<void>;
@@ -40,6 +44,7 @@ export function SelectAppFromOS({
     const [suggestions, setSuggestions] = useState<SuggestionsStore>({
         state: 'loading',
     });
+    const { ref: bottomRef, focusKey: bottomFocusKey } = useFocusable();
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -134,22 +139,25 @@ export function SelectAppFromOS({
                     </>
                 )}
 
-            {/* Footer with Back and Create Manually buttons */}
-            <div className="flex justify-between items-center mt-6">
-                <Button type="button" variant="outline" onClick={onCancel}>
-                    Back
-                </Button>
-                {/* Show Create Manually button only if not loading/error */}
-                {suggestions.state === 'ready' && (
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={onSwitchToManual}
-                    >
-                        Create Manually
+            <FocusContext.Provider value={bottomFocusKey}>
+                <div
+                    ref={bottomRef}
+                    className="flex justify-between items-center mt-6"
+                >
+                    <Button type="button" variant="outline" onClick={onCancel}>
+                        Back
                     </Button>
-                )}
-            </div>
+                    {suggestions.state === 'ready' && (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={onSwitchToManual}
+                        >
+                            Create Manually
+                        </Button>
+                    )}
+                </div>
+            </FocusContext.Provider>
         </div>
     );
 }

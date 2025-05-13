@@ -13,7 +13,10 @@ const App = lazy(() => {
 
 init({
     debug: import.meta.env.DEV,
+    // visualDebug: true,
     shouldFocusDOMNode: true,
+    shouldUseNativeEvents: true,
+    useGetBoundingClientRect: true,
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

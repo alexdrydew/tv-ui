@@ -2,6 +2,7 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-24.11-darwin";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -11,7 +12,11 @@
   outputs = inputs:
     inputs.flake-utils.lib.eachDefaultSystem (
       system: let
-        pkgs = import inputs.nixpkgs {
+        nixpkgs-input =
+          if inputs.nixpkgs.legacyPackages.${system}.stdenv.isDarwin
+          then inputs.nixpkgs-darwin
+          else inputs.nixpkgs;
+        pkgs = import nixpkgs-input {
           inherit system;
           overlays = [
             (self: super: {
@@ -22,7 +27,10 @@
               });
             })
             # for correct version in global npm packages
-            (self: super: {nodejs = super.nodejs_23;})
+            (self: super: {
+              nodejs = super.nodejs_23;
+              nodejs-slim = super.nodejs_23;
+            })
           ];
         };
         inherit (pkgs) lib stdenv;

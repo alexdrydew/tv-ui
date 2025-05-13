@@ -1,5 +1,5 @@
 import { AppConfig } from '@app/types';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -25,12 +25,6 @@ export function CreateAppDialog({
     onSave,
 }: CreateAppDialogProps) {
     const [view, setView] = useState<DialogView>('select-suggestion');
-
-    useEffect(() => {
-        if (isOpen) {
-            setView('select-suggestion');
-        }
-    }, [isOpen]);
 
     const handleSave = async (config: AppConfig) => {
         await onSave(config);

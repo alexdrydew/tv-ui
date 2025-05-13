@@ -7,7 +7,7 @@ import {
 } from '@/components/dialogs/EditAppDialog'; // Changed import
 import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
-import { Button } from '@/components/ui/appButton';
+import { Button } from '@/components/ui/button';
 import { useApps } from '@/hooks/useApps';
 import {
     killApp,
@@ -16,8 +16,12 @@ import {
     upsertAppConfig,
 } from '@app/preload';
 import { App, AppConfig, isLaunched, LaunchInstanceId } from '@app/types';
+import {
+    FocusContext,
+    useFocusable,
+} from '@noriginmedia/norigin-spatial-navigation';
 import { PlusIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast, Toaster } from 'sonner';
 
 const handleLaunchApp = async (app: App) => {
@@ -64,6 +68,14 @@ export const HomePage: React.FC = () => {
     const [isAddAppDialogOpen, setIsAddAppDialogOpen] = useState(false);
     const [editingDialogState, setEditingDialogState] =
         useState<EditAppDialogState>({ isOpen: false });
+
+    const { ref, focusSelf, focusKey } = useFocusable({
+        focusKey: 'sn:main-page',
+    });
+
+    useEffect(() => {
+        focusSelf();
+    }, [focusSelf]);
 
     const { apps, configFilePath } = useApps();
 
@@ -115,7 +127,7 @@ export const HomePage: React.FC = () => {
             await upsertAppConfig(config, configFilePath);
             toast.success(`${config.name} saved successfully`);
             debug(`App config saved: ${config.id}`);
-            setIsAddAppDialogOpen(false);
+            handleCreateAppDialogOnOpenChange(false);
             setEditingDialogState({ isOpen: false });
         } catch (err) {
             const errorMessage =
@@ -125,6 +137,13 @@ export const HomePage: React.FC = () => {
                 description: errorMessage,
             });
         }
+    };
+
+    const handleCreateAppDialogOnOpenChange = (isOpen: boolean) => {
+        setIsAddAppDialogOpen(isOpen);
+        // if (!isOpen) {
+        //     focusSelf();
+        // }
     };
 
     if (apps === undefined || configFilePath === undefined) {
@@ -138,52 +157,56 @@ export const HomePage: React.FC = () => {
     }
 
     return (
-        <TvAppLayout>
-            <main className="py-8">
-                <div className="flex justify-between items-center mb-6 px-8">
-                    <Button onClick={() => setIsAddAppDialogOpen(true)}>
-                        <PlusIcon className="mr-2 h-4 w-4" /> Add App
-                    </Button>
-                </div>
-                <AppGrid<App>
-                    apps={apps}
-                    onLaunchApp={handleLaunchApp}
-                    onKillApp={() => {
-                        console.warn(
-                            "AppGrid's onKillApp called, but logic is handled via AppTile's onKill",
-                        );
-                    }}
-                    onRemoveApp={handleRemoveApp}
-                    onEditApp={handleEditApp}
-                    renderItem={({ app }) => {
-                        const runningInstances = app.instances.filter(
-                            (instance) => !instance.exitResult,
-                        );
-                        const runningInstanceIds = runningInstances.map(
-                            (instance) => instance.launchInstanceId,
-                        );
+        <div>
+            <TvAppLayout>
+                <FocusContext.Provider value={focusKey}>
+                    <main ref={ref} className="py-8">
+                        <div className="flex justify-between items-center mb-6 px-8">
+                            <Button onClick={() => setIsAddAppDialogOpen(true)}>
+                                <PlusIcon className="mr-2 h-4 w-4" /> Add App
+                            </Button>
+                        </div>
+                        <AppGrid<App>
+                            apps={apps}
+                            onLaunchApp={handleLaunchApp}
+                            onKillApp={() => {
+                                console.warn(
+                                    "AppGrid's onKillApp called, but logic is handled via AppTile's onKill",
+                                );
+                            }}
+                            onRemoveApp={handleRemoveApp}
+                            onEditApp={handleEditApp}
+                            renderItem={({ app }) => {
+                                const runningInstances = app.instances.filter(
+                                    (instance) => !instance.exitResult,
+                                );
+                                const runningInstanceIds = runningInstances.map(
+                                    (instance) => instance.launchInstanceId,
+                                );
 
-                        return (
-                            <AppTile
-                                key={app.config.id}
-                                id={app.config.id}
-                                name={app.config.name}
-                                icon={app.config.icon}
-                                isRunning={isLaunched(app)}
-                                runningInstanceIds={runningInstanceIds}
-                                onSelect={() => handleLaunchApp(app)}
-                                onKill={handleKillApp}
-                                onRemove={() => handleRemoveApp(app)}
-                                onEdit={() => handleEditApp(app)}
-                            />
-                        );
-                    }}
-                />
-            </main>
+                                return (
+                                    <AppTile
+                                        key={app.config.id}
+                                        id={app.config.id}
+                                        name={app.config.name}
+                                        icon={app.config.icon}
+                                        isRunning={isLaunched(app)}
+                                        runningInstanceIds={runningInstanceIds}
+                                        onSelect={() => handleLaunchApp(app)}
+                                        onKill={handleKillApp}
+                                        onRemove={() => handleRemoveApp(app)}
+                                        onEdit={() => handleEditApp(app)}
+                                    />
+                                );
+                            }}
+                        />
+                    </main>
+                </FocusContext.Provider>
+            </TvAppLayout>
             <Toaster />
             <CreateAppDialog
                 isOpen={isAddAppDialogOpen}
-                onOpenChange={setIsAddAppDialogOpen}
+                onOpenChange={handleCreateAppDialogOnOpenChange}
                 onSave={handleSaveAppConfig}
             />
             <EditAppDialog
@@ -191,6 +214,6 @@ export const HomePage: React.FC = () => {
                 onOpenChange={() => setEditingDialogState({ isOpen: false })}
                 onSave={handleSaveAppConfig}
             />
-        </TvAppLayout>
+        </div>
     );
 };
