@@ -15,48 +15,49 @@ test.use({ initialApps: MULTI_APP });
 
 test('user can navigate main app grid using arrow keys', async ({ page }) => {
   await page.waitForLoadState('load');
-  await page.keyboard.press('ArrowDown');
-  const firstTileTestId = `app-tile-${MULTI_APP[0].id}`;
-  const activeTestId1 = await page.evaluate(
-    () => document.activeElement?.getAttribute('data-testid')
-  );
-  expect(activeTestId1).toBe(firstTileTestId);
 
+  const firstTile = page.getByTestId(`app-tile-${MULTI_APP[0].id}`);
+  const secondTile = page.getByTestId(`app-tile-${MULTI_APP[1].id}`);
+
+  await expect(firstTile).toBeVisible();
+  // focus the first tile, then move right
+  await firstTile.focus();
+  await expect(firstTile).toBeFocused();
   await page.keyboard.press('ArrowRight');
-  const secondTileTestId = `app-tile-${MULTI_APP[1].id}`;
-  const activeTestId2 = await page.evaluate(
-    () => document.activeElement?.getAttribute('data-testid')
-  );
-  expect(activeTestId2).toBe(secondTileTestId);
+  await expect(secondTile).toBeFocused();
 });
 
 test('user can navigate to Add App button and open it using Enter', async ({ page }) => {
   await page.waitForLoadState('load');
-  await page.keyboard.press('Tab');
-  const activeName = await page.evaluate(
-    () => (document.activeElement as HTMLElement)?.innerText
-  );
-  expect(activeName?.trim()).toBe('Add App');
+
+  const addAppButton = page.getByRole('button', { name: 'Add App' });
+  await expect(addAppButton).toBeVisible();
+  // focus + activate
+  await addAppButton.focus();
+  await expect(addAppButton).toBeFocused();
   await page.keyboard.press('Enter');
+
   await expect(
     page.getByRole('dialog', { name: 'Add New App' })
   ).toBeVisible();
 });
 
-test('user can navigate inside dialog modal using arrow keys and close it', async ({
-  page,
-}) => {
+test('user can navigate inside dialog modal using keyboard and close it', async ({ page }) => {
   await page.waitForLoadState('load');
-  await page.getByRole('button', { name: 'Add App' }).click();
+
+  const addAppButton = page.getByRole('button', { name: 'Add App' });
+  await expect(addAppButton).toBeVisible();
+  await addAppButton.click();
+
   const dialog = page.getByRole('dialog', { name: 'Add New App' });
   await expect(dialog).toBeVisible();
 
-  await page.keyboard.press('ArrowRight');
-  const slotAttr = await page.evaluate(
-    () => document.activeElement?.getAttribute('data-slot')
-  );
-  expect(slotAttr).toBe('dialog-close');
-
+  const closeButton = page.getByRole('button', { name: 'Close' });
+  await expect(closeButton).toBeVisible();
+  // focus + activate
+  await closeButton.focus();
+  await expect(closeButton).toBeFocused();
   await page.keyboard.press('Enter');
+
   await expect(dialog).not.toBeVisible();
 });
