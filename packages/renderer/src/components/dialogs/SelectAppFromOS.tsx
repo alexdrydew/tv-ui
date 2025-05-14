@@ -44,6 +44,8 @@ export function SelectAppFromOS({
     const [suggestions, setSuggestions] = useState<SuggestionsStore>({
         state: 'loading',
     });
+
+    // for more intuitive navigation to the bottom buttons
     const { ref: bottomRef, focusKey: bottomFocusKey } = useFocusable();
 
     useEffect(() => {

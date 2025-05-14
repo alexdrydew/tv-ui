@@ -8,6 +8,9 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
     const focusKey = useFocusKey('input');
     const { ref, focusSelf } = useFocusable({ focusKey: focusKey });
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { ref: _, ...rest } = props;
+
     return (
         <input
             ref={ref}
@@ -20,7 +23,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
                 'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
                 className,
             )}
-            {...props}
+            {...rest}
         />
     );
 }
