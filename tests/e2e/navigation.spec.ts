@@ -42,9 +42,19 @@ test('user can navigate to Add App button and open it using Enter', async ({
 
     const addAppButton = page.getByRole('button', { name: 'Add App' });
     await expect(addAppButton).toBeVisible();
-    // focus + activate
-    await addAppButton.focus();
+
+    const firstTile = page.getByTestId(`app-tile-${MULTI_APP[0].id}`);
+    await expect(firstTile).toBeVisible();
+
+    // Focus the first tile
+    await firstTile.focus();
+    await expect(firstTile).toBeFocused();
+
+    // Navigate up to the Add App button
+    await page.keyboard.press('ArrowUp');
     await expect(addAppButton).toBeFocused();
+
+    // Activate the Add App button
     await page.keyboard.press('Enter');
 
     await expect(
