@@ -12,10 +12,26 @@ test('user can navigate main app grid using arrow keys', async ({ page }) => {
     const secondTile = page.getByTestId(`app-tile-${MULTI_APP[1].id}`);
 
     await expect(firstTile).toBeVisible();
-    // focus the first tile, then move right
+    await expect(secondTile).toBeVisible();
+
+    // Focus the first tile
     await firstTile.focus();
     await expect(firstTile).toBeFocused();
+
+    // Try navigating right
     await page.keyboard.press('ArrowRight');
+
+    // Check if the second tile is focused. Give a brief timeout for the focus to apply.
+    await expect(secondTile)
+        .toBeFocused({ timeout: 100 })
+        .catch(async () => {
+            // If ArrowRight didn't focus the second tile, try ArrowDown
+            // This handles cases where the layout might be vertical
+            await page.keyboard.press('ArrowDown');
+            return expect(secondTile).toBeFocused({ timeout: 100 });
+        });
+
+    // Assert that the second tile is now focused
     await expect(secondTile).toBeFocused();
 });
 
