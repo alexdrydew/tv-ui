@@ -1,13 +1,13 @@
 import type { AppConfig } from '@app/types';
 
-export const SINGLE_APP: AppConfig[] = [
-    {
-        id: 'test-app-1',
-        name: 'Test App',
-        launchCommand: 'sleep 1',
-        icon: undefined,
-    },
-];
+export const getTestAppConfig = (index: number): AppConfig => ({
+    id: `test-app-${index}`,
+    name: 'Test App',
+    launchCommand: 'sleep 1',
+    icon: undefined,
+});
+
+export const SINGLE_APP: AppConfig[][] = [[getTestAppConfig(1)]];
 export const MINIMAL_PNG_DATA = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
     'base64',

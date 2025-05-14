@@ -6,7 +6,7 @@ import { SINGLE_APP } from './data.js';
 test.use({ initialApps: SINGLE_APP });
 
 test('App tile is rendered when config has an app', async ({ page }) => {
-    const appTile = page.getByRole('button', { name: SINGLE_APP[0].name });
+    const appTile = page.getByRole('button', { name: SINGLE_APP[0][0].name });
 
     await expect(
         appTile,

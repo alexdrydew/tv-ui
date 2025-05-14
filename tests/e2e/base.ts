@@ -11,13 +11,13 @@ import { platform as nodePlatform } from 'node:process';
 type TestFixtures = {
     electronApp: ElectronApplication;
     configFilePath: string;
-    initialApps: AppConfig[];
+    initialApps: AppConfig[][];
     setupEnv: Record<string, string>;
     electronVersions: NodeJS.ProcessVersions;
 };
 
 const test = base.extend<TestFixtures>({
-    initialApps: [],
+    initialApps: [[]],
     configFilePath: [
         async ({ initialApps }, use) => {
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
@@ -28,7 +28,7 @@ const test = base.extend<TestFixtures>({
                 await mkdir(configDir, { recursive: true });
                 await writeFile(
                     configFilePath,
-                    JSON.stringify(initialApps, null, 2),
+                    JSON.stringify(initialApps[0], null, 2),
                     'utf-8',
                 );
                 console.log(
