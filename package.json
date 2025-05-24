@@ -17,14 +17,14 @@
         "*.{js,jsx,ts,tsx,css,md}": "prettier --write"
     },
     "scripts": {
-        "build": "npm run build -ws --if-present",
-        "compile": "npm run build && electron-builder build --config electron-builder.mjs",
-        "test": "npm run build && npx playwright test ./tests",
-        "test:compiled": "npm run compile && E2E_TEST_COMPILED=true npx playwright test ./tests",
+        "build": "pnpm run build -ws --if-present",
+        "compile": "pnpm run build && electron-builder build --config electron-builder.mjs",
+        "test": "pnpm run build && npx playwright test ./tests",
+        "test:compiled": "pnpm run compile && E2E_TEST_COMPILED=true npx playwright test ./tests",
         "start": "node packages/dev-mode.js",
-        "start:linux-emulated": "E2E_TEST_PLATFORM=linux XDG_DATA_DIRS=`pwd`/tests/e2e/data:$XDG_DATA_DIRS npm run start",
-        "typecheck": "npm run typecheck -ws --if-present",
-        "create-renderer": "cd packages && npm create vite@latest renderer",
+        "start:linux-emulated": "E2E_TEST_PLATFORM=linux XDG_DATA_DIRS=`pwd`/tests/e2e/data:$XDG_DATA_DIRS pnpm run start",
+        "typecheck": "pnpm run typecheck -ws --if-present",
+        "create-renderer": "cd packages && pnpm create vite@latest renderer",
         "prepare": "husky"
     },
     "devDependencies": {
@@ -32,7 +32,7 @@
         "@npmcli/map-workspaces": "4.0.2",
         "@playwright/test": "1.51.1",
         "@types/node": "22.14.0",
-        "electron": "35.1.5",
+        "electron": "^36.3.1",
         "electron-builder": "26.0.12",
         "eslint": "^9.24.0",
         "eslint-config-prettier": "^10.1.2",
@@ -45,11 +45,15 @@
         "lint-staged": "^15.5.1",
         "playwright": "^1.51.1",
         "prettier": "3.5.3",
-        "robotjs": "^0.6.0",
         "typescript": "^5.8.3",
         "typescript-eslint": "^8.29.1"
     },
     "dependencies": {
-        "@app/main": "*"
+        "@app/main": "workspace:*"
+    },
+    "pnpm": {
+        "overrides": {
+            "node-global-key-listener>sudo-prompt": "https://github.com/jul1u5/sudo-prompt.git#fix-linux-paths"
+        }
     }
 }

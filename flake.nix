@@ -46,6 +46,7 @@
         ];
 
         linuxPackages = with pkgs; [
+          electron_36-bin
           at-spi2-atk
           atkmm
           cairo
@@ -70,7 +71,7 @@
           xorg.libXtst
           xorg.libXi
           xorg.libXi.dev
-          zlib
+          libz
           libpng
           libgbm
 
@@ -99,20 +100,34 @@
         };
       in {
         devShells =
+          # lib.optionalAttrs stdenv.isLinux {
+          #   default =
+          #     (pkgs.buildFHSEnv {
+          #       name = "tv-ui-electron-linux";
+          #       targetPkgs = pkgs: commonPackages ++ linuxPackages;
+          #       runScript = "zsh"; # Or bash, depending on preference
+          #     })
+          #     .env;
+          # }
           lib.optionalAttrs stdenv.isLinux {
-            default =
-              (pkgs.buildFHSEnv {
-                name = "tv-ui-electron-linux";
-                targetPkgs = pkgs: commonPackages ++ linuxPackages;
-                runScript = "zsh"; # Or bash, depending on preference
-              })
-              .env;
+            default = pkgs.mkShell {
+              name = "tv-ui-electron-linux";
+              nativeBuildInputs = commonPackages ++ linuxPackages;
+
+              shellHook = ''
+                export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+                export ELECTRON_OVERRIDE_DIST_PATH=${pkgs.electron_36-bin}/libexec/electron
+              '';
+              env = commonEnv; # Pass common environment variables
+            };
           }
           // lib.optionalAttrs stdenv.isDarwin {
             default = pkgs.mkShell {
               name = "tv-ui-electron-darwin";
               nativeBuildInputs = commonPackages ++ darwinPackages;
               shellHook = ''
+                export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+                export ELECTRON_OVERRIDE_DIST_PATH=${pkgs.electron_36-bin}/libexec/electron
                 export PATH="${pkgs.nodejs_24}/bin:$PATH"
                 # Any other Darwin-specific shell setup
               '';
