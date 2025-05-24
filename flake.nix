@@ -114,9 +114,17 @@
               name = "tv-ui-electron-linux";
               nativeBuildInputs = commonPackages ++ linuxPackages;
 
+              ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+              ELECTRON_OVERRIDE_DIST_PATH = "${pkgs.electron_36-bin}/libexec/electron";
+
+              # needed for node-global-key-listener binary
+              # TODO: chmod it without root
+              # TODO: ensure binary is in compiled app
+              LD_LIBRARY_PATH = "${lib.makeLibraryPath (commonPackages ++ linuxPackages)}";
+
               shellHook = ''
-                export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-                export ELECTRON_OVERRIDE_DIST_PATH=${pkgs.electron_36-bin}/libexec/electron
+                export SHELL=/run/current-system/sw/bin/zsh
+                $SHELL
               '';
               env = commonEnv; # Pass common environment variables
             };
@@ -125,9 +133,11 @@
             default = pkgs.mkShell {
               name = "tv-ui-electron-darwin";
               nativeBuildInputs = commonPackages ++ darwinPackages;
+
+              ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+              ELECTRON_OVERRIDE_DIST_PATH = "${pkgs.electron_36-bin}/bin";
+
               shellHook = ''
-                export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-                export ELECTRON_OVERRIDE_DIST_PATH=${pkgs.electron_36-bin}/bin
                 export PATH="${pkgs.nodejs_24}/bin:$PATH"
                 # Any other Darwin-specific shell setup
               '';
