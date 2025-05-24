@@ -1,8 +1,8 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-    nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-24.11-darwin";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-25.05-darwin";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -20,28 +20,18 @@
           inherit system;
           overlays = [
             (self: super: {
-              nodejs_23 = super.nodejs_23.overrideAttrs (old: {
-                # some bug with nodejs 23 test idk
-                doCheck = false;
-                doInstallCheck = false;
-              });
-            })
-            # for correct version in global npm packages
-            (self: super: {
-              nodejs = super.nodejs_23;
-              nodejs-slim = super.nodejs_23;
+              nodejs = super.nodejs_latest;
+              nodejs-slim = super.nodejs_latest;
             })
           ];
         };
         inherit (pkgs) lib stdenv;
 
-        # Common packages for both Linux and Darwin
         commonPackages = with pkgs; [
           pkg-config
           gobject-introspection
           cargo
-          cargo-tauri
-          nodejs_23 # nodejs alias is set via overlay
+          nodejs_24
 
           rustup
           lld
@@ -53,7 +43,6 @@
           nodePackages.typescript-language-server
         ];
 
-        # Linux specific packages
         linuxPackages = with pkgs; [
           at-spi2-atk
           atkmm
@@ -90,11 +79,9 @@
           binutils
         ];
 
-        # Darwin specific packages
         darwinPackages = with pkgs; [
         ];
 
-        # Common environment variables
         commonEnv = {
           # Fixes https://github.com/rust-lang/rust-analyzer/issues/19135
           RUSTFLAGS = "-C link-arg=-fuse-ld=lld";
@@ -114,9 +101,8 @@
             default = pkgs.mkShell {
               name = "tv-ui-electron-darwin";
               nativeBuildInputs = commonPackages ++ darwinPackages;
-              # LD_LIBRARY_PATH is generally not needed/used on Darwin like on Linux
               shellHook = ''
-                export PATH="${pkgs.nodejs_23}/bin:$PATH"
+                export PATH="${pkgs.nodejs_24}/bin:$PATH"
                 # Any other Darwin-specific shell setup
               '';
               env = commonEnv; # Pass common environment variables
