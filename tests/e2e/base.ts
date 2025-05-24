@@ -5,13 +5,15 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { globSync } from 'glob';
-import type { AppConfig } from '@app/types';
+import type { AppConfig, LauncherConfig } from '@app/types';
 import { platform as nodePlatform } from 'node:process';
 
 type TestFixtures = {
     electronApp: ElectronApplication;
     configFilePath: string;
+    launcherConfigFilePath: string;
     initialApps: AppConfig[][];
+    initialLauncherConfig: LauncherConfig;
     setupEnv: Record<string, string>;
     electronVersions: NodeJS.ProcessVersions;
     browserWindow: JSHandle<Electron.BrowserWindow>;
@@ -19,6 +21,7 @@ type TestFixtures = {
 
 const test = base.extend<TestFixtures>({
     initialApps: [[]],
+    initialLauncherConfig: [{ toggleAppKeyCode: 'HOME' }],
     configFilePath: [
         async ({ initialApps }, use) => {
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);
@@ -56,6 +59,46 @@ const test = base.extend<TestFixtures>({
         },
         { scope: 'test', auto: true },
     ],
+    launcherConfigFilePath: [
+        async ({ initialLauncherConfig }, use) => {
+            const tempConfigDir = join(
+                tmpdir(),
+                `tv-ui-launcher-test-${Date.now()}`,
+            );
+            const launcherConfigFilePath = join(tempConfigDir, 'launcher.json');
+            const configDir = dirname(launcherConfigFilePath);
+
+            try {
+                await mkdir(configDir, { recursive: true });
+                await writeFile(
+                    launcherConfigFilePath,
+                    JSON.stringify(initialLauncherConfig[0], null, 2),
+                    'utf-8',
+                );
+                console.log(
+                    `Created launcher config file: ${launcherConfigFilePath}`,
+                );
+            } catch (err) {
+                console.error(`Failed to create launcher config file: ${err}`);
+                throw new Error(
+                    `Setup failed: Could not create launcher config file at ${launcherConfigFilePath}`,
+                );
+            }
+            await use(launcherConfigFilePath);
+
+            try {
+                await rm(tempConfigDir, { recursive: true, force: true });
+                console.log(
+                    `Cleaned up temporary launcher config dir: ${tempConfigDir}`,
+                );
+            } catch (err) {
+                console.error(
+                    `Failed to clean up temporary launcher config dir: ${err}`,
+                );
+            }
+        },
+        { scope: 'test', auto: true },
+    ],
     setupEnv: [
         // eslint-disable-next-line no-empty-pattern
         async ({}, use) => {
@@ -64,7 +107,7 @@ const test = base.extend<TestFixtures>({
         { scope: 'test', auto: true },
     ],
     electronApp: [
-        async ({ configFilePath, setupEnv }, use) => {
+        async ({ configFilePath, launcherConfigFilePath, setupEnv }, use) => {
             let executablePath: string | undefined = undefined;
             let baseArgs: string[] = [];
 
@@ -95,6 +138,7 @@ const test = base.extend<TestFixtures>({
                 env: {
                     ...process.env, // Pass existing env vars
                     TV_UI_CONFIG_PATH: configFilePath, // Standard config path
+                    TV_UI_LAUNCHER_CONFIG_PATH: launcherConfigFilePath, // Launcher config path
                     ...setupEnv,
                     PLAYWRIGHT_TEST: 'true',
                 },
