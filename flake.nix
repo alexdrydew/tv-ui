@@ -37,6 +37,8 @@
           lld
           napi-rs-cli
 
+          python3Full
+
           nodePackages.pnpm
           nodePackages.yarn
           nodePackages.typescript
