@@ -65,6 +65,15 @@
           dbus
           cups
           xorg.libX11
+          xorg.libX11.dev
+          xorg.xorgproto
+          xorg.libXtst
+          xorg.libXi
+          xorg.libXi.dev
+          zlib
+          libpng
+          libgbm
+
           xorg.libXcomposite
           xorg.libXdamage
           xorg.libXext
@@ -92,7 +101,7 @@
         devShells =
           lib.optionalAttrs stdenv.isLinux {
             default =
-              (pkgs.buildFHSUserEnv {
+              (pkgs.buildFHSEnv {
                 name = "tv-ui-electron-linux";
                 targetPkgs = pkgs: commonPackages ++ linuxPackages;
                 runScript = "zsh"; # Or bash, depending on preference
