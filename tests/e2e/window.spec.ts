@@ -1,7 +1,6 @@
 import { test, expect } from './base.js';
 import { SINGLE_APP } from './data.js';
-import robot from 'robotjs';
-
+import { keyboard, Key } from '@nut-tree-fork/nut-js';
 test.use({ initialApps: SINGLE_APP });
 
 test('Home key toggles window visibility', async ({ page, browserWindow }) => {
@@ -25,7 +24,7 @@ test('Home key toggles window visibility', async ({ page, browserWindow }) => {
         true,
     );
 
-    robot.keyTap('home');
+    keyboard.type(Key.Home);
     await page.waitForTimeout(500);
 
     expect(
@@ -33,7 +32,7 @@ test('Home key toggles window visibility', async ({ page, browserWindow }) => {
         'Window should be hidden after pressing Home key',
     ).toBe(false);
 
-    robot.keyTap('home');
+    keyboard.type(Key.Home);
     await page.waitForTimeout(500);
 
     expect(

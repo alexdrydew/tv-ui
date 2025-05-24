@@ -1,6 +1,5 @@
-import type { ElectronApplication, JSHandle } from 'playwright';
-import { _electron as electron } from 'playwright';
-import { expect, test as base } from '@playwright/test';
+import type { ElectronApplication, JSHandle } from '@playwright/test';
+import { expect, test as base, _electron as electron } from '@playwright/test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';

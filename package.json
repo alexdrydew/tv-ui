@@ -30,6 +30,7 @@
     "devDependencies": {
         "@eslint/js": "^9.24.0",
         "@npmcli/map-workspaces": "4.0.2",
+        "@nut-tree-fork/nut-js": "^4.2.6",
         "@playwright/test": "1.51.1",
         "@types/node": "22.14.0",
         "electron": "^36.3.1",
@@ -43,7 +44,6 @@
         "globals": "^16.0.0",
         "husky": "^9.1.7",
         "lint-staged": "^15.5.1",
-        "playwright": "^1.51.1",
         "prettier": "3.5.3",
         "typescript": "^5.8.3",
         "typescript-eslint": "^8.29.1",
@@ -51,7 +51,8 @@
     },
     "dependencies": {
         "@app/main": "workspace:*",
-        "@app/preload": "workspace:*"
+        "@app/preload": "workspace:*",
+        "@app/renderer": "workspace:*"
     },
     "pnpm": {
         "overrides": {
