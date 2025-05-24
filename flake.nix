@@ -28,6 +28,7 @@
         inherit (pkgs) lib stdenv;
 
         commonPackages = with pkgs; [
+          electron_36-bin
           pkg-config
           gobject-introspection
           cargo
@@ -46,7 +47,6 @@
         ];
 
         linuxPackages = with pkgs; [
-          electron_36-bin
           at-spi2-atk
           atkmm
           cairo
@@ -127,7 +127,7 @@
               nativeBuildInputs = commonPackages ++ darwinPackages;
               shellHook = ''
                 export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-                export ELECTRON_OVERRIDE_DIST_PATH=${pkgs.electron_36-bin}/libexec/electron
+                export ELECTRON_OVERRIDE_DIST_PATH=${pkgs.electron_36-bin}/bin
                 export PATH="${pkgs.nodejs_24}/bin:$PATH"
                 # Any other Darwin-specific shell setup
               '';

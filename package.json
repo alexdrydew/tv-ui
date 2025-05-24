@@ -17,13 +17,13 @@
         "*.{js,jsx,ts,tsx,css,md}": "prettier --write"
     },
     "scripts": {
-        "build": "pnpm run build -ws --if-present",
+        "build": "pnpm --recursive run build",
         "compile": "pnpm run build && electron-builder build --config electron-builder.mjs",
         "test": "pnpm run build && npx playwright test ./tests",
         "test:compiled": "pnpm run compile && E2E_TEST_COMPILED=true npx playwright test ./tests",
         "start": "node packages/dev-mode.js",
         "start:linux-emulated": "E2E_TEST_PLATFORM=linux XDG_DATA_DIRS=`pwd`/tests/e2e/data:$XDG_DATA_DIRS pnpm run start",
-        "typecheck": "pnpm run typecheck -ws --if-present",
+        "typecheck": "pnpm --recursive run typecheck",
         "create-renderer": "cd packages && pnpm create vite@latest renderer",
         "prepare": "husky"
     },
@@ -46,10 +46,12 @@
         "playwright": "^1.51.1",
         "prettier": "3.5.3",
         "typescript": "^5.8.3",
-        "typescript-eslint": "^8.29.1"
+        "typescript-eslint": "^8.29.1",
+        "vite": "^6.3.4"
     },
     "dependencies": {
-        "@app/main": "workspace:*"
+        "@app/main": "workspace:*",
+        "@app/preload": "workspace:*"
     },
     "pnpm": {
         "overrides": {
