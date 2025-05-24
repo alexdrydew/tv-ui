@@ -1,4 +1,4 @@
-import type { ElectronApplication } from 'playwright';
+import type { ElectronApplication, JSHandle } from 'playwright';
 import { _electron as electron } from 'playwright';
 import { expect, test as base } from '@playwright/test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
@@ -14,6 +14,7 @@ type TestFixtures = {
     initialApps: AppConfig[][];
     setupEnv: Record<string, string>;
     electronVersions: NodeJS.ProcessVersions;
+    browserWindow: JSHandle<Electron.BrowserWindow>;
 };
 
 const test = base.extend<TestFixtures>({
@@ -133,6 +134,12 @@ const test = base.extend<TestFixtures>({
         await page.waitForLoadState('load', { timeout: 10000 }); // Increased from default
         // eslint-disable-next-line react-hooks/rules-of-hooks
         await use(page);
+    },
+
+    browserWindow: async ({ electronApp, page }, use) => {
+        const bwHandle = await electronApp.browserWindow(page);
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        await use(bwHandle);
     },
 
     electronVersions: async ({ electronApp }, use) => {

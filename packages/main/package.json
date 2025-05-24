@@ -12,19 +12,20 @@
     }
   },
   "dependencies": {
+    "@app/lib": "*",
     "@app/native-freedesktop-icons": "*",
     "@app/preload": "*",
     "@app/renderer": "*",
     "@app/types": "*",
-    "@app/lib": "*",
     "effect": "^3.14.11",
-    "electron-updater": "6.6.2"
+    "electron-updater": "6.6.2",
+    "node-global-key-listener": "^0.3.0"
   },
   "devDependencies": {
     "@app/electron-versions": "*",
     "electron-devtools-installer": "3.2.0",
     "typescript": "5.8.3",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vite": "^6.3.4"
+    "vite": "^6.3.4",
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }
