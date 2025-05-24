@@ -1,13 +1,15 @@
 import type { AppModule } from '../AppModule.js';
 import { ModuleContext } from '../ModuleContext.js';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, globalShortcut } from 'electron';
 import type { AppInitConfig } from '../AppInitConfig.js';
+import { GlobalKeyboardListener } from 'node-global-key-listener';
 
 class WindowManager implements AppModule {
     readonly #preload: { path: string };
     readonly #renderer: { path: string } | URL;
     readonly #openDevTools;
     readonly #isDev: boolean;
+    #currentWindow: BrowserWindow | null = null;
 
     constructor({
         initConfig,
@@ -24,19 +26,64 @@ class WindowManager implements AppModule {
 
     async enable({ app }: ModuleContext): Promise<void> {
         await app.whenReady();
-        await this.restoreOrCreateWindow(true);
+        const window = await this.restoreOrCreateWindow(true);
+        this.#currentWindow = window;
+
         app.on('second-instance', () => this.restoreOrCreateWindow(true));
         app.on('activate', () => this.restoreOrCreateWindow(true));
+
+        this.#setupGlobalKeyListener();
+
+        app.on('will-quit', () => {
+            this.#cleanup();
+        });
+    }
+
+    #setupGlobalKeyListener(): void {
+        try {
+            const v = new GlobalKeyboardListener();
+            v.addListener((e) => {
+                if (e.name === 'HOME' && e.state === 'UP') {
+                    this.#toggleWindowVisibility();
+                }
+            });
+        } catch (error) {
+            console.error('Failed to setup global key listener:', error);
+        }
+    }
+
+    #toggleWindowVisibility(): void {
+        if (!this.#currentWindow || this.#currentWindow.isDestroyed()) {
+            return;
+        }
+
+        if (this.#currentWindow.isFocused()) {
+            this.#currentWindow.hide();
+        } else {
+            this.#currentWindow.restore();
+            this.#currentWindow.show();
+            this.#currentWindow.focus();
+        }
+    }
+
+    #cleanup(): void {
+        try {
+            globalShortcut.unregisterAll();
+        } catch (error) {
+            console.error('Failed to cleanup global shortcuts:', error);
+        }
     }
 
     async createWindow(): Promise<BrowserWindow> {
         const browserWindow = new BrowserWindow({
-            show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
+            show: false,
+            fullscreen: !this.#isDev,
+            titleBarStyle: 'hidden',
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                sandbox: false, // Sandbox disabled because the demo of preload script depend on the Node.js api
-                webviewTag: false, // The webview tag is not recommended. Consider alternatives like an iframe or Electron's BrowserView. @see https://www.electronjs.org/docs/latest/api/webview-tag#warning
+                sandbox: false,
+                webviewTag: false,
                 preload: this.#preload.path,
             },
         });
@@ -58,6 +105,8 @@ class WindowManager implements AppModule {
         if (window === undefined) {
             window = await this.createWindow();
         }
+
+        this.#currentWindow = window;
 
         if (!show) {
             return window;
