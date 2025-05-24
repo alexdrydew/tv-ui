@@ -1,4 +1,4 @@
-import type { LaunchInstanceId } from '@app/types';
+import type { LaunchInstanceId, LauncherConfig } from '@app/types';
 
 export {
     getAppConfigs,
@@ -8,10 +8,20 @@ export {
     getSuggestedAppConfigs,
 } from './configs/commands.js';
 export { launchApp } from './apps/commands.js';
-export { onConfigUpdate, onAppUpdate } from './events.js';
+export {
+    onConfigUpdate,
+    onAppUpdate,
+    onLauncherConfigUpdate,
+} from './events.js';
 
 export { killApp } from './apps/commands.js';
 export type { LaunchInstanceId };
+
+export {
+    getLauncherConfig,
+    watchLauncherConfigFile,
+} from './launcher/commands.js';
+export type { LauncherConfig };
 
 /**
  * Retrieves the value of an environment variable.

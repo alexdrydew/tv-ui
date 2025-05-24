@@ -60,6 +60,14 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
     }));
 }
 
+export const LauncherConfigSchema = Schema.Struct({
+    theme: Schema.optional(Schema.String),
+    gridColumns: Schema.optional(Schema.Number),
+    autoLaunch: Schema.optional(Schema.Array(Schema.String)),
+});
+
+export type LauncherConfig = Schema.Schema.Type<typeof LauncherConfigSchema>;
+
 export const GET_FREEDESKTOP_ICONS_CHANNEL = 'get-freedesktop-icons';
 
 export type GetFreedesktopIconsArgs = {

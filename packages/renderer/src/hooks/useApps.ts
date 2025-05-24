@@ -69,10 +69,6 @@ export function useAppConfigs(configFileName: string): {
     return { configs, configFilePath };
 }
 
-/**
- * Subscribes to application state update events via the preload event system.
- * @param onUpdate Callback function to execute when an app state update is received.
- */
 export function useAppStateUpdateEventsSubscription(
     onUpdate: (stateInfo: AppStateInfo) => void,
 ) {
@@ -121,14 +117,12 @@ export function useApps(): {
                 const existingApp = prevAppsMap.get(config.id);
                 if (existingApp) {
                     debug(`Updating existing app config for ID: ${config.id}`);
-                    // Keep existing instances, just update the config part
                     return {
                         ...existingApp,
                         config: config,
                     };
                 } else {
                     debug(`Creating new app state for ID: ${config.id}`);
-                    // New config, initialize with no instances
                     return {
                         config: config,
                         instances: [],
@@ -136,7 +130,6 @@ export function useApps(): {
                 }
             });
 
-            // Filter out apps whose configs were removed
             const currentConfigIds = new Set(appConfigs.map((c) => c.id));
             const filteredApps = newApps.filter((app) =>
                 currentConfigIds.has(app.config.id),
@@ -163,7 +156,6 @@ export function useApps(): {
             );
 
             if (targetAppIndex === -1) {
-                // This might happen if the config was removed just before the update arrived
                 error(
                     `Received app update for unknown/removed configId: ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId})`,
                 );
@@ -171,7 +163,7 @@ export function useApps(): {
             }
 
             const newApps = [...currentApps];
-            const targetApp = { ...newApps[targetAppIndex] }; // Shallow copy app
+            const targetApp = { ...newApps[targetAppIndex] };
             const currentInstances = [...targetApp.instances];
 
             const instanceIndex = currentInstances.findIndex(

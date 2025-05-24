@@ -1,18 +1,15 @@
 import { AppConfig, AppConfigArraySchema, AppConfigId } from '@app/types';
-import { Data, Effect, pipe, Schema } from 'effect';
+import { Effect, pipe, Schema } from 'effect';
 import { UnknownException } from 'effect/Cause';
 import { FsError } from '@app/lib/src/fs/errors.js';
 import { ParseError } from 'effect/ParseResult';
 import { readFileEffect, writeFileEffect } from '@app/lib/src/fs/index.js';
-export class JsonParseError extends Data.TaggedError('JsonParseError')<{
-    readonly cause?: unknown;
-    readonly message?: string;
-}> {}
-
-export class JsonStringifyError extends Data.TaggedError('JsonStringifyError')<{
-    readonly cause?: unknown;
-    readonly message?: string;
-}> {}
+import {
+    JsonParseError,
+    JsonStringifyError,
+    parseJsonEffect,
+    stringifyJsonEffect,
+} from '@app/lib/src/json/index.js';
 
 export function readConfigsFromFile(
     configPath: string,
@@ -22,16 +19,12 @@ export function readConfigsFromFile(
 > {
     return pipe(
         readFileEffect(configPath),
-        Effect.map((bufOrString) => bufOrString.toString('utf-8')),
-        Effect.tryMap({
-            try: JSON.parse,
-            catch: (error) => {
-                if (error instanceof SyntaxError) {
-                    return new JsonParseError({ cause: error });
-                }
-                return new UnknownException(error);
-            },
-        }),
+        Effect.flatMap((content) =>
+            parseJsonEffect(
+                content,
+                `Failed to parse app configs JSON from ${configPath}`,
+            ),
+        ),
         Effect.flatMap(Schema.decodeUnknown(AppConfigArraySchema)),
         Effect.mapError((error) => {
             if (error instanceof ParseError) {
@@ -57,10 +50,11 @@ export function writeConfigsToFileEffect(
     configs: Record<AppConfigId, AppConfig>,
 ): Effect.Effect<void, FsError | JsonStringifyError | UnknownException> {
     return pipe(
-        Effect.try({
-            try: () => JSON.stringify(Object.values(configs), null, 4),
-            catch: (error) => new JsonStringifyError({ cause: error }),
-        }),
+        stringifyJsonEffect(
+            Object.values(configs),
+            `Failed to stringify app configs for ${configPath}`,
+            4,
+        ),
         Effect.flatMap((content) =>
             writeFileEffect(configPath, content, {
                 encoding: 'utf-8',

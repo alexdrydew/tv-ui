@@ -16,8 +16,7 @@ async function tryGetIconUrl(
         return image.toDataURL();
     }
 
-    const fileContentBuffer = await Effect.runPromise(readFileEffect(iconPath));
-    const fileContent = fileContentBuffer.toString('utf-8');
+    const fileContent = await Effect.runPromise(readFileEffect(iconPath));
 
     if (fileContent.includes('<svg')) {
         const base64Content = Buffer.from(fileContent, 'utf-8').toString(

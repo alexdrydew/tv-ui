@@ -1,10 +1,10 @@
 import { error, info, debug } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
-import { CreateAppDialog } from '@/components/dialogs/CreateAppDialog'; // Changed import
+import { CreateAppDialog } from '@/components/dialogs/CreateAppDialog';
 import {
     EditAppDialog,
     EditAppDialogState,
-} from '@/components/dialogs/EditAppDialog'; // Changed import
+} from '@/components/dialogs/EditAppDialog';
 import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,13 @@ export const HomePage: React.FC = () => {
     }, [focusSelf]);
 
     const { apps, configFilePath } = useApps();
+    // const { config: launcherConfig } = useLauncherConfig();
+
+    // useEffect(() => {
+    //     if (launcherConfig) {
+    //         debug(`Launcher config loaded: ${JSON.stringify(launcherConfig)}`);
+    //     }
+    // }, [launcherConfig]);
 
     const handleEditApp = (app: App) => {
         setEditingDialogState({
@@ -141,9 +148,6 @@ export const HomePage: React.FC = () => {
 
     const handleCreateAppDialogOnOpenChange = (isOpen: boolean) => {
         setIsAddAppDialogOpen(isOpen);
-        // if (!isOpen) {
-        //     focusSelf();
-        // }
     };
 
     if (apps === undefined || configFilePath === undefined) {

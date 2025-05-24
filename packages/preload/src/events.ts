@@ -1,9 +1,17 @@
-import { AppConfig, AppConfigId, AppStateInfo } from '@app/types';
+import {
+    AppConfig,
+    AppConfigId,
+    AppStateInfo,
+    LauncherConfig,
+} from '@app/types';
 
 export type ConfigUpdateListener = (updatedConfigs: AppConfig[]) => void;
 export type AppUpdateListener = (stateInfo: AppStateInfo) => void;
+export type LauncherConfigUpdateListener = (config: LauncherConfig) => void;
+
 const configUpdateListeners: ConfigUpdateListener[] = [];
 const appUpdateListeners: AppUpdateListener[] = [];
+const launcherConfigUpdateListeners: LauncherConfigUpdateListener[] = [];
 
 /**
  * Registers a listener callback to be invoked when the application configuration is updated.
@@ -55,6 +63,31 @@ export function onAppUpdate(listener: AppUpdateListener): () => void {
 }
 
 /**
+ * Registers a listener callback to be invoked when the launcher configuration is updated.
+ *
+ * @param listener The callback function to execute with the updated LauncherConfig.
+ * @returns A function to unsubscribe the listener.
+ */
+export function onLauncherConfigUpdate(
+    listener: LauncherConfigUpdateListener,
+): () => void {
+    launcherConfigUpdateListeners.push(listener);
+    console.debug(
+        `Registered launcher config update listener. Total: ${launcherConfigUpdateListeners.length}`,
+    );
+
+    return () => {
+        const index = launcherConfigUpdateListeners.indexOf(listener);
+        if (index > -1) {
+            launcherConfigUpdateListeners.splice(index, 1);
+            console.debug(
+                `Unregistered launcher config update listener. Remaining: ${launcherConfigUpdateListeners.length}`,
+            );
+        }
+    };
+}
+
+/**
  * Invokes all registered configuration update listeners with the provided configs.
  * @param updatedConfigsRecord A record containing the latest application configurations.
  */
@@ -89,6 +122,28 @@ export function invokeAppUpdateListeners(stateInfo: AppStateInfo): void {
             listener({ ...stateInfo });
         } catch (error) {
             console.error('Error executing app update listener:', error);
+        }
+    });
+}
+
+/**
+ * Invokes all registered launcher configuration update listeners with the provided config.
+ * @param config The latest launcher configuration.
+ */
+export function invokeLauncherConfigUpdateListeners(
+    config: LauncherConfig,
+): void {
+    console.debug(
+        `Invoking ${launcherConfigUpdateListeners.length} launcher config update listeners.`,
+    );
+    [...launcherConfigUpdateListeners].forEach((listener) => {
+        try {
+            listener({ ...config });
+        } catch (error) {
+            console.error(
+                'Error executing launcher config update listener:',
+                error,
+            );
         }
     });
 }

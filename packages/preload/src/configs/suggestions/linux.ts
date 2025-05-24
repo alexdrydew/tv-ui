@@ -169,7 +169,6 @@ export async function getDesktopEntries(): Promise<DesktopEntryInternal[]> {
             return pipe(
                 filePathEffect,
                 Effect.flatMap(readFileEffect),
-                Effect.map((bufOrString) => bufOrString.toString('utf-8')),
                 Effect.flatMap(parseIniEffect),
                 Effect.flatMap(Schema.decodeUnknown(DesktopEntryIniSchema)),
                 Effect.map((parsedIni): DesktopEntryInternal => {
