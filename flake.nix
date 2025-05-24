@@ -28,6 +28,7 @@
         inherit (pkgs) lib stdenv;
 
         commonPackages = with pkgs; [
+          electron_36-bin
           pkg-config
           gobject-introspection
           cargo
@@ -70,7 +71,7 @@
           xorg.libXtst
           xorg.libXi
           xorg.libXi.dev
-          zlib
+          libz
           libpng
           libgbm
 
@@ -99,19 +100,43 @@
         };
       in {
         devShells =
+          # lib.optionalAttrs stdenv.isLinux {
+          #   default =
+          #     (pkgs.buildFHSEnv {
+          #       name = "tv-ui-electron-linux";
+          #       targetPkgs = pkgs: commonPackages ++ linuxPackages;
+          #       runScript = "zsh"; # Or bash, depending on preference
+          #     })
+          #     .env;
+          # }
           lib.optionalAttrs stdenv.isLinux {
-            default =
-              (pkgs.buildFHSEnv {
-                name = "tv-ui-electron-linux";
-                targetPkgs = pkgs: commonPackages ++ linuxPackages;
-                runScript = "zsh"; # Or bash, depending on preference
-              })
-              .env;
+            default = pkgs.mkShell {
+              name = "tv-ui-electron-linux";
+              nativeBuildInputs = commonPackages ++ linuxPackages;
+
+              ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+              ELECTRON_OVERRIDE_DIST_PATH = "${pkgs.electron_36-bin}/libexec/electron";
+
+              # needed for node-global-key-listener binary
+              # TODO: chmod it without root
+              # TODO: ensure binary is in compiled app
+              LD_LIBRARY_PATH = "${lib.makeLibraryPath (commonPackages ++ linuxPackages)}";
+
+              shellHook = ''
+                export SHELL=/run/current-system/sw/bin/zsh
+                $SHELL
+              '';
+              env = commonEnv; # Pass common environment variables
+            };
           }
           // lib.optionalAttrs stdenv.isDarwin {
             default = pkgs.mkShell {
               name = "tv-ui-electron-darwin";
               nativeBuildInputs = commonPackages ++ darwinPackages;
+
+              ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+              ELECTRON_OVERRIDE_DIST_PATH = "${pkgs.electron_36-bin}/bin";
+
               shellHook = ''
                 export PATH="${pkgs.nodejs_24}/bin:$PATH"
                 # Any other Darwin-specific shell setup

@@ -10,9 +10,9 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "@app/lib": "*",
-        "@app/preload": "*",
-        "@app/types": "*",
+        "@app/lib": "workspace:*",
+        "@app/preload": "workspace:*",
+        "@app/types": "workspace:*",
         "@hookform/resolvers": "^5.0.1",
         "@noriginmedia/norigin-spatial-navigation": "^2.3.0",
         "@radix-ui/react-context-menu": "^2.2.7",
