@@ -9,6 +9,7 @@ import { AppGrid } from '@/components/layout/AppGrid';
 import { TvAppLayout } from '@/components/layout/TvAppLayout';
 import { Button } from '@/components/ui/button';
 import { useApps } from '@/hooks/useApps';
+import { useLauncherConfig } from '@/hooks/useLauncherConfig';
 import {
     killApp,
     launchApp,
@@ -78,13 +79,13 @@ export const HomePage: React.FC = () => {
     }, [focusSelf]);
 
     const { apps, configFilePath } = useApps();
-    // const { config: launcherConfig } = useLauncherConfig();
+    const { config: launcherConfig } = useLauncherConfig();
 
-    // useEffect(() => {
-    //     if (launcherConfig) {
-    //         debug(`Launcher config loaded: ${JSON.stringify(launcherConfig)}`);
-    //     }
-    // }, [launcherConfig]);
+    useEffect(() => {
+        if (launcherConfig) {
+            debug(`Launcher config loaded: ${JSON.stringify(launcherConfig)}`);
+        }
+    }, [launcherConfig]);
 
     const handleEditApp = (app: App) => {
         setEditingDialogState({

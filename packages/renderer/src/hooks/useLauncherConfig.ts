@@ -27,12 +27,7 @@ export function useLauncherConfig(): {
         if (!configFilePath) {
             return;
         }
-        getLauncherConfig(configFilePath)
-            .then(setConfig)
-            .catch((error) => {
-                debug(`Failed to load launcher config: ${error}`);
-                setConfig({});
-            });
+        getLauncherConfig(configFilePath).then(setConfig);
     }, [configFilePath]);
 
     useEffect(() => {

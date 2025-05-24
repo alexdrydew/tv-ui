@@ -1,8 +1,12 @@
 import { Effect } from 'effect';
 import fs from 'node:fs';
-import { LauncherConfig } from '@app/types';
+import { LAUNCHER_CONFIG_UPDATE_CHANNEL, LauncherConfig } from '@app/types';
 import { readLauncherConfigFromFile } from './fs.js';
-import { invokeLauncherConfigUpdateListeners } from '../events.js';
+import {
+    invokeLauncherConfigUpdateListeners,
+    onLauncherConfigUpdate,
+} from '../events.js';
+import { ipcRenderer } from 'electron';
 
 let launcherConfigWatcher: fs.FSWatcher | null = null;
 let debounceTimeout: NodeJS.Timeout | null = null;
@@ -11,7 +15,9 @@ export async function getLauncherConfig(
     configPath: string,
 ): Promise<LauncherConfig> {
     const effect = readLauncherConfigFromFile(configPath);
-    return Effect.runPromise(effect);
+    const config = await Effect.runPromise(effect);
+
+    return config;
 }
 
 export function watchLauncherConfigFile(configPath: string): () => void {
@@ -24,6 +30,24 @@ export function watchLauncherConfigFile(configPath: string): () => void {
 
     console.log(`Starting launcher config file watcher for: ${configPath}`);
 
+    const onChange = () => {
+        console.log(`Launcher config file change detected: ${configPath}`);
+        const effect = readLauncherConfigFromFile(configPath);
+        Effect.runPromise(effect)
+            .then((config) => {
+                console.log(
+                    `Successfully re-read launcher config file. Invoking listeners.`,
+                );
+                invokeLauncherConfigUpdateListeners(config);
+            })
+            .catch((error) => {
+                console.error(
+                    `Error reading launcher config file after change: ${configPath}`,
+                    error,
+                );
+            });
+    };
+
     try {
         launcherConfigWatcher = fs.watch(
             configPath,
@@ -34,23 +58,7 @@ export function watchLauncherConfigFile(configPath: string): () => void {
                         clearTimeout(debounceTimeout);
                     }
                     debounceTimeout = setTimeout(() => {
-                        console.log(
-                            `Launcher config file change detected: ${configPath}`,
-                        );
-                        const effect = readLauncherConfigFromFile(configPath);
-                        Effect.runPromise(effect)
-                            .then((config) => {
-                                console.log(
-                                    `Successfully re-read launcher config file. Invoking listeners.`,
-                                );
-                                invokeLauncherConfigUpdateListeners(config);
-                            })
-                            .catch((error) => {
-                                console.error(
-                                    `Error reading launcher config file after change: ${configPath}`,
-                                    error,
-                                );
-                            });
+                        onChange();
                         debounceTimeout = null;
                     }, 100);
                 }
@@ -80,6 +88,24 @@ export function watchLauncherConfigFile(configPath: string): () => void {
         return () => {};
     }
 
+    const unsubscribeMainProcess = onLauncherConfigUpdate(
+        (updatedConfig: LauncherConfig) => {
+            console.log(
+                `Received launcher config update via preload listener: ${JSON.stringify(
+                    updatedConfig,
+                )}`,
+            );
+            ipcRenderer
+                .invoke(LAUNCHER_CONFIG_UPDATE_CHANNEL, updatedConfig)
+                .catch((error) => {
+                    console.error(
+                        'Failed to send updated launcher config to main process:',
+                        error,
+                    );
+                });
+        },
+    );
+
     const stopWatching = () => {
         if (launcherConfigWatcher) {
             console.log(
@@ -87,7 +113,10 @@ export function watchLauncherConfigFile(configPath: string): () => void {
             );
             launcherConfigWatcher.close();
         }
+        unsubscribeMainProcess();
     };
+
+    onChange();
 
     return stopWatching;
 }

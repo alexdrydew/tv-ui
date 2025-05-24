@@ -1,8 +1,9 @@
 import type { AppModule } from '../AppModule.js';
 import { ModuleContext } from '../ModuleContext.js';
-import { BrowserWindow, globalShortcut } from 'electron';
+import { BrowserWindow, ipcMain } from 'electron';
 import type { AppInitConfig } from '../AppInitConfig.js';
 import { GlobalKeyboardListener } from 'node-global-key-listener';
+import { LAUNCHER_CONFIG_UPDATE_CHANNEL, LauncherConfig } from '@app/types';
 
 class WindowManager implements AppModule {
     readonly #preload: { path: string };
@@ -10,6 +11,7 @@ class WindowManager implements AppModule {
     readonly #openDevTools;
     readonly #isDev: boolean;
     #currentWindow: BrowserWindow | null = null;
+    #globalKeyListener: GlobalKeyboardListener;
 
     constructor({
         initConfig,
@@ -22,6 +24,7 @@ class WindowManager implements AppModule {
         this.#renderer = initConfig.renderer;
         this.#openDevTools = openDevTools;
         this.#isDev = initConfig.isDev;
+        this.#globalKeyListener = new GlobalKeyboardListener();
     }
 
     async enable({ app }: ModuleContext): Promise<void> {
@@ -32,18 +35,37 @@ class WindowManager implements AppModule {
         app.on('second-instance', () => this.restoreOrCreateWindow(true));
         app.on('activate', () => this.restoreOrCreateWindow(true));
 
-        this.#setupGlobalKeyListener();
+        this.#setupLauncherConfigHandler();
 
         app.on('will-quit', () => {
             this.#cleanup();
         });
     }
 
-    #setupGlobalKeyListener(): void {
+    #setupLauncherConfigHandler(): void {
+        ipcMain.handle(
+            LAUNCHER_CONFIG_UPDATE_CHANNEL,
+            (_event, config: LauncherConfig) => {
+                console.log(
+                    'Received launcher config update in main process:',
+                    config,
+                );
+                this.#setupGlobalKeyListener(config);
+            },
+        );
+    }
+
+    #setupGlobalKeyListener(launcherConfig: LauncherConfig): void {
         try {
-            const v = new GlobalKeyboardListener();
-            v.addListener((e) => {
-                if (e.name === 'HOME' && e.state === 'UP') {
+            if (this.#globalKeyListener) {
+                this.#cleanup();
+            }
+
+            const keyCode = launcherConfig.toggleAppKeyCode;
+            console.log(`Setting up global key listener for key: ${keyCode}`);
+
+            this.#globalKeyListener.addListener((e) => {
+                if (e.name === keyCode && e.state === 'UP') {
                     this.#toggleWindowVisibility();
                 }
             });
@@ -68,7 +90,8 @@ class WindowManager implements AppModule {
 
     #cleanup(): void {
         try {
-            globalShortcut.unregisterAll();
+            this.#globalKeyListener.kill();
+            this.#globalKeyListener = new GlobalKeyboardListener();
         } catch (error) {
             console.error('Failed to cleanup global shortcuts:', error);
         }

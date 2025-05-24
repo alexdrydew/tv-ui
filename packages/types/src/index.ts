@@ -61,14 +61,15 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
 }
 
 export const LauncherConfigSchema = Schema.Struct({
-    theme: Schema.optional(Schema.String),
-    gridColumns: Schema.optional(Schema.Number),
-    autoLaunch: Schema.optional(Schema.Array(Schema.String)),
+    toggleAppKeyCode: Schema.optionalWith(Schema.String, {
+        default: () => 'HOME',
+    }),
 });
 
 export type LauncherConfig = Schema.Schema.Type<typeof LauncherConfigSchema>;
 
 export const GET_FREEDESKTOP_ICONS_CHANNEL = 'get-freedesktop-icons';
+export const LAUNCHER_CONFIG_UPDATE_CHANNEL = 'launcher-config-update';
 
 export type GetFreedesktopIconsArgs = {
     iconNames: string[];
@@ -87,4 +88,9 @@ export type GetFreedesktopIconsChannel = {
         _event: unknown,
         args: GetFreedesktopIconsArgs,
     ) => Promise<GetFreedesktopIconsReturn>;
+};
+
+export type LauncherConfigUpdateChannel = {
+    invoke: (config: LauncherConfig) => Promise<void>;
+    handle: (_event: unknown, config: LauncherConfig) => void;
 };

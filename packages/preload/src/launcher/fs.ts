@@ -16,13 +16,13 @@ export function readLauncherConfigFromFile(
 ): Effect.Effect<LauncherConfig, FsError | JsonParseError | UnknownException> {
     return pipe(
         readFileEffect(configPath),
-        Effect.flatMap((content) =>
+        Effect.andThen((content) =>
             parseJsonEffect(
                 content,
                 `Failed to parse launcher config JSON from ${configPath}`,
             ),
         ),
-        Effect.flatMap(Schema.decodeUnknown(LauncherConfigSchema)),
+        Effect.andThen(Schema.decodeUnknown(LauncherConfigSchema)),
         Effect.mapError((error) => {
             if (error instanceof ParseError) {
                 return new JsonParseError({
@@ -31,9 +31,6 @@ export function readLauncherConfigFromFile(
                 });
             }
             return error;
-        }),
-        Effect.catchTag('FsNoSuchFileOrDirError', () => {
-            return Effect.succeed({});
         }),
     );
 }

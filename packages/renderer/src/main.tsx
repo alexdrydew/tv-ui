@@ -12,7 +12,7 @@ const App = lazy(() => {
 });
 
 init({
-    debug: import.meta.env.DEV,
+    // debug: import.meta.env.DEV,
     // visualDebug: true,
     shouldFocusDOMNode: true,
     shouldUseNativeEvents: true,
