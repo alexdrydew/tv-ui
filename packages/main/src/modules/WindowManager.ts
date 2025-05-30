@@ -86,7 +86,12 @@ class WindowManager implements AppModule {
         } else {
             this.#currentWindow.restore();
             this.#currentWindow.show();
-            this.#currentWindow.focus();
+            // OS race-codntion workaround
+            this.#currentWindow.on('show', () => {
+                setTimeout(() => {
+                    this.#currentWindow?.focus();
+                }, 200);
+            });
         }
     }
 
