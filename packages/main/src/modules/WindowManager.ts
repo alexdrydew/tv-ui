@@ -86,12 +86,11 @@ class WindowManager implements AppModule {
         } else {
             this.#currentWindow.restore();
             this.#currentWindow.show();
-            // OS race-codntion workaround
-            this.#currentWindow.on('show', () => {
-                setTimeout(() => {
-                    this.#currentWindow?.focus();
-                }, 200);
-            });
+            this.#currentWindow.setAlwaysOnTop(true);
+            this.#currentWindow.focus();
+            setTimeout(() => {
+                this.#currentWindow?.setAlwaysOnTop(false);
+            }, 500);
         }
     }
 
@@ -107,7 +106,7 @@ class WindowManager implements AppModule {
     async createWindow(): Promise<BrowserWindow> {
         const browserWindow = new BrowserWindow({
             show: false,
-            fullscreen: !this.#isDev,
+            fullscreen: true, //!this.#isDev,
             titleBarStyle: 'hidden',
             webPreferences: {
                 nodeIntegration: false,
