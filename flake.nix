@@ -58,6 +58,8 @@
           libsoup_3
           pango
           openssl # Needed by gtk3 etc. on Linux
+          fpm
+          util-linux
 
           webkitgtk_4_1
           patchelf
