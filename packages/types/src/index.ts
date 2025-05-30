@@ -61,8 +61,8 @@ export function initAppsFromConfigs(configs: AppConfig[]): App[] {
 }
 
 export const LauncherConfigSchema = Schema.Struct({
-    toggleAppKeyCode: Schema.optionalWith(Schema.String, {
-        default: () => 'HOME',
+    toggleAppKeyCode: Schema.optionalWith(Schema.Number, {
+        default: () => 115, // HOME
     }),
 });
 

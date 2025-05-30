@@ -64,7 +64,7 @@ class WindowManager implements AppModule {
             const keyCode = launcherConfig.toggleAppKeyCode;
             console.log(`Setting up global key listener for key: ${keyCode}`);
             this.#globalKeyListener.addListener((e) => {
-                if (e.name === keyCode && e.state === 'UP') {
+                if (e.vKey === keyCode && e.state === 'UP') {
                     this.#toggleWindowVisibility();
                 }
             });
