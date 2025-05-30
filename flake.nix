@@ -59,6 +59,7 @@
           pango
           openssl # Needed by gtk3 etc. on Linux
           fpm
+          rubyPackages.glib2
           util-linux
 
           webkitgtk_4_1
@@ -73,7 +74,7 @@
           xorg.libXtst
           xorg.libXi
           xorg.libXi.dev
-          libz
+          zlib
           libpng
           libgbm
 

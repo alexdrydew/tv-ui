@@ -18,7 +18,7 @@
     },
     "scripts": {
         "build": "pnpm --recursive run build",
-        "compile": "USE_SYSTEM_FPM=true pnpm run build && electron-builder build --config electron-builder.mjs",
+        "compile": "pnpm run build && USE_SYSTEM_FPM=\"true\" electron-builder build --config electron-builder.mjs",
         "test": "pnpm run build && npx playwright test ./tests",
         "test:compiled": "pnpm run compile && E2E_TEST_COMPILED=true npx playwright test ./tests",
         "start": "node packages/dev-mode.js",
