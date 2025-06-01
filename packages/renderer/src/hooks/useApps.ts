@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { error, debug } from '@/api/logging';
 import {
     App,
     AppConfig,
@@ -34,20 +33,20 @@ export function useAppConfigs(configFileName: string): {
         if (!configFilePath) {
             return;
         }
-        getAppConfigs(configFilePath).then(setConfig).catch(error);
+        getAppConfigs(configFilePath).then(setConfig).catch(console.error);
     }, [configFilePath]);
 
     useEffect(() => {
-        debug('Setting up config update listener');
+        console.debug('Setting up config update listener');
         const unsubscribe = onConfigUpdate((updatedConfigs: AppConfig[]) => {
-            debug(
+            console.debug(
                 `Received config update via preload listener: ${updatedConfigs.length} configs`,
             );
             setConfig(updatedConfigs);
         });
 
         return () => {
-            debug('Removing config update listener');
+            console.debug('Removing config update listener');
             unsubscribe();
         };
     }, []);
@@ -57,11 +56,13 @@ export function useAppConfigs(configFileName: string): {
             return;
         }
 
-        debug(`Initiating config file watcher for: ${configFilePath}`);
+        console.debug(`Initiating config file watcher for: ${configFilePath}`);
         const stopWatching = watchConfigFile(configFilePath);
 
         return () => {
-            debug(`Stopping config file watcher for: ${configFilePath}`);
+            console.debug(
+                `Stopping config file watcher for: ${configFilePath}`,
+            );
             stopWatching();
         };
     }, [configFilePath]);
@@ -73,16 +74,16 @@ export function useAppStateUpdateEventsSubscription(
     onUpdate: (stateInfo: AppStateInfo) => void,
 ) {
     useEffect(() => {
-        debug('Setting up app state update listener');
+        console.debug('Setting up app state update listener');
         const unsubscribe = onAppUpdate((stateInfo: AppStateInfo) => {
-            debug(
+            console.debug(
                 `Received app state update via preload listener: ${JSON.stringify(stateInfo)}`,
             );
             onUpdate(stateInfo);
         });
 
         return () => {
-            debug('Removing app state update listener');
+            console.debug('Removing app state update listener');
             unsubscribe();
         };
     }, [onUpdate]);
@@ -101,7 +102,7 @@ export function useApps(): {
             return;
         }
 
-        debug(
+        console.debug(
             `Processing config update. New config count: ${appConfigs.length}`,
         );
 
@@ -116,13 +117,17 @@ export function useApps(): {
             const newApps = appConfigs.map((config) => {
                 const existingApp = prevAppsMap.get(config.id);
                 if (existingApp) {
-                    debug(`Updating existing app config for ID: ${config.id}`);
+                    console.debug(
+                        `Updating existing app config for ID: ${config.id}`,
+                    );
                     return {
                         ...existingApp,
                         config: config,
                     };
                 } else {
-                    debug(`Creating new app state for ID: ${config.id}`);
+                    console.debug(
+                        `Creating new app state for ID: ${config.id}`,
+                    );
                     return {
                         config: config,
                         instances: [],
@@ -135,7 +140,7 @@ export function useApps(): {
                 currentConfigIds.has(app.config.id),
             );
 
-            debug(
+            console.debug(
                 `Updated apps state based on configs. New app count: ${filteredApps.length}`,
             );
             return filteredApps;
@@ -145,7 +150,7 @@ export function useApps(): {
     const updateApps = useCallback((stateInfo: AppStateInfo) => {
         setApps((currentApps) => {
             if (currentApps === undefined) {
-                error(
+                console.error(
                     `Received app update for ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId}) but current apps state is undefined.`,
                 );
                 return undefined;
@@ -156,7 +161,7 @@ export function useApps(): {
             );
 
             if (targetAppIndex === -1) {
-                error(
+                console.error(
                     `Received app update for unknown/removed configId: ${stateInfo.configId} (Instance: ${stateInfo.launchInstanceId})`,
                 );
                 return currentApps;
@@ -179,7 +184,7 @@ export function useApps(): {
             };
 
             if (instanceIndex === -1) {
-                debug(
+                console.debug(
                     `Adding new instance (Instance: ${stateInfo.launchInstanceId}, PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
                 );
                 targetApp.instances = [
@@ -187,7 +192,7 @@ export function useApps(): {
                     updatedInstanceState,
                 ];
             } else {
-                debug(
+                console.debug(
                     `Updating instance (Instance: ${stateInfo.launchInstanceId}, PID: ${stateInfo.pid}) for app ${stateInfo.configId}`,
                 );
                 const newInstances = [...currentInstances];
@@ -197,7 +202,7 @@ export function useApps(): {
 
             newApps[targetAppIndex] = targetApp;
 
-            debug(
+            console.debug(
                 `Updated apps state: ${JSON.stringify(newApps.map((a) => ({ id: a.config.id, instances: a.instances.map((i) => i.launchInstanceId) })))}`,
             );
             return newApps;

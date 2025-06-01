@@ -1,4 +1,3 @@
-import { error, info, debug } from '@/api/logging';
 import { AppTile } from '@/components/cards/AppTile';
 import { CreateAppDialog } from '@/components/dialogs/CreateAppDialog';
 import {
@@ -26,13 +25,13 @@ import { useEffect, useState } from 'react';
 import { toast, Toaster } from 'sonner';
 
 const handleLaunchApp = async (app: App) => {
-    info(`Attempting to launch app: ${app.config.name}`);
+    console.info(`Attempting to launch app: ${app.config.name}`);
     try {
         const appState = await launchApp(app.config);
         toast.success(`${app.config.name} launched successfully`, {
             description: `PID: ${appState.pid}`,
         });
-        info(
+        console.info(
             `App ${app.config.name} (ID: ${app.config.id}) launched with PID: ${appState.pid}, InstanceID: ${appState.launchInstanceId}`,
         );
     } catch (e) {
@@ -40,12 +39,14 @@ const handleLaunchApp = async (app: App) => {
         toast.error(`Failed to launch app: ${app.config.name}`, {
             description: errorMessage,
         });
-        error(`Failed to launch app ${app.config.name}: ${errorMessage}`);
+        console.error(
+            `Failed to launch app ${app.config.name}: ${errorMessage}`,
+        );
     }
 };
 
 const handleKillApp = async (launchInstanceId: LaunchInstanceId) => {
-    info(`Attempting to kill app instance: ${launchInstanceId}`);
+    console.info(`Attempting to kill app instance: ${launchInstanceId}`);
     try {
         await killApp(launchInstanceId);
         toast.info(`Kill signal sent to instance ${launchInstanceId}`, {
@@ -59,7 +60,7 @@ const handleKillApp = async (launchInstanceId: LaunchInstanceId) => {
                 description: errorMessage,
             },
         );
-        error(
+        console.error(
             `Failed to send kill signal to instance ${launchInstanceId}: ${errorMessage}`,
         );
     }
@@ -83,7 +84,9 @@ export const HomePage: React.FC = () => {
 
     useEffect(() => {
         if (launcherConfig) {
-            debug(`Launcher config loaded: ${JSON.stringify(launcherConfig)}`);
+            console.debug(
+                `Launcher config loaded: ${JSON.stringify(launcherConfig)}`,
+            );
         }
     }, [launcherConfig]);
 
@@ -96,7 +99,7 @@ export const HomePage: React.FC = () => {
 
     const handleRemoveApp = async (app: App) => {
         if (!configFilePath) {
-            error('Config file path is not available for removal.');
+            console.error('Config file path is not available for removal.');
             toast.error('Cannot remove app', {
                 description: 'Configuration file path is missing.',
             });
@@ -107,7 +110,7 @@ export const HomePage: React.FC = () => {
                 description:
                     'Application is currently running. Please kill it first.',
             });
-            error(
+            console.error(
                 `Attempted to remove config for running app: ${app.config.id}`,
             );
             return;
@@ -117,7 +120,7 @@ export const HomePage: React.FC = () => {
             toast.success(`${app.config.name} configuration removed`);
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : String(e);
-            error(`Failed to remove app config: ${errorMessage}`);
+            console.error(`Failed to remove app config: ${errorMessage}`);
             toast.error(`Failed to remove ${app.config.name}`, {
                 description: errorMessage,
             });
@@ -126,21 +129,25 @@ export const HomePage: React.FC = () => {
 
     const handleSaveAppConfig = async (config: AppConfig) => {
         if (!configFilePath) {
-            error('Cannot save app config: Config file path is not defined.');
+            console.error(
+                'Cannot save app config: Config file path is not defined.',
+            );
             toast.error('Cannot save app config: Config path unknown');
             return;
         }
-        info(`Attempting to save app config: ${config.name}`);
+        console.info(`Attempting to save app config: ${config.name}`);
         try {
             await upsertAppConfig(config, configFilePath);
             toast.success(`${config.name} saved successfully`);
-            debug(`App config saved: ${config.id}`);
+            console.debug(`App config saved: ${config.id}`);
             handleCreateAppDialogOnOpenChange(false);
             setEditingDialogState({ isOpen: false });
         } catch (err) {
             const errorMessage =
                 err instanceof Error ? err.message : String(err);
-            error(`Failed to save app config ${config.name}: ${errorMessage}`);
+            console.error(
+                `Failed to save app config ${config.name}: ${errorMessage}`,
+            );
             toast.error(`Failed to save ${config.name}`, {
                 description: errorMessage,
             });

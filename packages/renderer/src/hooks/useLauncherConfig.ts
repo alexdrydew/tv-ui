@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from 'react';
-import { debug } from '@/api/logging';
 import {
     getLauncherConfig,
     onLauncherConfigUpdate,
@@ -31,10 +30,10 @@ export function useLauncherConfig(): {
     }, [configFilePath]);
 
     useEffect(() => {
-        debug('Setting up launcher config update listener');
+        console.debug('Setting up launcher config update listener');
         const unsubscribe = onLauncherConfigUpdate(
             (updatedConfig: LauncherConfig) => {
-                debug(
+                console.debug(
                     `Received launcher config update via preload listener: ${JSON.stringify(updatedConfig)}`,
                 );
                 setConfig(updatedConfig);
@@ -42,7 +41,7 @@ export function useLauncherConfig(): {
         );
 
         return () => {
-            debug('Removing launcher config update listener');
+            console.debug('Removing launcher config update listener');
             unsubscribe();
         };
     }, []);
@@ -52,11 +51,13 @@ export function useLauncherConfig(): {
             return;
         }
 
-        debug(`Initiating launcher config file watcher for: ${configFilePath}`);
+        console.debug(
+            `Initiating launcher config file watcher for: ${configFilePath}`,
+        );
         const stopWatching = watchLauncherConfigFile(configFilePath);
 
         return () => {
-            debug(
+            console.debug(
                 `Stopping launcher config file watcher for: ${configFilePath}`,
             );
             stopWatching();

@@ -20,7 +20,7 @@ type TestFixtures = {
 
 const test = base.extend<TestFixtures>({
     initialApps: [[]],
-    initialLauncherConfig: [{ toggleAppKeyCode: 'HOME' }],
+    initialLauncherConfig: [{ toggleAppKeyCode: 115 }],
     configFilePath: [
         async ({ initialApps }, use) => {
             const tempConfigDir = join(tmpdir(), `tv-ui-test-${Date.now()}`);

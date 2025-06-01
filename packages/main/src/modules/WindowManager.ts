@@ -106,7 +106,7 @@ class WindowManager implements AppModule {
     async createWindow(): Promise<BrowserWindow> {
         const browserWindow = new BrowserWindow({
             show: false,
-            fullscreen: true, //!this.#isDev,
+            fullscreen: !this.#isDev,
             titleBarStyle: 'hidden',
             webPreferences: {
                 nodeIntegration: false,
