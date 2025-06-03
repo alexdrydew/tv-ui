@@ -169,7 +169,7 @@ export const HomePage: React.FC = () => {
     }
 
     return (
-        <div>
+        <div className="no-scrollbar">
             <TvAppLayout>
                 <FocusContext.Provider value={focusKey}>
                     <main ref={ref} className="py-8">
