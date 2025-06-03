@@ -42,6 +42,10 @@ Strict TypeScript usage throughout:
 - No `any` types or type assertions
 - Effect-TS integration for schema validation
 
+### 4. Responsive design
+
+Application should support different aspect ratios and handle window resizes
+
 ## Directory Structure
 
 ```
