@@ -81,8 +81,8 @@ export function AppGrid<T extends App>({
                     rowHeight={120}
                     margin={[16, 16]}
                     containerPadding={[0, 0]}
-                    isDraggable={true}
-                    isResizable={true}
+                    isDraggable={false}
+                    isResizable={false}
                     useCSSTransforms={true}
                     compactType="vertical"
                 >
